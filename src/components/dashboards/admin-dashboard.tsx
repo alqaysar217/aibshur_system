@@ -4,7 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
   TrendingUp, ShoppingBag, Truck, Users, 
   ArrowUpRight, ArrowDownRight, MoreHorizontal,
-  ChevronLeft
+  ChevronLeft,
+  CreditCard,
+  Store
 } from "lucide-react"
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
