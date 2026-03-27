@@ -1,7 +1,9 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, doc, GeoPoint } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, GeoPoint } from 'firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { firebaseApp } from '@/firebase/config';
 import type { Store, City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +15,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { mockCategories, mockAdminUser } from '@/lib/mock-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
+import Image from 'next/image';
 
 const StoreRowSkeleton = () => (
     <TableRow>
@@ -35,70 +47,124 @@ const StoreRowSkeleton = () => (
 export default function AdminStoresPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const storage = useMemo(() => firebaseApp ? getStorage(firebaseApp) : null, []);
   
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
   const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery);
   
   const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
   const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(citiesQuery);
 
+  useEffect(() => {
+    if (logoFile) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setLogoPreview(reader.result as string);
+        };
+        reader.readAsDataURL(logoFile);
+    } else {
+        setLogoPreview(null);
+    }
+  }, [logoFile]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+        setLogoFile(e.target.files[0]);
+    }
+  }
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!firestore) return;
+    if (!firestore || !storage) return;
     setIsSubmitting(true);
-    
-    const formData = new FormData(e.currentTarget);
-    const lat = parseFloat(formData.get('latitude') as string);
-    const lon = parseFloat(formData.get('longitude') as string);
-    const selectedCityDocId = formData.get('city_id') as string;
-    
-    const selectedCity = cities?.find(c => c.id === selectedCityDocId);
-    if (!selectedCity) {
-        toast({ variant: 'destructive', title: "خطأ", description: "الرجاء اختيار مدينة صحيحة." });
-        setIsSubmitting(false);
-        return;
-    }
+    setUploadProgress(0);
 
-    const newStoreData: Omit<Store, 'id' | 'storeId' | 'ownerUid' | 'storeOwnerUid'> = {
-      name_ar: formData.get('name_ar') as string,
-      logo_url: formData.get('logo_url') as string,
-      city_id: selectedCity.cityId, // Save the city's custom ID, not Firestore's doc ID
-      filter_ids: [formData.get('filter_id') as string],
-      location: new GeoPoint(lat, lon),
-      is_active: true,
-      is_open: true,
-      rating: 0,
-    };
-
-    // In a real app, ownerUid would come from the logged-in store owner
-    const ownerUid = mockAdminUser.uid;
+    let logoUrl = 'https://picsum.photos/seed/default-logo/200/200'; // Default logo
 
     try {
+        // Step 1: Upload image if selected
+        if (logoFile) {
+            const storageRef = ref(storage, `store-logos/${Date.now()}_${logoFile.name}`);
+            const uploadTask = uploadBytesResumable(storageRef, logoFile);
+
+            await new Promise<void>((resolve, reject) => {
+                uploadTask.on('state_changed',
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        setUploadProgress(progress);
+                    },
+                    (error) => {
+                        console.error("Upload failed:", error);
+                        reject(error);
+                    },
+                    async () => {
+                        logoUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                        resolve();
+                    }
+                );
+            });
+        }
+
+        // Step 2: Prepare Firestore document
+        const formData = new FormData(e.currentTarget);
+        const lat = parseFloat(formData.get('latitude') as string);
+        const lon = parseFloat(formData.get('longitude') as string);
+        const selectedCityDocId = formData.get('city_id') as string;
+        
+        const selectedCity = cities?.find(c => c.id === selectedCityDocId);
+        if (!selectedCity) {
+            throw new Error("الرجاء اختيار مدينة صحيحة.");
+        }
+
+        const newStoreData: Omit<Store, 'id' | 'storeId' | 'ownerUid' | 'storeOwnerUid'> = {
+            name_ar: formData.get('name_ar') as string,
+            logo_url: logoUrl,
+            city_id: selectedCity.cityId, // Save the city's custom ID
+            filter_ids: [formData.get('filter_id') as string],
+            location: new GeoPoint(lat, lon),
+            rating: parseFloat(formData.get('rating') as string) || 0,
+            preparation_time: formData.get('preparation_time') as string,
+            working_hours: {
+                "default": {
+                    open: formData.get('working_hours_open') as string,
+                    close: formData.get('working_hours_close') as string,
+                    is_closed: false,
+                }
+            },
+            is_active: true,
+            is_open: true,
+        };
+
+        const ownerUid = mockAdminUser.uid; // Using mock user as per instructions
+
+        // Step 3: Add to Firestore
         const storeRef = collection(firestore, 'stores');
         const newDoc = await addDoc(storeRef, {
             ...newStoreData,
-            storeId: '', // Will be updated with doc ID
+            storeId: '', // placeholder
             ownerUid,
             storeOwnerUid: ownerUid // Denormalized for security rules
         });
 
-        // Now update the document with its own ID
-        await doc(storeRef, newDoc.id).update({ storeId: newDoc.id });
-
+        // Step 4: Update with its own ID
+        await updateDoc(doc(storeRef, newDoc.id), { storeId: newDoc.id });
 
         toast({ title: "تمت إضافة المتجر بنجاح!" });
-        setShowAddForm(false);
-        e.currentTarget.reset();
+        setIsDialogOpen(false);
+        setLogoFile(null);
 
     } catch (error) {
         console.error("Error adding store: ", error);
-        toast({ variant: 'destructive', title: "حدث خطأ", description: "لم يتم حفظ المتجر." });
+        toast({ variant: 'destructive', title: "حدث خطأ", description: (error as Error).message || "لم يتم حفظ المتجر." });
     } finally {
         setIsSubmitting(false);
+        setUploadProgress(0);
     }
   };
 
@@ -125,76 +191,12 @@ export default function AdminStoresPage() {
           <h1 className="text-2xl font-black text-gray-900">إدارة المتاجر</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">إضافة وتعديل بيانات المتاجر المسجلة في النظام.</p>
         </div>
-        <Button onClick={() => setShowAddForm(!showAddForm)} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
+        <Button onClick={() => setIsDialogOpen(true)} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
           <PlusCircle className="w-4 h-4" />
-          {showAddForm ? 'إلغاء الإضافة' : 'إضافة متجر جديد'}
+          إضافة متجر جديد
         </Button>
       </div>
-
-      {showAddForm && (
-        <Card className="border-none shadow-sm rounded-[20px] bg-white overflow-hidden animate-in fade-in-50">
-            <CardHeader>
-                <CardTitle>نموذج إضافة متجر جديد</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handleFormSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <Label htmlFor="name_ar">اسم المتجر</Label>
-                            <Input id="name_ar" name="name_ar" required className="rounded-lg"/>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="logo_url">رابط شعار المتجر (Logo URL)</Label>
-                            <Input id="logo_url" name="logo_url" type="url" required className="rounded-lg" dir="ltr" placeholder="https://example.com/logo.png"/>
-                        </div>
-                         <div className="space-y-2">
-                            <Label htmlFor="city_id">المدينة</Label>
-                            <Select name="city_id" dir="rtl" required>
-                                <SelectTrigger className="rounded-lg font-bold">
-                                    <SelectValue placeholder="اختر المدينة" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-lg">
-                                    {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
-                                    : cities?.map(city => (
-                                    <SelectItem key={city.id} value={city.id!}>{city.name_ar}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="filter_id">نوع المتجر (الفئة)</Label>
-                            <Select name="filter_id" dir="rtl" required>
-                                <SelectTrigger className="rounded-lg font-bold">
-                                    <SelectValue placeholder="اختر الفئة" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-lg">
-                                    {mockCategories.map(cat => (
-                                    <SelectItem key={cat.filterId} value={cat.filterId}>{cat.name_ar}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="latitude">خط العرض (Latitude)</Label>
-                            <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg" dir="ltr"/>
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="longitude">خط الطول (Longitude)</Label>
-                            <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg" dir="ltr"/>
-                        </div>
-                    </div>
-                     <div className="flex justify-end gap-4 pt-4">
-                        <Button type="button" variant="secondary" onClick={() => setShowAddForm(false)} className="rounded-lg font-bold">إلغاء</Button>
-                        <Button type="submit" disabled={isSubmitting || citiesLoading} className="rounded-lg font-black">
-                            {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin"/>}
-                            حفظ المتجر
-                        </Button>
-                    </div>
-                </form>
-            </CardContent>
-        </Card>
-      )}
-
+      
       <Card className="border-none shadow-sm rounded-[20px] bg-white overflow-hidden">
          <CardHeader className="p-6 border-b border-gray-50 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-black flex items-center gap-2">
@@ -217,8 +219,8 @@ export default function AdminStoresPage() {
               ) : stores && stores.length > 0 ? (
                 stores.map((store) => (
                   <TableRow key={store.id} className="hover:bg-gray-50/50">
-                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-700 flex items-center gap-2">
-                        <img src={store.logo_url} alt={store.name_ar} className="w-8 h-8 rounded-md object-cover"/>
+                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-700 flex items-center gap-4">
+                        <Image src={store.logo_url} alt={store.name_ar} width={40} height={40} className="w-10 h-10 rounded-md object-cover bg-gray-100"/>
                         {store.name_ar}
                     </TableCell>
                     <TableCell className="px-6 py-4 font-bold text-xs text-gray-400">{getCityName(store.city_id)}</TableCell>
@@ -252,6 +254,117 @@ export default function AdminStoresPage() {
         </CardContent>
       </Card>
 
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-2xl rounded-lg">
+           <form onSubmit={handleFormSubmit}>
+            <DialogHeader className="text-right">
+                <DialogTitle className="font-black text-gray-900">إضافة متجر احترافي جديد</DialogTitle>
+                <DialogDescription className="font-bold text-gray-400">املأ كافة التفاصيل لمتجرك الجديد.</DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 py-4 text-right max-h-[70vh] overflow-y-auto pr-2 pl-4">
+                
+                {/* Basic Info */}
+                <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="name_ar" className="font-bold text-gray-700">اسم المتجر</Label>
+                    <Input id="name_ar" name="name_ar" required className="rounded-lg" />
+                </div>
+                
+                {/* Logo Upload */}
+                <div className="md:col-span-2 space-y-2">
+                    <Label htmlFor="logo_file" className="font-bold text-gray-700">شعار المتجر (Logo)</Label>
+                    <div className="flex items-center gap-4">
+                        <div className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                            {logoPreview ? 
+                                <Image src={logoPreview} alt="preview" width={96} height={96} className="w-full h-full object-contain rounded-md"/> : 
+                                <Upload className="w-8 h-8 text-gray-400" />
+                            }
+                        </div>
+                        <Input id="logo_file" name="logo_file" type="file" onChange={handleFileChange} accept="image/*" className="rounded-lg file:font-black file:rounded-lg file:border-none file:bg-gray-100 file:text-primary"/>
+                    </div>
+                     {isSubmitting && uploadProgress > 0 && (
+                        <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                            <div className="bg-primary h-2.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
+                        </div>
+                    )}
+                </div>
+
+                {/* City and Type */}
+                <div className="space-y-2">
+                    <Label htmlFor="city_id" className="font-bold text-gray-700">المحافظة</Label>
+                    <Select name="city_id" dir="rtl" required>
+                        <SelectTrigger className="rounded-lg font-bold">
+                            <SelectValue placeholder="اختر المحافظة" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-lg">
+                            {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
+                            : cities?.map(city => (
+                            <SelectItem key={city.id} value={city.id!}>{city.name_ar}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="filter_id" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
+                    <Select name="filter_id" dir="rtl" required>
+                        <SelectTrigger className="rounded-lg font-bold">
+                            <SelectValue placeholder="اختر الفئة" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-lg">
+                            {mockCategories.map(cat => (
+                            <SelectItem key={cat.filterId} value={cat.filterId}>{cat.name_ar}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                
+                {/* Rating and Prep Time */}
+                 <div className="space-y-2">
+                    <Label htmlFor="rating" className="font-bold text-gray-700">التقييم الأولي (من 5)</Label>
+                    <Input id="rating" name="rating" type="number" step="0.1" min="0" max="5" required className="rounded-lg" dir="ltr" defaultValue="4.5"/>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="preparation_time" className="font-bold text-gray-700">وقت تجهيز الطلب</Label>
+                    <Input id="preparation_time" name="preparation_time" required className="rounded-lg" placeholder="مثال: 20-30 دقيقة"/>
+                </div>
+                
+                {/* Working Hours */}
+                <div className="space-y-2">
+                    <Label htmlFor="working_hours_open" className="font-bold text-gray-700">وقت الفتح</Label>
+                    <Input id="working_hours_open" name="working_hours_open" type="time" required className="rounded-lg" dir="ltr" defaultValue="09:00"/>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="working_hours_close" className="font-bold text-gray-700">وقت الإغلاق</Label>
+                    <Input id="working_hours_close" name="working_hours_close" type="time" required className="rounded-lg" dir="ltr" defaultValue="23:00"/>
+                </div>
+
+                {/* Map/Coordinates */}
+                <div className="md:col-span-2 space-y-2 p-4 border-2 border-dashed rounded-lg bg-gray-50/50">
+                    <Label className="font-black text-gray-700">موقع المتجر على الخريطة</Label>
+                    <p className="text-xs text-amber-600 font-bold bg-amber-50 p-2 rounded-md">ملاحظة: سيتم استبدال الحقول التالية بخريطة تفاعلية في المرحلة القادمة بعد تثبيت مكتبة الخرائط.</p>
+                    <div className="grid grid-cols-2 gap-4 pt-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="latitude">خط العرض (Latitude)</Label>
+                            <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 15.3694"/>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="longitude">خط الطول (Longitude)</Label>
+                            <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 44.1910"/>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <DialogFooter className="flex-row-reverse pt-4 border-t">
+                <Button type="submit" disabled={isSubmitting || citiesLoading} className="rounded-lg font-black w-32">
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : 'حفظ المتجر'}
+                </Button>
+                 <DialogClose asChild>
+                    <Button type="button" variant="secondary" className="rounded-lg font-bold">إلغاء</Button>
+                </DialogClose>
+            </DialogFooter>
+           </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

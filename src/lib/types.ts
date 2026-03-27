@@ -75,7 +75,8 @@ export interface Store {
   filter_ids: string[]; // ref to CategoryFilter
   location: GeoPoint;
   address_text?: string;
-  working_hours?: Record<string, { open: string, close: string, is_closed: boolean }>; // e.g. { "sunday": { open: "09:00", close: "22:00", is_closed: false } }
+  working_hours?: Record<string, { open: string, close: string, is_closed: boolean }>; // e.g. { "default": { open: "09:00", close: "22:00", is_closed: false } }
+  preparation_time?: string;
   is_open: boolean; // Manual override
   is_active: boolean; // Admin approval
   rating?: number;

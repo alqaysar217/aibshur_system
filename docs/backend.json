@@ -85,6 +85,7 @@
         "location": { "$ref": "#/entities/GeoPoint" },
         "address_text": { "type": "string" },
         "working_hours": { "type": "object" },
+        "preparation_time": { "type": "string", "description": "Estimated time to prepare an order, e.g., '20-30 minutes'."},
         "is_open": { "type": "boolean" },
         "is_active": { "type": "boolean" },
         "rating": { "type": "number" },
