@@ -40,10 +40,10 @@ export default function AdminStoresPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
-  const { data: stores, loading: storesLoading } = useCollection<Store>(storesQuery);
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery);
   
   const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
-  const { data: cities, loading: citiesLoading } = useCollection<City>(citiesQuery);
+  const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(citiesQuery);
 
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -98,6 +98,10 @@ export default function AdminStoresPage() {
     return cities?.find(c => c.id === cityId)?.name_ar || 'غير محدد';
   }
 
+  const combinedError = storesError || citiesError;
+  if (combinedError && combinedError.message.includes('database (default) does not exist')) {
+    return <SetupFirestoreMessage />;
+  }
   if (!firestore) {
     return <SetupFirestoreMessage />;
   }
@@ -239,3 +243,5 @@ export default function AdminStoresPage() {
     </div>
   );
 }
+
+    

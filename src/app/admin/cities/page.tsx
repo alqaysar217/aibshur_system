@@ -53,7 +53,7 @@ export default function AdminCitiesPage() {
   const firestore = useFirestore();
 
   const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
-  const { data: cities, loading: citiesLoading } = useCollection<City>(citiesQuery);
+  const { data: cities, loading: citiesLoading, error } = useCollection<City>(citiesQuery);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,6 +138,10 @@ export default function AdminCitiesPage() {
     }
   }
 
+
+  if (error && error.message.includes('database (default) does not exist')) {
+    return <SetupFirestoreMessage />;
+  }
 
   if (!firestore) {
     return <SetupFirestoreMessage />;

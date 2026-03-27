@@ -49,6 +49,7 @@ const RECENT_ORDERS = [
 
 export default function AdminDashboard() {
   const firestore = useFirestore();
+  const [firestoreError, setFirestoreError] = useState<Error | null>(null);
   const [stats, setStats] = useState([
     { label: "إجمالي المتاجر", value: "...", icon: Store, trend: "", up: true, color: "text-sky-600", bg: "bg-sky-50" },
     { label: "إجمالي المدن", value: "...", icon: Building2, trend: "", up: true, color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
@@ -77,14 +78,20 @@ export default function AdminDashboard() {
           if (stat.label === "إجمالي المدن") return { ...stat, value: citiesCount.toString() };
           return stat;
         }));
+        setFirestoreError(null); // Clear error on success
 
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
+        setFirestoreError(error as Error);
       }
     };
 
     fetchStats();
   }, [firestore]);
+
+  if (firestoreError && firestoreError.message.includes('database (default) does not exist')) {
+    return <SetupFirestoreMessage />;
+  }
 
   if (!firestore) {
     return <SetupFirestoreMessage />;
