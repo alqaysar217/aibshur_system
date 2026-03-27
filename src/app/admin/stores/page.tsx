@@ -156,32 +156,50 @@ export default function AdminStoresPage() {
     setIsSubmitting(true);
     setUploadProgress(0);
 
-    try {
-        let logoUrl = 'https://picsum.photos/seed/default-logo/200/200'; // Default logo
+    let logoUrl = 'https://picsum.photos/seed/default-logo/200/200'; // Default logo
 
+    try {
+        // --- 1. Handle Image Upload ---
         if (logoFile) {
-            logoUrl = await new Promise<string>((resolve, reject) => {
-                const storageRef = ref(storage, `store-logos/${Date.now()}_${logoFile.name}`);
-                const uploadTask = uploadBytesResumable(storageRef, logoFile);
-                
-                uploadTask.on('state_changed',
-                    (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                    (error) => reject(new Error(`فشل رفع الصورة: ${error.message}`)),
-                    async () => {
-                        try {
-                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                            resolve(downloadURL);
-                        } catch (error) {
-                            reject(new Error(`فشل الحصول على رابط الصورة: ${(error as Error).message}`));
+            try {
+                logoUrl = await new Promise<string>((resolve, reject) => {
+                    const storageRef = ref(storage, `store-logos/${Date.now()}_${logoFile.name}`);
+                    const uploadTask = uploadBytesResumable(storageRef, logoFile);
+                    
+                    uploadTask.on('state_changed',
+                        (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                        (error) => reject(new Error(`فشل رفع الصورة: ${error.message}`)),
+                        async () => {
+                            try {
+                                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                                resolve(downloadURL);
+                            } catch (error) {
+                                reject(new Error(`فشل الحصول على رابط الصورة: ${(error as Error).message}`));
+                            }
                         }
-                    }
-                );
-            });
+                    );
+                });
+            } catch (uploadError) {
+                console.error("Image upload failed, using default.", uploadError);
+                toast({
+                    variant: 'destructive',
+                    title: "فشل رفع الصورة",
+                    description: "سيتم استخدام صورة افتراضية للمتجر. يمكنك تعديلها لاحقاً."
+                });
+            }
         }
         
+        // --- 2. Prepare Firestore Data ---
         const formData = new FormData(e.currentTarget);
-        const lat = parseFloat(formData.get('latitude') as string);
-        const lon = parseFloat(formData.get('longitude') as string);
+        const latString = formData.get('latitude') as string;
+        const lonString = formData.get('longitude') as string;
+
+        if (!latString || !lonString) {
+            throw new Error("الرجاء إدخال إحداثيات الموقع (خط العرض وخط الطول).");
+        }
+
+        const lat = parseFloat(latString);
+        const lon = parseFloat(lonString);
         const selectedCityDocId = formData.get('city_id') as string;
         
         const selectedCity = cities?.find(c => c.id === selectedCityDocId);
@@ -190,7 +208,7 @@ export default function AdminStoresPage() {
 
         const ownerUid = mockAdminUser.uid;
 
-        const newStoreData: Omit<Store, 'id' | 'storeId' | 'ownerUid' | 'storeOwnerUid'> & { ownerUid: string; storeOwnerUid: string } = {
+        const storeData: Omit<Store, 'id' | 'storeId' | 'ownerUid' | 'storeOwnerUid'> & { ownerUid: string; storeOwnerUid: string } = {
             name_ar: formData.get('name_ar') as string,
             logo_url: logoUrl,
             city_id: selectedCity.cityId,
@@ -204,16 +222,26 @@ export default function AdminStoresPage() {
             ownerUid: ownerUid,
             storeOwnerUid: ownerUid,
         };
+        
+        // --- 3. Save to Firestore ---
+        const storesCollection = collection(firestore, 'stores');
+        const newDocRef = doc(storesCollection); // Create a reference with a new ID
 
-        const storeRef = collection(firestore, 'stores');
-        const newDoc = await addDoc(storeRef, newStoreData);
+        // Create the new store object with the generated ID
+        const newStoreData: Store = {
+            ...storeData,
+            storeId: newDocRef.id
+        };
 
-        await updateDoc(doc(storeRef, newDoc.id), { storeId: newDoc.id });
+        await updateDoc(newDocRef, newStoreData);
 
         toast({ title: "تمت إضافة المتجر بنجاح!" });
         setIsDialogOpen(false);
         setLogoFile(null);
+        setLogoPreview(null);
         setSchedule(initialSchedule);
+        (e.target as HTMLFormElement).reset();
+
 
     } catch (error) {
         console.error("Error adding store: ", error);
@@ -223,6 +251,7 @@ export default function AdminStoresPage() {
         setUploadProgress(0);
     }
   };
+
 
   const handleDelete = async (storeId: string) => {
     toast({ variant: 'destructive', title: "الحذف معطل", description: "تم تعطيل هذه الميزة مؤقتاً." });
