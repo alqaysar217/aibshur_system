@@ -1,7 +1,7 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import type { City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Building2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Building2, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -40,6 +40,14 @@ const CityRowSkeleton = () => (
     </TableRow>
 )
 
+const initialCities: Omit<City, 'id'>[] = [
+    { cityId: 'mukalla', name_ar: 'المكلا', name_en: 'Al Mukalla', country_code: 'YE', is_active: true, support_number: '777000001' },
+    { cityId: 'aden', name_ar: 'عدن', name_en: 'Aden', country_code: 'YE', is_active: true, support_number: '777000002' },
+    { cityId: 'sanaa', name_ar: 'صنعاء', name_en: 'Sana\'a', country_code: 'YE', is_active: true, support_number: '777000003' },
+    { cityId: 'taiz', name_ar: 'تعز', name_en: 'Taiz', country_code: 'YE', is_active: true, support_number: '777000004' },
+    { cityId: 'sayun', name_ar: 'سيئون', name_en: 'Say\'un', country_code: 'YE', is_active: true, support_number: '777000005' },
+];
+
 export default function AdminCitiesPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -49,6 +57,7 @@ export default function AdminCitiesPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [currentCity, setCurrentCity] = useState<Partial<City> | null>(null);
 
   const handleOpenDialog = (city: Partial<City> | null = null) => {
@@ -62,9 +71,14 @@ export default function AdminCitiesPage() {
 
     setIsSubmitting(true);
     const formData = new FormData(e.currentTarget);
-    const cityData = {
+    
+    const nameEn = formData.get('name_en') as string;
+    const cityId = currentCity?.cityId || nameEn.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/--+/g, '-');
+
+    const cityData: Omit<City, 'id'| 'docId'> = {
+      cityId: cityId,
       name_ar: formData.get('name_ar') as string,
-      name_en: formData.get('name_en') as string,
+      name_en: nameEn,
       country_code: formData.get('country_code') as string,
       support_number: formData.get('support_number') as string,
       is_active: formData.get('is_active') === 'on',
@@ -72,14 +86,11 @@ export default function AdminCitiesPage() {
 
     try {
       if (currentCity?.id) {
-        // Update existing city
         const cityDocRef = doc(firestore, 'cities', currentCity.id);
         await updateDoc(cityDocRef, cityData);
         toast({ title: "تم التحديث بنجاح", description: `تم تحديث بيانات مدينة ${cityData.name_ar}.` });
       } else {
-        // Add new city
-        const cityId = cityData.name_en.toLowerCase().replace(/\s/g, '-');
-        await addDoc(collection(firestore, 'cities'), {...cityData, cityId: cityId });
+        await addDoc(collection(firestore, 'cities'), cityData);
         toast({ title: "تمت الإضافة بنجاح", description: `تمت إضافة مدينة ${cityData.name_ar} إلى النظام.` });
       }
       setDialogOpen(false);
@@ -92,11 +103,11 @@ export default function AdminCitiesPage() {
     }
   };
 
-  const handleDelete = async (cityId: string) => {
+  const handleDelete = async (cityDocId: string) => {
     if (!firestore) return;
     if (confirm('هل أنت متأكد من رغبتك في حذف هذه المدينة؟ لا يمكن التراجع عن هذا الإجراء.')) {
         try {
-            await deleteDoc(doc(firestore, 'cities', cityId));
+            await deleteDoc(doc(firestore, 'cities', cityDocId));
             toast({ title: "تم الحذف", description: "تم حذف المدينة بنجاح." });
         } catch (error) {
             console.error("Error deleting city: ", error);
@@ -104,6 +115,29 @@ export default function AdminCitiesPage() {
         }
     }
   }
+
+  const handleSeedCities = async () => {
+    if (!firestore) return;
+    setIsSeeding(true);
+    try {
+        const batch = writeBatch(firestore);
+        const citiesCol = collection(firestore, 'cities');
+
+        initialCities.forEach(cityData => {
+            const docRef = doc(citiesCol);
+            batch.set(docRef, cityData);
+        });
+
+        await batch.commit();
+        toast({ title: "نجاح", description: "تمت إضافة المدن الأساسية إلى قاعدة البيانات." });
+    } catch (error) {
+        console.error("Error seeding cities:", error);
+        toast({ variant: 'destructive', title: "خطأ", description: "فشلت عملية إضافة المدن." });
+    } finally {
+        setIsSeeding(false);
+    }
+  }
+
 
   if (!firestore) {
     return <SetupFirestoreMessage />;
@@ -116,10 +150,18 @@ export default function AdminCitiesPage() {
           <h1 className="text-2xl font-black text-gray-900">إدارة المدن والمحافظات</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">إضافة وتعديل وحذف المدن التي يغطيها تطبيق أبشر.</p>
         </div>
-        <Button onClick={() => handleOpenDialog({})} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
-          <PlusCircle className="w-4 h-4" />
-          إضافة مدينة جديدة
-        </Button>
+        <div className="flex gap-2">
+            {!citiesLoading && cities?.length === 0 && (
+                <Button onClick={handleSeedCities} disabled={isSeeding} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20 bg-emerald-500 hover:bg-emerald-600">
+                    {isSeeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
+                    إضافة المدن الأساسية (للمرة الأولى)
+                </Button>
+            )}
+            <Button onClick={() => handleOpenDialog({is_active: true})} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
+            <PlusCircle className="w-4 h-4" />
+            إضافة مدينة جديدة
+            </Button>
+        </div>
       </div>
 
       <Card className="border-none shadow-sm rounded-[20px] bg-white overflow-hidden">
@@ -137,7 +179,7 @@ export default function AdminCitiesPage() {
                 <TableHead className="px-6 py-4">رقم الدعم</TableHead>
                 <TableHead className="px-6 py-4">رمز الدولة</TableHead>
                 <TableHead className="px-6 py-4">الحالة</TableHead>
-                <TableHead className="px-6 py-4">إجراءات</TableHead>
+                <TableHead className="px-6 py-4 text-center">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-50">
@@ -157,7 +199,7 @@ export default function AdminCitiesPage() {
                         {city.is_active ? 'نشطة' : 'غير نشطة'}
                     </Badge>
                   </TableCell>
-                  <TableCell className="px-6 py-4 flex gap-2">
+                  <TableCell className="px-6 py-4 flex justify-center gap-2">
                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenDialog(city)}>
                       <Edit className="w-4 h-4 text-gray-400" />
                     </Button>
@@ -170,7 +212,7 @@ export default function AdminCitiesPage() {
                {!citiesLoading && cities?.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6} className="h-48 text-center text-gray-400 font-bold">
-                    <p>لا توجد مدن معرفة بعد. قم بإضافة مدينتك الأولى.</p>
+                    <p>لا توجد مدن معرفة بعد. قم بإضافة المدن الأساسية أو أضف مدينة جديدة.</p>
                   </TableCell>
                 </TableRow>
               )}
@@ -223,3 +265,5 @@ export default function AdminCitiesPage() {
     </div>
   );
 }
+
+    
