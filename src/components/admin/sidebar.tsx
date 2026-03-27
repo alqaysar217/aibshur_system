@@ -9,6 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Button } from '../ui/button';
+import { useAuth } from '@/firebase'; // Using firebase hook
 
 const mainNav = [
   { name: 'لوحة التحكم', href: '/admin', icon: LayoutDashboard },
@@ -64,10 +65,17 @@ const settingsNav = [
 
 export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) {
   const pathname = usePathname();
+  const auth = useAuth(); // Using firebase hook
 
   const handleLinkClick = () => {
     if(isMobileOpen) {
       setIsMobileOpen(false);
+    }
+  }
+
+  const handleLogout = () => {
+    if (auth) {
+      auth.signOut();
     }
   }
 
@@ -113,11 +121,8 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
       isMobileOpen ? 'translate-x-0' : 'translate-x-full'
     )}>
       <div className="flex flex-col h-full">
-        <div className={cn("flex items-center gap-2 p-4 border-b border-gray-100", isCollapsed ? "justify-center" : "justify-between")}>
+        <div className={cn("flex items-center gap-2 p-4 border-b border-gray-100 h-16", isCollapsed ? "justify-center" : "justify-between")}>
           {!isCollapsed && <h1 className="text-xl font-black text-primary">أبشر | لوحة التحكم</h1>}
-          <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={() => setIsCollapsed(!isCollapsed)}>
-            <ChevronsRight className={cn("w-5 h-5 text-gray-400 transition-transform", isCollapsed && "rotate-180")} />
-          </Button>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
@@ -168,7 +173,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
         </nav>
 
         <div className="p-4 border-t border-gray-100">
-           <Button variant="ghost" className="w-full justify-start font-black text-red-500 hover:bg-red-50 hover:text-red-600">
+           <Button onClick={handleLogout} variant="ghost" className="w-full justify-start font-black text-red-500 hover:bg-red-50 hover:text-red-600">
              <LogOut className={cn("w-5 h-5", !isCollapsed && 'ml-2')} />
              {!isCollapsed && <span>تسجيل الخروج</span>}
            </Button>

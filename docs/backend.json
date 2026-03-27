@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "City": {
@@ -9,9 +10,10 @@
         "name_ar": { "type": "string", "description": "Arabic name of the city." },
         "name_en": { "type": "string", "description": "English name of the city." },
         "country_code": { "type": "string", "description": "Country code (e.g., 'YE')." },
-        "is_active": { "type": "boolean", "description": "Whether the service is active in this city." }
+        "is_active": { "type": "boolean", "description": "Whether the service is active in this city." },
+        "support_number": { "type": "string", "description": "Customer support number for the city." }
       },
-      "required": ["cityId", "name_ar", "country_code", "is_active"]
+      "required": ["cityId", "name_ar", "country_code", "is_active", "support_number"]
     },
     "User": {
       "title": "User",

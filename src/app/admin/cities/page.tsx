@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
-import { mockCities } from '@/lib/mock-data';
+import { useState, useMemo, useEffect } from 'react';
+import { useCollection, useFirestore } from '@/firebase';
+import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import type { City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,10 +29,23 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const CityRowSkeleton = () => (
+    <TableRow>
+        <TableCell colSpan={6} className="p-0">
+            <Skeleton className="w-full h-[60px]"/>
+        </TableCell>
+    </TableRow>
+)
 
 export default function AdminCitiesPage() {
   const { toast } = useToast();
-  const [cities, setCities] = useState<City[]>(mockCities);
+  const firestore = useFirestore();
+
+  const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
+  const { data: cities, loading: citiesLoading } = useCollection<City>(citiesQuery);
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentCity, setCurrentCity] = useState<Partial<City> | null>(null);
@@ -43,11 +57,51 @@ export default function AdminCitiesPage() {
   
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    toast({ variant: 'destructive', title: "التعديل معطل", description: "تم تعطيل هذه الميزة مؤقتاً." });
+    if (!firestore) return;
+
+    setIsSubmitting(true);
+    const formData = new FormData(e.currentTarget);
+    const cityData = {
+      name_ar: formData.get('name_ar') as string,
+      name_en: formData.get('name_en') as string,
+      country_code: formData.get('country_code') as string,
+      support_number: formData.get('support_number') as string,
+      is_active: formData.get('is_active') === 'on',
+    };
+
+    try {
+      if (currentCity?.id) {
+        // Update existing city
+        const cityDocRef = doc(firestore, 'cities', currentCity.id);
+        await updateDoc(cityDocRef, cityData);
+        toast({ title: "تم التحديث بنجاح", description: `تم تحديث بيانات مدينة ${cityData.name_ar}.` });
+      } else {
+        // Add new city
+        const cityId = cityData.name_en.toLowerCase().replace(/\s/g, '-');
+        await addDoc(collection(firestore, 'cities'), {...cityData, cityId: cityId });
+        toast({ title: "تمت الإضافة بنجاح", description: `تمت إضافة مدينة ${cityData.name_ar} إلى النظام.` });
+      }
+      setDialogOpen(false);
+      setCurrentCity(null);
+    } catch (error) {
+      console.error("Error saving city: ", error);
+      toast({ variant: 'destructive', title: "حدث خطأ", description: "لم يتم حفظ البيانات، يرجى المحاولة مرة أخرى." });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = async (cityId: string) => {
-    toast({ variant: 'destructive', title: "الحذف معطل", description: "تم تعطيل هذه الميزة مؤقتاً." });
+    if (!firestore) return;
+    if (confirm('هل أنت متأكد من رغبتك في حذف هذه المدينة؟ لا يمكن التراجع عن هذا الإجراء.')) {
+        try {
+            await deleteDoc(doc(firestore, 'cities', cityId));
+            toast({ title: "تم الحذف", description: "تم حذف المدينة بنجاح." });
+        } catch (error) {
+            console.error("Error deleting city: ", error);
+            toast({ variant: 'destructive', title: "خطأ في الحذف", description: "لم يتم حذف المدينة." });
+        }
+    }
   }
 
   return (
@@ -75,16 +129,20 @@ export default function AdminCitiesPage() {
               <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
                 <TableHead className="px-6 py-4 text-right">الاسم (العربية)</TableHead>
                 <TableHead className="px-6 py-4">الاسم (الإنجليزية)</TableHead>
+                <TableHead className="px-6 py-4">رقم الدعم</TableHead>
                 <TableHead className="px-6 py-4">رمز الدولة</TableHead>
                 <TableHead className="px-6 py-4">الحالة</TableHead>
                 <TableHead className="px-6 py-4">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-50">
-              {cities.map((city) => (
-                <TableRow key={city.cityId} className="hover:bg-gray-50/50">
+              {citiesLoading ? (
+                Array.from({length: 4}).map((_, i) => <CityRowSkeleton key={i}/>)
+              ) : cities && cities.map((city) => (
+                <TableRow key={city.id} className="hover:bg-gray-50/50">
                   <TableCell className="px-6 py-4 font-bold text-xs text-gray-700">{city.name_ar}</TableCell>
                   <TableCell className="px-6 py-4 font-bold text-xs text-gray-400">{city.name_en}</TableCell>
+                  <TableCell className="px-6 py-4 font-bold text-xs text-gray-700" dir="ltr">{city.support_number}</TableCell>
                   <TableCell className="px-6 py-4 font-bold text-xs text-gray-700">{city.country_code}</TableCell>
                   <TableCell className="px-6 py-4">
                     <Badge className={cn(
@@ -98,16 +156,16 @@ export default function AdminCitiesPage() {
                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenDialog(city)}>
                       <Edit className="w-4 h-4 text-gray-400" />
                     </Button>
-                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleDelete(city.cityId)}>
+                     <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleDelete(city.id!)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
-               {cities.length === 0 && (
+               {!citiesLoading && cities?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-48 text-center text-gray-400 font-bold">
-                    <p>لا توجد مدن معرفة بعد.</p>
+                  <TableCell colSpan={6} className="h-48 text-center text-gray-400 font-bold">
+                    <p>لا توجد مدن معرفة بعد. قم بإضافة مدينتك الأولى.</p>
                   </TableCell>
                 </TableRow>
               )}
@@ -120,7 +178,7 @@ export default function AdminCitiesPage() {
         <DialogContent className="sm:max-w-[425px] rounded-lg">
            <form onSubmit={handleFormSubmit}>
             <DialogHeader className="text-right">
-                <DialogTitle className="font-black text-gray-900">{currentCity?.cityId ? 'تعديل مدينة' : 'إضافة مدينة جديدة'}</DialogTitle>
+                <DialogTitle className="font-black text-gray-900">{currentCity?.id ? 'تعديل مدينة' : 'إضافة مدينة جديدة'}</DialogTitle>
                 <DialogDescription className="font-bold text-gray-400">املأ التفاصيل أدناه.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4 text-right">
@@ -133,18 +191,22 @@ export default function AdminCitiesPage() {
                     <Input id="name_en" name="name_en" dir='ltr' defaultValue={currentCity?.name_en || ''} required className="rounded-lg" />
                 </div>
                  <div className="space-y-2">
+                    <Label htmlFor="support_number" className="font-bold text-gray-700">رقم خدمة العملاء</Label>
+                    <Input id="support_number" name="support_number" dir='ltr' defaultValue={currentCity?.support_number || ''} required className="rounded-lg" />
+                </div>
+                 <div className="space-y-2">
                     <Label htmlFor="country_code" className="font-bold text-gray-700">رمز الدولة</Label>
                     <Input id="country_code" name="country_code" dir='ltr' defaultValue={currentCity?.country_code || 'YE'} required className="rounded-lg" />
                 </div>
-                <div className="flex items-center justify-end gap-2 pt-2">
-                    <Label htmlFor="is_active" className="font-bold text-gray-700">فعالة</Label>
+                <div className="flex items-center justify-end gap-4 pt-2">
+                    <Label htmlFor="is_active" className="font-bold text-gray-700">المدينة فعالة</Label>
                     <Switch id="is_active" name="is_active" defaultChecked={currentCity?.is_active ?? true} />
                 </div>
             </div>
             <DialogFooter className="flex-row-reverse">
                 <Button type="submit" disabled={isSubmitting} className="rounded-lg font-black">
                     {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin"/>}
-                    {currentCity?.cityId ? 'حفظ التغييرات' : 'إضافة'}
+                    {currentCity?.id ? 'حفظ التغييرات' : 'إضافة'}
                 </Button>
                  <DialogClose asChild>
                     <Button type="button" variant="secondary" className="rounded-lg font-bold">إلغاء</Button>

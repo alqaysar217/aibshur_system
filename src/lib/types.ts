@@ -15,11 +15,13 @@ export interface GeoPoint {
 }
 
 export interface City {
+  id?: string; // Document ID from Firestore
   cityId: string;
   name_ar: string;
   name_en: string;
   country_code: string; // e.g. 'YE'
   is_active: boolean;
+  support_number: string;
 }
 
 export interface User {
@@ -60,22 +62,23 @@ export interface CategoryFilter {
 }
 
 export interface Store {
+  id?: string; // Document ID from Firestore
   storeId: string;
   ownerUid: string; // ref to User
   name_ar: string;
-  name_en: string;
-  description_ar: string;
-  description_en: string;
+  name_en?: string;
+  description_ar?: string;
+  description_en?: string;
   logo_url: string;
-  cover_image_url: string;
+  cover_image_url?: string;
   city_id: string; // ref to City
   filter_ids: string[]; // ref to CategoryFilter
   location: GeoPoint;
-  address_text: string;
-  working_hours: Record<string, { open: string, close: string, is_closed: boolean }>; // e.g. { "sunday": { open: "09:00", close: "22:00", is_closed: false } }
+  address_text?: string;
+  working_hours?: Record<string, { open: string, close: string, is_closed: boolean }>; // e.g. { "sunday": { open: "09:00", close: "22:00", is_closed: false } }
   is_open: boolean; // Manual override
   is_active: boolean; // Admin approval
-  rating: number;
+  rating?: number;
   // Denormalized for security rules
   storeOwnerUid: string;
 }

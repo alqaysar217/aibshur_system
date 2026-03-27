@@ -1,7 +1,8 @@
 'use client';
-import { useState } from 'react';
-import { mockCities, mockCategories, mockStores } from '@/lib/mock-data';
-import type { Store } from '@/lib/types';
+import { useState, useMemo } from 'react';
+import { useCollection, useFirestore } from '@/firebase';
+import { collection, addDoc, GeoPoint } from 'firebase/firestore';
+import type { Store, City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,15 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogClose,
-} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -28,27 +20,82 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { mockCategories, mockAdminUser } from '@/lib/mock-data'; // Keeping mock categories for now
+import { Skeleton } from '@/components/ui/skeleton';
+
+const StoreRowSkeleton = () => (
+    <TableRow>
+        <TableCell colSpan={5} className="p-0">
+            <Skeleton className="w-full h-[60px]"/>
+        </TableCell>
+    </TableRow>
+)
 
 export default function AdminStoresPage() {
   const { toast } = useToast();
-  const [stores, setStores] = useState<Store[]>(mockStores);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const firestore = useFirestore();
+  
+  const [showAddForm, setShowAddForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentStore, setCurrentStore] = useState<Partial<Store> | null>(null);
+  
+  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
+  const { data: stores, loading: storesLoading } = useCollection<Store>(storesQuery);
+  
+  const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
+  const { data: cities, loading: citiesLoading } = useCollection<City>(citiesQuery);
 
-  const handleOpenDialog = (store: Partial<Store> | null = null) => {
-    setCurrentStore(store);
-    setDialogOpen(true);
-  };
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    toast({ variant: 'destructive', title: "التعديل معطل", description: "تم تعطيل هذه الميزة مؤقتاً." });
+    if (!firestore) return;
+    setIsSubmitting(true);
+    
+    const formData = new FormData(e.currentTarget);
+    const lat = parseFloat(formData.get('latitude') as string);
+    const lon = parseFloat(formData.get('longitude') as string);
+
+    const newStoreData: Omit<Store, 'id' | 'storeId' | 'ownerUid' | 'storeOwnerUid'> = {
+      name_ar: formData.get('name_ar') as string,
+      logo_url: formData.get('logo_url') as string,
+      city_id: formData.get('city_id') as string,
+      filter_ids: [formData.get('filter_id') as string],
+      location: new GeoPoint(lat, lon),
+      is_active: true,
+      is_open: true,
+    };
+
+    // In a real app, ownerUid would come from the logged-in store owner
+    // For now, we'll use a mock admin UID as the owner.
+    const ownerUid = mockAdminUser.uid;
+
+    try {
+        const storeId = newStoreData.name_ar.toLowerCase().replace(/\s/g, '-');
+        await addDoc(collection(firestore, 'stores'), {
+            ...newStoreData,
+            storeId,
+            ownerUid,
+            storeOwnerUid: ownerUid // Denormalized for security rules
+        });
+
+        toast({ title: "تمت إضافة المتجر بنجاح!" });
+        setShowAddForm(false);
+        e.currentTarget.reset();
+
+    } catch (error) {
+        console.error("Error adding store: ", error);
+        toast({ variant: 'destructive', title: "حدث خطأ", description: "لم يتم حفظ المتجر." });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const handleDelete = async (storeId: string) => {
     toast({ variant: 'destructive', title: "الحذف معطل", description: "تم تعطيل هذه الميزة مؤقتاً." });
   };
+  
+  const getCityName = (cityId: string) => {
+    return cities?.find(c => c.id === cityId)?.name_ar || 'غير محدد';
+  }
 
   return (
     <div className="space-y-8">
@@ -57,11 +104,75 @@ export default function AdminStoresPage() {
           <h1 className="text-2xl font-black text-gray-900">إدارة المتاجر</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">إضافة وتعديل بيانات المتاجر المسجلة في النظام.</p>
         </div>
-        <Button onClick={() => handleOpenDialog({})} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
+        <Button onClick={() => setShowAddForm(!showAddForm)} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
           <PlusCircle className="w-4 h-4" />
-          إضافة متجر جديد
+          {showAddForm ? 'إلغاء الإضافة' : 'إضافة متجر جديد'}
         </Button>
       </div>
+
+      {showAddForm && (
+        <Card className="border-none shadow-sm rounded-[20px] bg-white overflow-hidden animate-in fade-in-50">
+            <CardHeader>
+                <CardTitle>نموذج إضافة متجر جديد</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleFormSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="name_ar">اسم المتجر</Label>
+                            <Input id="name_ar" name="name_ar" required className="rounded-lg"/>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="logo_url">رابط شعار المتجر (Logo URL)</Label>
+                            <Input id="logo_url" name="logo_url" type="url" required className="rounded-lg" dir="ltr"/>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="city_id">المدينة</Label>
+                            <Select name="city_id" dir="rtl" required>
+                                <SelectTrigger className="rounded-lg font-bold">
+                                    <SelectValue placeholder="اختر المدينة" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-lg">
+                                    {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
+                                    : cities?.map(city => (
+                                    <SelectItem key={city.id} value={city.id!}>{city.name_ar}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="filter_id">نوع المتجر (الفئة)</Label>
+                            <Select name="filter_id" dir="rtl" required>
+                                <SelectTrigger className="rounded-lg font-bold">
+                                    <SelectValue placeholder="اختر الفئة" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-lg">
+                                    {mockCategories.map(cat => (
+                                    <SelectItem key={cat.filterId} value={cat.filterId}>{cat.name_ar}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="latitude">خط العرض (Latitude)</Label>
+                            <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg" dir="ltr"/>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="longitude">خط الطول (Longitude)</Label>
+                            <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg" dir="ltr"/>
+                        </div>
+                    </div>
+                     <div className="flex justify-end gap-4">
+                        <Button type="button" variant="secondary" onClick={() => setShowAddForm(false)} className="rounded-lg font-bold">إلغاء</Button>
+                        <Button type="submit" disabled={isSubmitting} className="rounded-lg font-black">
+                            {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin"/>}
+                            حفظ المتجر
+                        </Button>
+                    </div>
+                </form>
+            </CardContent>
+        </Card>
+      )}
 
       <Card className="border-none shadow-sm rounded-[20px] bg-white overflow-hidden">
          <CardHeader className="p-6 border-b border-gray-50 flex flex-row items-center justify-between">
@@ -80,11 +191,16 @@ export default function AdminStoresPage() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-50">
-              {stores.length > 0 ? (
+              {storesLoading ? (
+                 Array.from({length: 3}).map((_, i) => <StoreRowSkeleton key={i}/>)
+              ) : stores && stores.length > 0 ? (
                 stores.map((store) => (
-                  <TableRow key={store.storeId} className="hover:bg-gray-50/50">
-                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-700">{store.name_ar}</TableCell>
-                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-400">{mockCities.find(c => c.cityId === store.city_id)?.name_ar || 'غير محدد'}</TableCell>
+                  <TableRow key={store.id} className="hover:bg-gray-50/50">
+                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-700 flex items-center gap-2">
+                        <img src={store.logo_url} alt={store.name_ar} className="w-8 h-8 rounded-md object-cover"/>
+                        {store.name_ar}
+                    </TableCell>
+                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-400">{getCityName(store.city_id)}</TableCell>
                     <TableCell className="px-6 py-4">
                       <Badge className={cn(
                         "rounded-xl border-none font-black px-3 py-1 text-[9px]",
@@ -94,10 +210,10 @@ export default function AdminStoresPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="px-6 py-4 flex gap-2">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenDialog(store)}>
+                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
                         <Edit className="w-4 h-4 text-gray-400" />
                       </Button>
-                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleDelete(store.storeId)}>
+                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleDelete(store.id!)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </TableCell>
@@ -106,7 +222,7 @@ export default function AdminStoresPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={4} className="h-48 text-center text-gray-400 font-bold">
-                    <p>لا توجد متاجر مضافة بعد.</p>
+                    <p>لا توجد متاجر مضافة بعد. قم بإضافة متجرك الأول.</p>
                   </TableCell>
                 </TableRow>
               )}
@@ -114,71 +230,7 @@ export default function AdminStoresPage() {
           </Table>
         </CardContent>
       </Card>
-      
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg rounded-lg">
-           <form onSubmit={handleFormSubmit}>
-            <DialogHeader className="text-right">
-                <DialogTitle className="font-black text-gray-900">{currentStore?.storeId ? 'تعديل متجر' : 'إضافة متجر جديد'}</DialogTitle>
-                <DialogDescription className="font-bold text-gray-400">املأ تفاصيل المتجر أدناه.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4 text-right max-h-[70vh] overflow-y-auto pr-2 pl-4">
-                <div className="space-y-2">
-                    <Label htmlFor="name_ar" className="font-bold text-gray-700">اسم المتجر (العربية)</Label>
-                    <Input id="name_ar" name="name_ar" defaultValue={currentStore?.name_ar || ''} required className="rounded-lg"/>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="category" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
-                    <Select name="category" dir="rtl">
-                      <SelectTrigger className="rounded-lg font-bold">
-                        <SelectValue placeholder="اختر الفئة" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-lg">
-                        {mockCategories.map(cat => (
-                          <SelectItem key={cat.filterId} value={cat.filterId}>{cat.name_ar}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="city" className="font-bold text-gray-700">المدينة</Label>
-                     <Select name="city" dir="rtl">
-                      <SelectTrigger className="rounded-lg font-bold">
-                        <SelectValue placeholder="اختر المدينة" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-lg">
-                        {mockCities.map(city => (
-                          <SelectItem key={city.cityId} value={city.cityId}>{city.name_ar}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                </div>
-                 <div className="space-y-4 p-4 border rounded-lg">
-                    <h4 className="font-bold text-md text-gray-800">ساعات العمل</h4>
-                    {['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'].map(day => (
-                        <div key={day} className="flex items-center justify-between gap-2">
-                            <Label htmlFor={`day-${day}`} className="w-1/4 font-bold text-gray-700">{day}</Label>
-                            <div className="flex items-center gap-2">
-                               <Input type="time" id={`day-${day}-open`} name={`day-${day}-open`} className="w-full rounded-lg" />
-                               <span>-</span>
-                               <Input type="time" id={`day-${day}-close`} name={`day-${day}-close`} className="w-full rounded-lg" />
-                            </div>
-                        </div>
-                    ))}
-                 </div>
-            </div>
-            <DialogFooter className="flex-row-reverse mt-4">
-                <Button type="submit" disabled={isSubmitting} className="rounded-lg font-black">
-                    {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin"/>}
-                    {currentStore?.storeId ? 'حفظ التغييرات' : 'إضافة المتجر'}
-                </Button>
-                 <DialogClose asChild>
-                    <Button type="button" variant="secondary" className="rounded-lg font-bold">إلغاء</Button>
-                </DialogClose>
-            </DialogFooter>
-           </form>
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }

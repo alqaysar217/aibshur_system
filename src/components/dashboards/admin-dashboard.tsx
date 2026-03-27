@@ -1,12 +1,14 @@
 "use client"
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { 
   TrendingUp, ShoppingBag, Truck, Users, 
   ArrowUpRight, ArrowDownRight, MoreHorizontal,
   ChevronLeft,
   CreditCard,
-  Store
+  Store,
+  Building2
 } from "lucide-react"
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
@@ -15,6 +17,8 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useFirestore } from "@/firebase";
+import { collection, getCountFromServer } from "firebase/firestore";
 
 const SALES_DATA = [
   { name: "السبت", sales: 45000 },
@@ -33,12 +37,6 @@ const CATEGORY_DATA = [
   { name: "ماركت", value: 20, color: "#EC4899" },
 ]
 
-const STATS = [
-  { label: "إجمالي المبيعات", value: "٨٥٠,٠٠٠", currency: "ريال", icon: CreditCard, trend: "+١٢.٥٪", up: true, color: "text-emerald-600", bg: "bg-emerald-50" },
-  { label: "طلبات اليوم", value: "١٤٢", icon: ShoppingBag, trend: "+٨٪", up: true, color: "text-blue-600", bg: "bg-blue-50" },
-  { label: "المناديب النشطين", value: "٣٨", icon: Truck, trend: "-٢٪", up: false, color: "text-orange-600", bg: "bg-orange-50" },
-  { label: "مستخدمين جدد", value: "٥٤", icon: Users, trend: "+١٥٪", up: true, color: "text-purple-600", bg: "bg-purple-50" },
-]
 
 const RECENT_ORDERS = [
   { id: "ORD-9921", customer: "عمر دعكيك", store: "مطعم مذاقي", amount: "٤,٥٠٠", status: "delivered", time: "منذ ٥ دقائق" },
@@ -49,6 +47,45 @@ const RECENT_ORDERS = [
 ]
 
 export default function AdminDashboard() {
+  const firestore = useFirestore();
+  const [stats, setStats] = useState([
+    { label: "إجمالي المتاجر", value: "...", icon: Store, trend: "", up: true, color: "text-sky-600", bg: "bg-sky-50" },
+    { label: "إجمالي المدن", value: "...", icon: Building2, trend: "", up: true, color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
+    { label: "المناديب النشطين", value: "0", icon: Truck, trend: "", up: false, color: "text-orange-600", bg: "bg-orange-50" },
+    { label: "مستخدمين جدد", value: "0", icon: Users, trend: "", up: true, color: "text-purple-600", bg: "bg-purple-50" },
+  ]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!firestore) return;
+
+      try {
+        const storesCol = collection(firestore, 'stores');
+        const citiesCol = collection(firestore, 'cities');
+
+        const [storesSnapshot, citiesSnapshot] = await Promise.all([
+          getCountFromServer(storesCol),
+          getCountFromServer(citiesCol),
+        ]);
+        
+        const storesCount = storesSnapshot.data().count;
+        const citiesCount = citiesSnapshot.data().count;
+
+        setStats(prevStats => prevStats.map(stat => {
+          if (stat.label === "إجمالي المتاجر") return { ...stat, value: storesCount.toString() };
+          if (stat.label === "إجمالي المدن") return { ...stat, value: citiesCount.toString() };
+          return stat;
+        }));
+
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      }
+    };
+
+    fetchStats();
+  }, [firestore]);
+
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -63,26 +100,27 @@ export default function AdminDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {STATS.map((stat, idx) => (
+        {stats.map((stat, idx) => (
           <Card key={idx} className="border-none shadow-sm rounded-[20px] overflow-hidden hover:shadow-md transition-all group bg-white">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", stat.bg)}>
                   <stat.icon className={cn("h-6 w-6", stat.color)} />
                 </div>
-                <Badge className={cn(
-                  "rounded-full border-none font-black px-2 py-0.5 text-[10px] gap-1",
-                  stat.up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
-                )}>
-                  {stat.up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-                  {stat.trend}
-                </Badge>
+                {stat.trend && (
+                  <Badge className={cn(
+                    "rounded-full border-none font-black px-2 py-0.5 text-[10px] gap-1",
+                    stat.up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                  )}>
+                    {stat.up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                    {stat.trend}
+                  </Badge>
+                )}
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</p>
                 <div className="flex items-baseline gap-1">
                   <h3 className="text-2xl font-black text-gray-900 tabular-nums">{stat.value}</h3>
-                  {stat.currency && <span className="text-[10px] font-black text-gray-400">{stat.currency}</span>}
                 </div>
               </div>
             </CardContent>
