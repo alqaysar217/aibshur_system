@@ -61,6 +61,16 @@ export interface CategoryFilter {
   parent_filter_id?: string; // For sub-categories like 'Cuisine' under 'Restaurant'
 }
 
+export interface WorkingHoursSlot {
+    open: string;
+    close: string;
+}
+
+export interface DailyHours {
+    is_closed: boolean;
+    slots: WorkingHoursSlot[];
+}
+
 export interface Store {
   id?: string; // Document ID from Firestore
   storeId: string;
@@ -75,7 +85,7 @@ export interface Store {
   filter_ids: string[]; // ref to CategoryFilter
   location: GeoPoint;
   address_text?: string;
-  working_hours?: Record<string, { open: string, close: string, is_closed: boolean }>; // e.g. { "default": { open: "09:00", close: "22:00", is_closed: false } }
+  working_hours?: Record<string, DailyHours>; // e.g. { "saturday": { is_closed: false, slots: [{ open: "09:00", close: "22:00" }] } }
   preparation_time?: string;
   is_open: boolean; // Manual override
   is_active: boolean; // Admin approval
