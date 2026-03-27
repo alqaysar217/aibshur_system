@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
 import type { City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,20 +24,48 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const yemeniCities = [
+    { name_ar: 'صنعاء', name_en: 'Sana\'a', country_code: 'YE', is_active: true },
+    { name_ar: 'عدن', name_en: 'Aden', country_code: 'YE', is_active: true },
+    { name_ar: 'تعز', name_en: 'Taiz', country_code: 'YE', is_active: true },
+    { name_ar: 'الحديدة', name_en: 'Al Hudaydah', country_code: 'YE', is_active: true },
+    { name_ar: 'إب', name_en: 'Ibb', country_code: 'YE', is_active: false },
+    { name_ar: 'ذمار', name_en: 'Dhamar', country_code: 'YE', is_active: false },
+    { name_ar: 'المكلا', name_en: 'Al Mukalla', country_code: 'YE', is_active: true },
+    { name_ar: 'سيئون', name_en: 'Say\'un', country_code: 'YE', is_active: false },
+    { name_ar: 'زبيد', name_en: 'Zabid', country_code: 'YE', is_active: false },
+    { name_ar: 'مأرب', name_en: 'Marib', country_code: 'YE', is_active: true },
+];
+
+const TableSkeleton = () => (
+    <div className="space-y-2">
+        {Array.from({length: 5}).map((_, i) => (
+            <div key={i} className="flex items-center space-x-4 p-4">
+                <Skeleton className="h-5 flex-1" />
+                <Skeleton className="h-5 flex-1" />
+                <Skeleton className="h-5 flex-1" />
+                <Skeleton className="h-5 flex-1" />
+                <Skeleton className="h-5 w-20" />
+            </div>
+        ))}
+    </div>
+)
 
 export default function AdminCitiesPage() {
   const firestore = useFirestore();
-  const { data: cities, loading, error } = useCollection<City>(
-    firestore ? collection(firestore, 'cities') : null
-  );
+  const citiesCollection = firestore ? collection(firestore, 'cities') : null;
+  const { data: cities, loading, error } = useCollection<City>(citiesCollection);
   const { toast } = useToast();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [currentCity, setCurrentCity] = useState<Partial<City> | null>(null);
 
   const handleOpenDialog = (city: Partial<City> | null = null) => {
@@ -47,7 +75,7 @@ export default function AdminCitiesPage() {
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!firestore || !currentCity) return;
+    if (!firestore || !currentCity || !citiesCollection) return;
 
     const formData = new FormData(e.currentTarget);
     const cityData = {
@@ -65,16 +93,12 @@ export default function AdminCitiesPage() {
     setIsSubmitting(true);
     try {
       if (currentCity.cityId) {
-        // Update existing city
         const cityRef = doc(firestore, 'cities', currentCity.cityId);
         await updateDoc(cityRef, cityData);
         toast({ title: 'تم تحديث المدينة بنجاح' });
       } else {
-        // Create new city
-        const newCityRef = await addDoc(collection(firestore, 'cities'), cityData);
-        // update the document to include the cityId
-        await updateDoc(newCityRef, { cityId: newCityRef.id });
-
+        const newDocRef = doc(citiesCollection);
+        await addDoc(citiesCollection, { ...cityData, cityId: newDocRef.id });
         toast({ title: 'تمت إضافة المدينة بنجاح' });
       }
       setDialogOpen(false);
@@ -96,6 +120,25 @@ export default function AdminCitiesPage() {
           console.error(err);
           toast({ variant: 'destructive', title: 'حدث خطأ أثناء الحذف', description: err.message });
       }
+  }
+
+  const handleSeedCities = async () => {
+    if (!firestore || !citiesCollection) return;
+    setSeeding(true);
+    try {
+      const batch = writeBatch(firestore);
+      yemeniCities.forEach(city => {
+        const docRef = doc(citiesCollection);
+        batch.set(docRef, { ...city, cityId: docRef.id });
+      });
+      await batch.commit();
+      toast({ title: 'نجاح', description: 'تمت إضافة المدن اليمنية إلى قاعدة البيانات بنجاح.' });
+    } catch (err: any) {
+      console.error(err);
+      toast({ variant: 'destructive', title: 'حدث خطأ', description: 'فشل إضافة البيانات الأولية.' });
+    } finally {
+        setSeeding(false);
+    }
   }
 
   return (
@@ -124,19 +167,17 @@ export default function AdminCitiesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    جاري تحميل البيانات...
-                  </TableCell>
-                </TableRow>
-              )}
-              {cities?.map((city) => (
+              {loading && <TableSkeleton />}
+              {!loading && cities?.map((city) => (
                 <TableRow key={city.cityId}>
                   <TableCell className="font-medium text-right">{city.name_ar}</TableCell>
                   <TableCell>{city.name_en}</TableCell>
                   <TableCell>{city.country_code}</TableCell>
-                  <TableCell>{city.is_active ? 'نشطة' : 'غير نشطة'}</TableCell>
+                  <TableCell>
+                    <Badge variant={city.is_active ? 'secondary' : 'outline'}>
+                        {city.is_active ? 'نشطة' : 'غير نشطة'}
+                    </Badge>
+                  </TableCell>
                   <TableCell className="flex gap-2">
                     <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(city)}>
                       <Edit className="w-4 h-4" />
@@ -149,8 +190,15 @@ export default function AdminCitiesPage() {
               ))}
                {!loading && cities?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    لا توجد مدن. قم بإضافة مدينة جديدة.
+                  <TableCell colSpan={5} className="h-48 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <p className="text-lg">لا توجد مدن بعد.</p>
+                        <p className='text-muted-foreground'>يمكنك البدء بإضافة مدينة يدوياً، أو ملء القائمة ببيانات أولية للمدن اليمنية.</p>
+                        <Button onClick={handleSeedCities} disabled={seeding}>
+                            {seeding ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Database className="w-4 h-4 ml-2" />}
+                            {seeding ? 'جاري الإضافة...' : 'إضافة بيانات المدن اليمنية'}
+                        </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -179,19 +227,19 @@ export default function AdminCitiesPage() {
                     <Label htmlFor="country_code">رمز الدولة</Label>
                     <Input id="country_code" name="country_code" dir='ltr' defaultValue={currentCity?.country_code || 'YE'} required />
                 </div>
-                <div className="flex items-center space-x-2 space-x-reverse">
-                    <Switch id="is_active" name="is_active" defaultChecked={currentCity?.is_active ?? true} />
+                <div className="flex items-center justify-end gap-2">
                     <Label htmlFor="is_active">فعالة</Label>
+                    <Switch id="is_active" name="is_active" defaultChecked={currentCity?.is_active ?? true} />
                 </div>
             </div>
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary">إلغاء</Button>
-                </DialogClose>
+            <DialogFooter className="flex-row-reverse">
                 <Button type="submit" disabled={isSubmitting}>
                     {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin"/>}
                     {currentCity?.cityId ? 'حفظ التغييرات' : 'إضافة'}
                 </Button>
+                 <DialogClose asChild>
+                    <Button type="button" variant="secondary">إلغاء</Button>
+                </DialogClose>
             </DialogFooter>
            </form>
         </DialogContent>
