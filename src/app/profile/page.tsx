@@ -7,7 +7,11 @@ import { mockUsers } from '@/lib/mock-data';
 import { Camera } from 'lucide-react';
 
 export default function ProfilePage() {
-  const currentUser = mockUsers[0]; // Assuming client user
+  const currentUser = mockUsers.length > 0 ? mockUsers[0] : null;
+
+  if (!currentUser) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
@@ -26,7 +30,7 @@ export default function ProfilePage() {
             <div className="relative">
               <Avatar className="w-24 h-24">
                 <AvatarImage src={currentUser.profile_image} />
-                <AvatarFallback>{currentUser.full_name.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{currentUser.full_name ? currentUser.full_name.charAt(0) : 'U'}</AvatarFallback>
               </Avatar>
               <Button size="icon" className="absolute bottom-0 left-0 w-8 h-8 rounded-full">
                 <Camera className="w-4 h-4" />

@@ -25,7 +25,7 @@ export default function StoresPage() {
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="all">الكل</TabsTrigger>
             {mockCategories.map((cat) => (
-              <TabsTrigger key={cat.filter_id} value={cat.filter_id}>
+              <TabsTrigger key={cat.filterId} value={cat.filterId}>
                 {cat.name_ar}
               </TabsTrigger>
             ))}
@@ -35,10 +35,13 @@ export default function StoresPage() {
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {availableStores.map((store) => (
-           <Link href={`/stores/${store.store_id}`} key={store.store_id}>
+           <Link href={`/stores/${store.storeId}`} key={store.storeId}>
              <StoreCard store={store} />
            </Link>
         ))}
+         {availableStores.length === 0 && (
+            <p className="py-8 text-center text-muted-foreground col-span-full">لا توجد متاجر متاحة حالياً.</p>
+         )}
       </div>
     </div>
   );

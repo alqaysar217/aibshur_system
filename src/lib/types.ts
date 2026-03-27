@@ -1,9 +1,12 @@
-export type UserRole = 'client' | 'driver' | 'admin' | 'support';
-export type OrderStatus = 'pending' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
-export type PaymentMethod = 'cash' | 'wallet';
-export type TransactionType = 'top-up' | 'withdrawal' | 'payment';
+export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
+export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
+export type PaymentMethod = 'cash' | 'wallet' | 'card';
+export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee';
 export type TransactionStatus = 'pending' | 'completed' | 'failed';
-export type StoreCategoryType = 'restaurant' | 'pharmacy' | 'market';
+export type StoreCategoryType = 'restaurant' | 'pharmacy' | 'market' | 'other';
+export type AppInfoSettingType = 'about_us' | 'privacy_policy' | 'terms_of_service' | 'ad_banner';
+export type AdminConfigSettingType = 'coupon' | 'vip_package' | 'loyalty_points_config' | 'system_fee_config';
+
 
 // Using a generic GeoPoint type as Firestore GeoPoint is a class instance.
 export interface GeoPoint {
@@ -12,108 +15,145 @@ export interface GeoPoint {
 }
 
 export interface City {
-  city_id: string;
+  cityId: string;
   name_ar: string;
-  support_contact: string;
+  name_en: string;
+  country_code: string; // e.g. 'YE'
   is_active: boolean;
-  geometry: GeoPoint;
 }
 
 export interface User {
   uid: string;
-  full_name: string;
-  phone: string;
+  phone: string; // Primary identifier for OTP auth
   role: UserRole;
-  city_id: string; // ref to City
-  profile_image: string;
-  created_at: string;
+  full_name?: string;
+  email?: string;
+  profile_image?: string;
+  city_id?: string; // ref to City
+  created_at: string; // ISO 8601
+  last_login_at: string; // ISO 8601
+  order_history?: string[]; // Array of orderIds
+  account_status: {
+    is_blocked: boolean;
+    reason?: string;
+  };
   driver_details?: {
     vehicle_type: string;
+    license_plate: string;
     id_card_image: string;
     status: 'pending' | 'approved' | 'rejected';
     is_online: boolean;
     rating: number;
     wallet_balance: number;
+    current_location?: GeoPoint;
   };
-  account_status: {
-    is_blocked: boolean;
-    reason?: string;
-  };
+  // Custom claims on the auth token will reflect the user's role
 }
 
 export interface CategoryFilter {
-  filter_id: string;
+  filterId: string;
   name_ar: string;
+  name_en: string;
   type: StoreCategoryType;
-  icon_url: string; // Or a component if handled locally
+  icon_url?: string;
+  parent_filter_id?: string; // For sub-categories like 'Cuisine' under 'Restaurant'
 }
 
 export interface Store {
-  store_id: string;
-  city_id: string; // ref to City
-  filter_id: string; // ref to CategoryFilter
+  storeId: string;
+  ownerUid: string; // ref to User
   name_ar: string;
+  name_en: string;
+  description_ar: string;
+  description_en: string;
   logo_url: string;
+  cover_image_url: string;
+  city_id: string; // ref to City
+  filter_ids: string[]; // ref to CategoryFilter
   location: GeoPoint;
   address_text: string;
-  working_hours: Record<string, string>; // e.g. { "sunday": "9am-10pm" }
-  average_delivery_time: number; // in minutes
-  is_open: boolean;
+  working_hours: Record<string, { open: string, close: string, is_closed: boolean }>; // e.g. { "sunday": { open: "09:00", close: "22:00", is_closed: false } }
+  is_open: boolean; // Manual override
+  is_active: boolean; // Admin approval
   rating: number;
-  owner_uid: string; // ref to User
+  // Denormalized for security rules
+  storeOwnerUid: string;
 }
 
 export interface ProductVariant {
-  variant_id: string;
-  size_name: 'S' | 'M' | 'L' | 'Standard';
+  variantId: string;
+  name_ar: string;
+  name_en: string;
   price: number;
+  stock_count?: number;
   image_url?: string;
 }
 
 export interface Product {
-  product_id: string;
-  store_id: string; // ref to Store
-  category_id: string; // ref to a more granular category if needed
+  productId: string;
+  storeId: string; // ref to Store
   name_ar: string;
+  name_en: string;
   description_ar: string;
-  main_image: string;
+  description_en: string;
+  main_image_url: string;
   base_price: number;
-  has_variants: boolean;
-  variants?: ProductVariant[];
+  is_available: boolean;
+  // Denormalized for security rules
+  storeOwnerUid: string;
 }
 
 export interface OrderItem {
-  product_id: string;
-  name_ar: string;
+  productId: string;
+  productName_ar: string;
   quantity: number;
-  price: number;
-  variant_id?: string;
+  price: number; // Price at time of order
+  variantId?: string;
+  variantName_ar?: string;
 }
 
 export interface Order {
-  order_id: string;
-  client_uid: string; // ref to User
-  driver_uid?: string; // ref to User
-  store_id: string; // ref to Store
+  orderId: string;
+  clientUid: string; // ref to User
+  driverUid?: string; // ref to User
+  storeId: string; // ref to Store
   items: OrderItem[];
-  total_price: number;
+  subtotal_price: number;
   delivery_fee: number;
+  total_price: number;
   status: OrderStatus;
   payment_method: PaymentMethod;
-  client_location: GeoPoint;
-  timestamp: string;
+  delivery_location: GeoPoint;
+  delivery_address_text: string;
+  created_at: string; // ISO 8601
+  updated_at: string; // ISO 8601
+  // Denormalized for security rules
+  storeOwnerUid: string;
 }
 
-export interface Transaction {
-  transaction_id: string;
-  user_uid: string; // ref to User
-  amount: number;
+export interface FinanceTransaction {
+  transactionId: string;
+  userUid: string; // ref to User
+  orderId?: string; // ref to Order
+  amount: number; // Positive for credit, negative for debit
   type: TransactionType;
   status: TransactionStatus;
-  date: string;
+  description: string;
+  created_at: string; // ISO 8601
 }
 
-export interface SystemSettingDoc {
-  id: string;
-  data: Record<string, any>;
+export interface AppInfoSetting {
+  settingId: string;
+  type: AppInfoSettingType;
+  content_ar: string;
+  content_en?: string;
+  image_url?: string;
+  is_active: boolean;
+}
+
+export interface AdminConfigSetting {
+  settingId: string;
+  type: AdminConfigSettingType;
+  config_data: any;
+  is_active: boolean;
 }

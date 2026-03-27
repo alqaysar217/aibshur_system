@@ -14,7 +14,7 @@ export default function StoreCard({ store }: StoreCardProps) {
       <div className="relative">
         <Image
           data-ai-hint="store front"
-          src={`https://picsum.photos/seed/${store.store_id}/400/200`}
+          src={`https://picsum.photos/seed/${store.storeId}/400/200`}
           alt={store.name_ar}
           width={400}
           height={200}
@@ -40,10 +40,6 @@ export default function StoreCard({ store }: StoreCardProps) {
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
             <span>{store.rating.toFixed(1)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            <span>{store.average_delivery_time} دقيقة</span>
           </div>
         </div>
       </CardContent>

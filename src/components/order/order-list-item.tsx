@@ -12,23 +12,18 @@ interface OrderListItemProps {
   order: Order;
 }
 
-const getStatusVariant = (status: Order['status']) => {
-  switch (status) {
-    case 'delivered':
-      return 'default';
-    case 'cancelled':
-      return 'destructive';
-    case 'out_for_delivery':
-      return 'secondary';
-    default:
-      return 'outline';
-  }
-};
-
 export default function OrderListItem({ order }: OrderListItemProps) {
-  const store = mockStores.find((s) => s.store_id === order.store_id);
+  const store = mockStores.find((s) => s.storeId === order.storeId);
 
-  if (!store) return null;
+  if (!store) {
+      return (
+        <Card className="transition-shadow hover:shadow-md">
+            <CardContent className="p-4">
+                <p>لم يتم العثور على المتجر لهذا الطلب.</p>
+            </CardContent>
+        </Card>
+      );
+  };
 
   return (
     <Card className="transition-shadow hover:shadow-md">
@@ -46,7 +41,7 @@ export default function OrderListItem({ order }: OrderListItemProps) {
             <div className="flex-1">
               <h3 className="font-semibold">{store.name_ar}</h3>
               <p className="text-sm text-muted-foreground">
-                طلب رقم #{order.order_id.slice(-6)}
+                طلب رقم #{order.orderId.slice(-6)}
               </p>
               <p className="text-sm font-bold">
                 {(order.total_price + order.delivery_fee).toLocaleString('ar-SA', {
@@ -62,7 +57,7 @@ export default function OrderListItem({ order }: OrderListItemProps) {
 
           <div className="flex items-center justify-end gap-4">
             <Button variant="outline" asChild>
-              <Link href={`/orders/${order.order_id}`}>
+              <Link href={`/orders/${order.orderId}`}>
                 <span>التفاصيل</span>
                 <ArrowLeft className="w-4 h-4 mr-2" />
               </Link>

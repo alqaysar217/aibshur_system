@@ -34,6 +34,8 @@ const getRoleName = (role: UserRole) => {
       return 'مندوب';
     case 'admin':
       return 'مدير';
+    case 'store_owner':
+      return 'صاحب متجر';
     default:
       return 'مستخدم';
   }
@@ -84,6 +86,8 @@ const getRoleIcon = (role: UserRole) => {
       return <Bike className="w-4 h-4" />;
     case 'admin':
       return <Shield className="w-4 h-4" />;
+    case 'store_owner':
+      return <ShoppingBag className="w-4 h-4" />;
     default:
       return <UserIcon className="w-4 h-4" />;
   }
@@ -100,7 +104,7 @@ export default function AppSidebar({ user }: { user: User }) {
         <div className="flex items-center gap-3 p-2">
           <Avatar className="w-12 h-12">
             <AvatarImage src={user.profile_image} alt={user.full_name} />
-            <AvatarFallback>{user.full_name.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{user.full_name ? user.full_name.charAt(0) : 'A'}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col">
             <span className="font-semibold text-foreground">{user.full_name}</span>

@@ -12,8 +12,12 @@ const orderStatuses: { value: OrderStatus | 'all'; label: string }[] = [
 ];
 
 export default function OrdersPage() {
-  const currentUser = mockUsers[0]; // Assuming client user for this page
-  const userOrders = mockOrders.filter((order) => order.client_uid === currentUser.uid);
+  const currentUser = mockUsers.length > 0 ? mockUsers[0] : null;
+  const userOrders = currentUser ? mockOrders.filter((order) => order.clientUid === currentUser.uid) : [];
+
+  if (!currentUser) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="space-y-8">
@@ -39,7 +43,7 @@ export default function OrdersPage() {
                   (order) => statusInfo.value === 'all' || order.status === statusInfo.value
                 )
                 .map((order) => (
-                  <OrderListItem key={order.order_id} order={order} />
+                  <OrderListItem key={order.orderId} order={order} />
                 ))}
               {userOrders.filter(
                 (order) => statusInfo.value === 'all' || order.status === statusInfo.value

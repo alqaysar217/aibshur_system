@@ -4,26 +4,26 @@ import { Input } from '@/components/ui/input';
 import { mockTransactions, mockUsers } from '@/lib/mock-data';
 import { ArrowDown, ArrowUp, DollarSign, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { Transaction, TransactionType } from '@/lib/types';
+import type { FinanceTransaction, TransactionType } from '@/lib/types';
 import { Separator } from '@/components/ui/separator';
 
 const getTransactionIcon = (type: TransactionType) => {
     switch (type) {
       case 'top-up':
         return <ArrowUp className="w-4 h-4 text-green-500" />;
-      case 'payment':
+      case 'order_payment':
         return <ArrowDown className="w-4 h-4 text-red-500" />;
       case 'withdrawal':
         return <ArrowDown className="w-4 h-4 text-blue-500" />;
     }
   };
   
-  const getTransactionText = (transaction: Transaction) => {
+  const getTransactionText = (transaction: FinanceTransaction) => {
     switch (transaction.type) {
       case 'top-up':
         return 'إضافة رصيد';
-      case 'payment':
-        return `دفع طلب #${transaction.transaction_id.slice(-4)}`;
+      case 'order_payment':
+        return `دفع طلب #${transaction.transactionId.slice(-4)}`;
       case 'withdrawal':
         return 'سحب رصيد';
     }
@@ -34,10 +34,14 @@ const getTransactionIcon = (type: TransactionType) => {
   };
 
 export default function WalletPage() {
-  const currentUser = mockUsers[0];
-  const userTransactions = mockTransactions.filter((t) => t.user_uid === currentUser.uid);
+  const currentUser = mockUsers.length > 0 ? mockUsers[0] : null;
+  const userTransactions = currentUser ? mockTransactions.filter((t) => t.userUid === currentUser.uid) : [];
 
   const balance = userTransactions.reduce((acc, t) => acc + t.amount, 0);
+
+  if (!currentUser) {
+    return <div>Loading...</div>
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -88,14 +92,14 @@ export default function WalletPage() {
           <div className="space-y-2">
             {userTransactions.map((transaction, index) => (
               <>
-              <div key={transaction.transaction_id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+              <div key={transaction.transactionId} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-full bg-muted">
                         {getTransactionIcon(transaction.type)}
                     </div>
                   <div>
                     <p className="font-semibold">{getTransactionText(transaction)}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(transaction.date).toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <p className="text-sm text-muted-foreground">{new Date(transaction.created_at).toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                   </div>
                 </div>
                 <div className="text-left">

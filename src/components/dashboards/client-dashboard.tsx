@@ -9,13 +9,13 @@ import AIRecommendations from '../ai/recommendations';
 
 export default function ClientDashboard({ user }: { user: User }) {
   const recentOrders = mockOrders
-    .filter((order) => order.client_uid === user.uid)
+    .filter((order) => order.clientUid === user.uid)
     .slice(0, 3);
 
   return (
     <div className="grid gap-8">
       <div className="text-right">
-        <h1 className="text-3xl font-bold">أهلاً بك، {user.full_name.split(' ')[0]}!</h1>
+        <h1 className="text-3xl font-bold">أهلاً بك، {user.full_name?.split(' ')[0]}!</h1>
         <p className="text-muted-foreground">ماذا تريد أن تطلب اليوم؟</p>
       </div>
       
@@ -52,7 +52,7 @@ export default function ClientDashboard({ user }: { user: User }) {
         <CardContent>
           <div className="space-y-4">
             {recentOrders.length > 0 ? (
-              recentOrders.map((order) => <OrderListItem key={order.order_id} order={order} />)
+              recentOrders.map((order) => <OrderListItem key={order.orderId} order={order} />)
             ) : (
               <p className="py-8 text-center text-muted-foreground">ليس لديك طلبات سابقة.</p>
             )}

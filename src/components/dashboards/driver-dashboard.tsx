@@ -13,7 +13,7 @@ import Link from 'next/link';
 export default function DriverDashboard({ user }: { user: User }) {
   const driverDetails = user.driver_details;
   const currentOrders = mockOrders.filter(
-    (o) => o.driver_uid === user.uid && o.status !== 'delivered' && o.status !== 'cancelled'
+    (o) => o.driverUid === user.uid && o.status !== 'delivered' && o.status !== 'cancelled'
   );
 
   if (!driverDetails) {
@@ -51,8 +51,8 @@ export default function DriverDashboard({ user }: { user: User }) {
         />
         <StatsCard
           title="طلبات اليوم"
-          value="12"
-          description="+3 عن الأمس"
+          value="0"
+          description="+0 عن الأمس"
           Icon={Bike}
         />
         <StatsCard
@@ -77,7 +77,7 @@ export default function DriverDashboard({ user }: { user: User }) {
           <CardContent>
             <div className="space-y-4">
               {currentOrders.length > 0 ? (
-                currentOrders.map((order) => <OrderListItem key={order.order_id} order={order} />)
+                currentOrders.map((order) => <OrderListItem key={order.orderId} order={order} />)
               ) : (
                 <p className="py-8 text-center text-muted-foreground">لا توجد طلبات حالية.</p>
               )}

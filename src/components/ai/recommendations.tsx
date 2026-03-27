@@ -30,36 +30,39 @@ export default function AIRecommendations({ user }: { user: User }) {
     setLoading(true);
     setError(null);
     try {
+      if (!user.city_id) {
+        setError('لم يتم تحديد مدينة المستخدم.');
+        return;
+      }
       const input = {
         clientUid: user.uid,
         currentCityId: user.city_id,
         clientPastOrderStoreIds: mockOrders
-          .filter(o => o.client_uid === user.uid)
-          .map(o => o.store_id),
+          .filter(o => o.clientUid === user.uid)
+          .map(o => o.storeId),
         clientPastOrderProductIds: mockOrders
-          .filter(o => o.client_uid === user.uid)
-          .flatMap(o => o.items.map(item => item.product_id)),
-        clientBrowsedStoreIds: ['store2'], // Mocked
-        clientBrowsedProductIds: ['prod3'], // Mocked
+          .filter(o => o.clientUid === user.uid)
+          .flatMap(o => o.items.map(item => item.productId)),
+        clientBrowsedStoreIds: [], // Mocked
+        clientBrowsedProductIds: [], // Mocked
         allAvailableStoresInCity: mockStores
           .filter(s => s.city_id === user.city_id)
           .map(s => ({
-            store_id: s.store_id,
+            store_id: s.storeId,
             name_ar: s.name_ar,
-            filter_id: s.filter_id,
+            filter_id: s.filter_ids[0],
             rating: s.rating,
             logo_url: s.logo_url,
             address_text: s.address_text,
           })),
         allAvailableProductsInCity: mockProducts
-          .filter(p => mockStores.find(s => s.store_id === p.store_id && s.city_id === user.city_id))
+          .filter(p => mockStores.find(s => s.storeId === p.storeId && s.city_id === user.city_id))
           .map(p => ({
-            product_id: p.product_id,
+            product_id: p.productId,
             name_ar: p.name_ar,
-            store_id: p.store_id,
-            category_id: p.category_id,
+            store_id: p.storeId,
             base_price: p.base_price,
-            main_image: p.main_image,
+            main_image: p.main_image_url,
           })),
       };
       const result = await clientPersonalizedRecommendations(input);
@@ -73,18 +76,26 @@ export default function AIRecommendations({ user }: { user: User }) {
   };
 
   useEffect(() => {
-    getRecs();
+    if (mockStores.length > 0 && mockProducts.length > 0) {
+      getRecs();
+    } else {
+        setLoading(false);
+    }
   }, [user.uid, user.city_id]);
 
   const recommendedStoreDetails = recommendations?.recommendedStores.map(rec => {
-    const store = mockStores.find(s => s.store_id === rec.store_id);
+    const store = mockStores.find(s => s.storeId === rec.store_id);
     return { ...rec, ...store };
   }).filter(Boolean) as (ClientPersonalizedRecommendationsOutput['recommendedStores'][0] & Store)[];
   
   const recommendedProductDetails = recommendations?.recommendedProducts.map(rec => {
-      const product = mockProducts.find(p => p.product_id === rec.product_id);
+      const product = mockProducts.find(p => p.productId === rec.product_id);
       return {...rec, ...product};
   }).filter(Boolean) as (ClientPersonalizedRecommendationsOutput['recommendedProducts'][0] & Product)[];
+
+  if (mockStores.length === 0 || mockProducts.length === 0) {
+      return null;
+  }
 
   return (
     <Card className="bg-primary/5">
@@ -105,36 +116,42 @@ export default function AIRecommendations({ user }: { user: User }) {
           <RecommendationsSkeleton />
         ) : error ? (
           <p className="text-center text-destructive">{error}</p>
+        ) : !recommendations || (recommendations.recommendedProducts.length === 0 && recommendations.recommendedStores.length === 0) ? (
+            <p className="text-center text-muted-foreground">لا توجد توصيات متاحة في الوقت الحالي.</p>
         ) : (
           <div className="space-y-6">
-            <div>
-              <h3 className="mb-3 text-lg font-semibold">متاجر قد تعجبك</h3>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-                {recommendedStoreDetails?.map((item) => (
-                  <Card key={item.store_id} className="overflow-hidden transition-all hover:shadow-lg">
-                    <Image data-ai-hint="store logo" src={item.logo_url} alt={item.name_ar} width={200} height={200} className="object-cover w-full h-24" />
-                    <div className="p-3">
-                      <h4 className="font-semibold truncate">{item.name_ar}</h4>
-                      <p className="text-xs text-muted-foreground truncate">{item.reason}</p>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
-            <div>
-              <h3 className="mb-3 text-lg font-semibold">منتجات مقترحة</h3>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-                {recommendedProductDetails?.map((item) => (
-                  <Card key={item.product_id} className="overflow-hidden transition-all hover:shadow-lg">
-                    <Image data-ai-hint="product photo" src={item.main_image} alt={item.name_ar} width={400} height={300} className="object-cover w-full h-24" />
-                     <div className="p-3">
-                      <h4 className="font-semibold truncate">{item.name_ar}</h4>
-                      <p className="text-xs text-muted-foreground truncate">{item.reason}</p>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </div>
+            {recommendedStoreDetails && recommendedStoreDetails.length > 0 && (
+                <div>
+                <h3 className="mb-3 text-lg font-semibold">متاجر قد تعجبك</h3>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+                    {recommendedStoreDetails?.map((item) => (
+                    <Card key={item.storeId} className="overflow-hidden transition-all hover:shadow-lg">
+                        <Image data-ai-hint="store logo" src={item.logo_url} alt={item.name_ar} width={200} height={200} className="object-cover w-full h-24" />
+                        <div className="p-3">
+                        <h4 className="font-semibold truncate">{item.name_ar}</h4>
+                        <p className="text-xs text-muted-foreground truncate">{item.reason}</p>
+                        </div>
+                    </Card>
+                    ))}
+                </div>
+                </div>
+            )}
+            {recommendedProductDetails && recommendedProductDetails.length > 0 && (
+                <div>
+                <h3 className="mb-3 text-lg font-semibold">منتجات مقترحة</h3>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+                    {recommendedProductDetails?.map((item) => (
+                    <Card key={item.productId} className="overflow-hidden transition-all hover:shadow-lg">
+                        <Image data-ai-hint="product photo" src={item.main_image_url} alt={item.name_ar} width={400} height={300} className="object-cover w-full h-24" />
+                        <div className="p-3">
+                        <h4 className="font-semibold truncate">{item.name_ar}</h4>
+                        <p className="text-xs text-muted-foreground truncate">{item.reason}</p>
+                        </div>
+                    </Card>
+                    ))}
+                </div>
+                </div>
+            )}
           </div>
         )}
       </CardContent>

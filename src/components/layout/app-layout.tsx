@@ -7,7 +7,20 @@ import { mockUsers } from '@/lib/mock-data';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   // In a real app, you'd get the current user from an auth session.
   // We'll simulate this by allowing you to switch the user index in `src/app/page.tsx`.
-  const currentUser: User = mockUsers[0]; // 0: client, 1: driver, 2: admin
+  const userIndex = 0; // 0: client, 1: driver, 2: admin
+  const currentUser: User | undefined = mockUsers[userIndex];
+
+  if (!currentUser) {
+    return (
+        <div className="flex min-h-screen bg-background">
+            <main className="flex-1 overflow-y-auto">
+              <div className="p-4 mx-auto max-w-7xl sm:p-6 lg:p-8">
+                {children}
+              </div>
+            </main>
+        </div>
+    );
+  }
 
   return (
     <SidebarProvider>

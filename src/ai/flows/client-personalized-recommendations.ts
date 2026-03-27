@@ -100,6 +100,12 @@ const clientPersonalizedRecommendationsFlow = ai.defineFlow(
     outputSchema: ClientPersonalizedRecommendationsOutputSchema,
   },
   async (input) => {
+    if (input.allAvailableProductsInCity.length === 0 && input.allAvailableStoresInCity.length === 0) {
+        return {
+            recommendedStores: [],
+            recommendedProducts: []
+        };
+    }
     // Call the prompt to get recommendations
     const { output } = await personalizedRecommendationsPrompt(input);
     // The prompt is designed to directly output the desired schema,

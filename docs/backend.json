@@ -1,0 +1,260 @@
+{
+  "entities": {
+    "City": {
+      "title": "City",
+      "description": "Represents a city where the service is available.",
+      "type": "object",
+      "properties": {
+        "cityId": { "type": "string", "description": "Unique identifier for the city." },
+        "name_ar": { "type": "string", "description": "Arabic name of the city." },
+        "name_en": { "type": "string", "description": "English name of the city." },
+        "country_code": { "type": "string", "description": "Country code (e.g., 'YE')." },
+        "is_active": { "type": "boolean", "description": "Whether the service is active in this city." }
+      },
+      "required": ["cityId", "name_ar", "country_code", "is_active"]
+    },
+    "User": {
+      "title": "User",
+      "description": "Represents a user of the platform (client, driver, admin, or store owner).",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth User ID." },
+        "phone": { "type": "string", "format": "phone", "description": "Primary phone number for OTP." },
+        "role": { "type": "string", "enum": ["client", "driver", "admin", "store_owner"] },
+        "full_name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "profile_image": { "type": "string", "format": "uri" },
+        "city_id": { "type": "string", "description": "Reference to the City entity." },
+        "created_at": { "type": "string", "format": "date-time" },
+        "last_login_at": { "type": "string", "format": "date-time" },
+        "order_history": { "type": "array", "items": { "type": "string" } },
+        "account_status": {
+          "type": "object",
+          "properties": {
+            "is_blocked": { "type": "boolean" },
+            "reason": { "type": "string" }
+          }
+        },
+        "driver_details": {
+          "type": "object",
+          "properties": {
+            "vehicle_type": { "type": "string" },
+            "license_plate": { "type": "string" },
+            "id_card_image": { "type": "string", "format": "uri" },
+            "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+            "is_online": { "type": "boolean" },
+            "rating": { "type": "number" },
+            "wallet_balance": { "type": "number" },
+            "current_location": { "$ref": "#/entities/GeoPoint" }
+          }
+        }
+      },
+      "required": ["uid", "phone", "role", "created_at", "last_login_at", "account_status"]
+    },
+    "CategoryFilter": {
+      "title": "Category Filter",
+      "description": "Represents a category for filtering stores.",
+      "type": "object",
+      "properties": {
+        "filterId": { "type": "string" },
+        "name_ar": { "type": "string" },
+        "name_en": { "type": "string" },
+        "type": { "type": "string", "enum": ["restaurant", "pharmacy", "market", "other"] },
+        "icon_url": { "type": "string", "format": "uri" },
+        "parent_filter_id": { "type": "string" }
+      },
+      "required": ["filterId", "name_ar", "type"]
+    },
+    "Store": {
+      "title": "Store",
+      "description": "Represents a merchant's store.",
+      "type": "object",
+      "properties": {
+        "storeId": { "type": "string" },
+        "ownerUid": { "type": "string", "description": "Reference to the User (store owner)." },
+        "name_ar": { "type": "string" },
+        "name_en": { "type": "string" },
+        "description_ar": { "type": "string" },
+        "description_en": { "type": "string" },
+        "logo_url": { "type": "string", "format": "uri" },
+        "cover_image_url": { "type": "string", "format": "uri" },
+        "city_id": { "type": "string", "description": "Reference to the City." },
+        "filter_ids": { "type": "array", "items": { "type": "string" } },
+        "location": { "$ref": "#/entities/GeoPoint" },
+        "address_text": { "type": "string" },
+        "working_hours": { "type": "object" },
+        "is_open": { "type": "boolean" },
+        "is_active": { "type": "boolean" },
+        "rating": { "type": "number" },
+        "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." }
+      },
+      "required": ["storeId", "ownerUid", "name_ar", "city_id", "filter_ids", "location", "is_active", "storeOwnerUid"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Represents a product sold in a store.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "storeId": { "type": "string" },
+        "name_ar": { "type": "string" },
+        "name_en": { "type": "string" },
+        "description_ar": { "type": "string" },
+        "description_en": { "type": "string" },
+        "main_image_url": { "type": "string", "format": "uri" },
+        "base_price": { "type": "number" },
+        "is_available": { "type": "boolean" },
+        "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." }
+      },
+      "required": ["productId", "storeId", "name_ar", "base_price", "is_available", "storeOwnerUid"]
+    },
+    "ProductVariant": {
+      "title": "Product Variant",
+      "description": "Represents a variant of a product.",
+      "type": "object",
+      "properties": {
+        "variantId": { "type": "string" },
+        "name_ar": { "type": "string" },
+        "name_en": { "type": "string" },
+        "price": { "type": "number" },
+        "stock_count": { "type": "number" },
+        "image_url": { "type": "string", "format": "uri" }
+      },
+      "required": ["variantId", "name_ar", "price"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Represents a customer's order.",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string" },
+        "clientUid": { "type": "string" },
+        "driverUid": { "type": "string" },
+        "storeId": { "type": "string" },
+        "items": { "type": "array", "items": { "$ref": "#/entities/OrderItem" } },
+        "subtotal_price": { "type": "number" },
+        "delivery_fee": { "type": "number" },
+        "total_price": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "preparing", "out_for_delivery", "delivered", "cancelled", "rejected"] },
+        "payment_method": { "type": "string", "enum": ["cash", "wallet", "card"] },
+        "delivery_location": { "$ref": "#/entities/GeoPoint" },
+        "delivery_address_text": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." }
+      },
+      "required": ["orderId", "clientUid", "storeId", "items", "total_price", "status", "payment_method", "delivery_location", "created_at", "updated_at", "storeOwnerUid"]
+    },
+    "OrderItem": {
+      "title": "Order Item",
+      "description": "Represents an item within an order.",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "productName_ar": { "type": "string" },
+        "quantity": { "type": "number" },
+        "price": { "type": "number" },
+        "variantId": { "type": "string" },
+        "variantName_ar": { "type": "string" }
+      },
+      "required": ["productId", "productName_ar", "quantity", "price"]
+    },
+    "FinanceTransaction": {
+      "title": "Finance Transaction",
+      "description": "Represents a financial transaction.",
+      "type": "object",
+      "properties": {
+        "transactionId": { "type": "string" },
+        "userUid": { "type": "string" },
+        "orderId": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["top-up", "withdrawal", "order_payment", "refund", "system_fee"] },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "description": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["transactionId", "userUid", "amount", "type", "status", "created_at"]
+    },
+    "AppInfoSetting": {
+      "title": "App Info Setting",
+      "description": "Publicly accessible application information like 'About Us' or ad banners.",
+      "type": "object",
+      "properties": {
+        "settingId": { "type": "string" },
+        "type": { "type": "string", "enum": ["about_us", "privacy_policy", "terms_of_service", "ad_banner"] },
+        "content_ar": { "type": "string" },
+        "content_en": { "type": "string" },
+        "image_url": { "type": "string", "format": "uri" },
+        "is_active": { "type": "boolean" }
+      },
+      "required": ["settingId", "type", "content_ar", "is_active"]
+    },
+    "AdminConfigSetting": {
+      "title": "Admin Config Setting",
+      "description": "Admin-only system configurations like coupons or VIP packages.",
+      "type": "object",
+      "properties": {
+        "settingId": { "type": "string" },
+        "type": { "type": "string", "enum": ["coupon", "vip_package", "loyalty_points_config", "system_fee_config"] },
+        "config_data": { "type": "object" },
+        "is_active": { "type": "boolean" }
+      },
+      "required": ["settingId", "type", "config_data", "is_active"]
+    },
+    "GeoPoint": {
+        "title": "GeoPoint",
+        "description": "Represents a geographical point.",
+        "type": "object",
+        "properties": {
+            "latitude": { "type": "number" },
+            "longitude": { "type": "number" }
+        },
+        "required": ["latitude", "longitude"]
+    }
+  },
+  "auth": {
+    "providers": ["phone"]
+  },
+  "firestore": {
+    "/cities/{cityId}": {
+      "schema": { "$ref": "#/entities/City" },
+      "description": "Publicly readable list of cities where the service is available."
+    },
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profile data, private to each user."
+    },
+    "/categoryFilters/{filterId}": {
+      "schema": { "$ref": "#/entities/CategoryFilter" },
+      "description": "Publicly readable list of store categories and filters."
+    },
+    "/stores/{storeId}": {
+      "schema": { "$ref": "#/entities/Store" },
+      "description": "Merchant stores, publicly readable."
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Products for a given store, publicly readable."
+    },
+    "/products/{productId}/variants/{variantId}": {
+      "schema": { "$ref": "#/entities/ProductVariant" },
+      "description": "Variants for a given product."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer orders, readable by participants."
+    },
+    "/financeTransactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/FinanceTransaction" },
+      "description": "Financial transactions, private to each user."
+    },
+    "/app_info_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppInfoSetting" },
+      "description": "Public app settings, readable by all, writable by admins."
+    },
+    "/admin_config_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AdminConfigSetting" },
+      "description": "Private system configurations, accessible only by admins."
+    }
+  }
+}
