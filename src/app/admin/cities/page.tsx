@@ -30,6 +30,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 
 const CityRowSkeleton = () => (
     <TableRow>
@@ -102,6 +103,10 @@ export default function AdminCitiesPage() {
             toast({ variant: 'destructive', title: "خطأ في الحذف", description: "لم يتم حذف المدينة." });
         }
     }
+  }
+
+  if (!firestore) {
+    return <SetupFirestoreMessage />;
   }
 
   return (

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useFirestore } from "@/firebase";
 import { collection, getCountFromServer } from "firebase/firestore";
+import SetupFirestoreMessage from "@/components/admin/setup-firestore-message";
 
 const SALES_DATA = [
   { name: "السبت", sales: 45000 },
@@ -84,6 +85,10 @@ export default function AdminDashboard() {
 
     fetchStats();
   }, [firestore]);
+
+  if (!firestore) {
+    return <SetupFirestoreMessage />;
+  }
 
 
   return (

@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { mockCategories, mockAdminUser } from '@/lib/mock-data'; // Keeping mock categories for now
 import { Skeleton } from '@/components/ui/skeleton';
+import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 
 const StoreRowSkeleton = () => (
     <TableRow>
@@ -95,6 +96,10 @@ export default function AdminStoresPage() {
   
   const getCityName = (cityId: string) => {
     return cities?.find(c => c.id === cityId)?.name_ar || 'غير محدد';
+  }
+
+  if (!firestore) {
+    return <SetupFirestoreMessage />;
   }
 
   return (
