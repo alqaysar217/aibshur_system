@@ -20,11 +20,14 @@ import {
   Bike,
   Shield,
   Users,
+  Building,
+  CreditCard,
 } from 'lucide-react';
 import type { User, UserRole } from '@/lib/types';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '../ui/badge';
+import { getAuth, signOut } from 'firebase/auth';
 
 const getRoleName = (role: UserRole) => {
   switch (role) {
@@ -62,7 +65,8 @@ const getNavLinks = (role: UserRole) => {
     { href: '/admin/users', label: 'المستخدمين', icon: Users },
     { href: '/admin/stores', label: 'المتاجر', icon: ShoppingBag },
     { href: '/admin/orders', label: 'الطلبات', icon: ClipboardList },
-    { href: '/admin/finances', label: 'المالية', icon: Wallet },
+    { href: '/admin/finances', label: 'المالية', icon: CreditCard },
+    { href: '/admin/cities', label: 'إدارة المدن', icon: Building },
     { href: '/admin/settings', label: 'الإعدادات', icon: Settings },
   ];
 
@@ -92,6 +96,11 @@ const getRoleIcon = (role: UserRole) => {
       return <UserIcon className="w-4 h-4" />;
   }
 };
+
+const handleSignOut = () => {
+    const auth = getAuth();
+    signOut(auth);
+}
 
 
 export default function AppSidebar({ user }: { user: User }) {
@@ -135,7 +144,7 @@ export default function AppSidebar({ user }: { user: User }) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton className="justify-end">
+            <SidebarMenuButton className="justify-end" onClick={handleSignOut}>
               <span>تسجيل الخروج</span>
               <LogOut className="w-5 h-5" />
             </SidebarMenuButton>

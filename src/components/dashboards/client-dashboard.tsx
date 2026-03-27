@@ -3,14 +3,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, PlusCircle, ShoppingBasket } from 'lucide-react';
 import type { User } from '@/lib/types';
-import { mockOrders } from '@/lib/mock-data';
 import OrderListItem from '../order/order-list-item';
 import AIRecommendations from '../ai/recommendations';
+import { useCollection, useFirestore } from '@/firebase';
+import { collection, query, where, limit } from 'firebase/firestore';
 
 export default function ClientDashboard({ user }: { user: User }) {
-  const recentOrders = mockOrders
-    .filter((order) => order.clientUid === user.uid)
-    .slice(0, 3);
+  const firestore = useFirestore();
+  const { data: recentOrders, loading } = useCollection(
+      firestore ? query(
+          collection(firestore, "orders"),
+          where("clientUid", "==", user.uid),
+          limit(3)
+      ) : null
+  );
 
   return (
     <div className="grid gap-8">
@@ -51,7 +57,9 @@ export default function ClientDashboard({ user }: { user: User }) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentOrders.length > 0 ? (
+            {loading ? (
+                <p>جار تحميل الطلبات...</p>
+            ) : recentOrders && recentOrders.length > 0 ? (
               recentOrders.map((order) => <OrderListItem key={order.orderId} order={order} />)
             ) : (
               <p className="py-8 text-center text-muted-foreground">ليس لديك طلبات سابقة.</p>
