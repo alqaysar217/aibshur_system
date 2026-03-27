@@ -103,49 +103,77 @@ export default function AdminStoresPage() {
     }
   }
 
-  const handleScheduleChange = (day: string, field: string, value: any, slotIndex?: number) => {
+  const handleScheduleChange = (day: string, field: 'is_closed' | 'open' | 'close', value: any, slotIndex?: number) => {
     setSchedule(prev => {
-        const newDayData = { ...prev[day] };
+        const dayData = { ...prev[day] };
+
         if (field === 'is_closed') {
-            newDayData.is_closed = value;
-            if (value) newDayData.slots = [];
-            else newDayData.slots = [{ open: '09:00', close: '22:00' }];
-        } else if (slotIndex !== undefined) {
-            newDayData.slots[slotIndex] = { ...newDayData.slots[slotIndex], [field]: value };
+            dayData.is_closed = value;
+            if (value) {
+                dayData.slots = [];
+            } else if (dayData.slots.length === 0) {
+                dayData.slots = [{ open: '09:00', close: '22:00' }];
+            }
+        } else if (slotIndex !== undefined && (field === 'open' || field === 'close')) {
+            const newSlots = [...dayData.slots];
+            newSlots[slotIndex] = { ...newSlots[slotIndex], [field]: value };
+            dayData.slots = newSlots;
         }
-        return { ...prev, [day]: newDayData };
+
+        return { ...prev, [day]: dayData };
     });
   };
 
   const addSlot = (day: string) => {
-    handleScheduleChange(day, 'slots', [...schedule[day].slots, { open: '16:00', close: '23:00' }]);
+    setSchedule(prev => {
+        const dayData = prev[day];
+        if (dayData.slots.length >= 2) return prev; // Max 2 slots
+        const newSlots = [...dayData.slots, { open: '16:00', close: '23:00' }];
+        return {
+            ...prev,
+            [day]: { ...dayData, slots: newSlots }
+        };
+    });
   }
 
   const removeSlot = (day: string, slotIndex: number) => {
-    const newSlots = [...schedule[day].slots];
-    newSlots.splice(slotIndex, 1);
-    handleScheduleChange(day, 'slots', newSlots);
+     setSchedule(prev => {
+        const dayData = prev[day];
+        const newSlots = dayData.slots.filter((_, index) => index !== slotIndex);
+        return {
+            ...prev,
+            [day]: { ...dayData, slots: newSlots }
+        };
+    });
   }
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!firestore || !storage) return;
+    if (!firestore || !storage) {
+        toast({ variant: 'destructive', title: "خطأ", description: "خدمات Firebase غير جاهزة." });
+        return;
+    }
     setIsSubmitting(true);
     setUploadProgress(0);
 
-    let logoUrl = 'https://picsum.photos/seed/default-logo/200/200'; // Default logo
-
     try {
+        let logoUrl = 'https://picsum.photos/seed/default-logo/200/200'; // Default logo
+
         if (logoFile) {
-            await new Promise<void>((resolve, reject) => {
+            logoUrl = await new Promise<string>((resolve, reject) => {
                 const storageRef = ref(storage, `store-logos/${Date.now()}_${logoFile.name}`);
                 const uploadTask = uploadBytesResumable(storageRef, logoFile);
+                
                 uploadTask.on('state_changed',
                     (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
                     (error) => reject(new Error(`فشل رفع الصورة: ${error.message}`)),
                     async () => {
-                        logoUrl = await getDownloadURL(uploadTask.snapshot.ref);
-                        resolve();
+                        try {
+                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                            resolve(downloadURL);
+                        } catch (error) {
+                            reject(new Error(`فشل الحصول على رابط الصورة: ${(error as Error).message}`));
+                        }
                     }
                 );
             });
@@ -160,7 +188,9 @@ export default function AdminStoresPage() {
         if (!selectedCity) throw new Error("الرجاء اختيار مدينة صحيحة.");
         if (isNaN(lat) || isNaN(lon)) throw new Error("إحداثيات الموقع غير صحيحة.");
 
-        const newStoreData: Omit<Store, 'id' | 'storeId' | 'ownerUid' | 'storeOwnerUid'> = {
+        const ownerUid = mockAdminUser.uid;
+
+        const newStoreData: Omit<Store, 'id' | 'storeId' | 'ownerUid' | 'storeOwnerUid'> & { ownerUid: string; storeOwnerUid: string } = {
             name_ar: formData.get('name_ar') as string,
             logo_url: logoUrl,
             city_id: selectedCity.cityId,
@@ -171,16 +201,12 @@ export default function AdminStoresPage() {
             working_hours: schedule,
             is_active: true,
             is_open: true,
+            ownerUid: ownerUid,
+            storeOwnerUid: ownerUid,
         };
 
-        const ownerUid = mockAdminUser.uid;
         const storeRef = collection(firestore, 'stores');
-        const newDoc = await addDoc(storeRef, {
-            ...newStoreData,
-            storeId: '',
-            ownerUid,
-            storeOwnerUid: ownerUid
-        });
+        const newDoc = await addDoc(storeRef, newStoreData);
 
         await updateDoc(doc(storeRef, newDoc.id), { storeId: newDoc.id });
 
@@ -191,7 +217,7 @@ export default function AdminStoresPage() {
 
     } catch (error) {
         console.error("Error adding store: ", error);
-        toast({ variant: 'destructive', title: "حدث خطأ", description: (error as Error).message || "لم يتم حفظ المتجر." });
+        toast({ variant: 'destructive', title: "حدث خطأ فادح", description: (error as Error).message || "لم يتم حفظ المتجر. يرجى مراجعة الكونسول." });
     } finally {
         setIsSubmitting(false);
         setUploadProgress(0);
@@ -311,7 +337,7 @@ export default function AdminStoresPage() {
                             </div>
                             <Input id="logo_file" name="logo_file" type="file" onChange={handleFileChange} accept="image/*" className="rounded-lg file:font-black file:rounded-lg file:border-none file:bg-gray-100 file:text-primary"/>
                         </div>
-                        {isSubmitting && uploadProgress > 0 && uploadProgress < 100 && (
+                        {isSubmitting && uploadProgress > 0 && (
                             <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
                                 <div className="bg-primary h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
                             </div>
@@ -386,7 +412,7 @@ export default function AdminStoresPage() {
                                                 <Input type="time" name={`${dayKey}_open_${index}`} value={slot.open} onChange={(e) => handleScheduleChange(dayKey, 'open', e.target.value, index)} className="rounded-lg" dir="ltr"/>
                                                 <span className="font-bold text-gray-400">-</span>
                                                 <Input type="time" name={`${dayKey}_close_${index}`} value={slot.close} onChange={(e) => handleScheduleChange(dayKey, 'close', e.target.value, index)} className="rounded-lg" dir="ltr"/>
-                                                {index > 0 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => removeSlot(dayKey, index)}><X className="w-4 h-4" /></Button>}
+                                                {schedule[dayKey].slots.length > 1 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => removeSlot(dayKey, index)}><X className="w-4 h-4" /></Button>}
                                             </div>
                                         ))}
                                         {schedule[dayKey].slots.length < 2 && <Button type="button" variant="outline" size="sm" className="text-xs font-bold gap-1" onClick={() => addSlot(dayKey)}><Plus className="w-3 h-3"/> إضافة فترة مسائية</Button>}
