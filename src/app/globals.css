@@ -4,40 +4,39 @@
 
 @layer base {
   :root {
-    --background: 220 40% 5%;
-    --foreground: 210 40% 98%;
-    --card: 220 40% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 220 40% 4%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 45 100% 51%; /* Gold */
-    --primary-foreground: 220 40% 5%;
-    --secondary: 168 100% 44%; /* Emerald */
-    --secondary-foreground: 210 40% 98%;
-    --muted: 220 30% 15%;
-    --muted-foreground: 210 30% 70%;
-    --accent: 168 100% 44%; /* Emerald */
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
+    /* Primary Identity: #1FAF9A */
+    --primary: 171 70% 40%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Backgrounds: #FFFFFF and #F8FAFB */
+    --background: 210 17% 98%; /* equivalent to #F8FAFB */
+    --foreground: 221 39% 11%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 221 39% 11%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 221 39% 11%;
+    
+    --secondary: 210 17% 95%; /* Lighter gray for secondary elements */
+    --secondary-foreground: 221 39% 11%;
+    
+    --muted: 210 17% 90%;
+    --muted-foreground: 215 14% 46%;
+    
+    /* Accent: #1FAF9A */
+    --accent: 171 70% 40%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Status Colors */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 220 30% 20%;
-    --input: 220 30% 20%;
-    --ring: 45 100% 51%; /* Gold */
-    --radius: 0.5rem;
-    --chart-1: 45 100% 51%;
-    --chart-2: 168 100% 44%;
-    --chart-3: 217 33% 50%;
-    --chart-4: 217 33% 30%;
-    --chart-5: 217 33% 70%;
-
-    --sidebar-background: 220 40% 3%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 45 100% 51%;
-    --sidebar-primary-foreground: 220 40% 4%;
-    --sidebar-accent: 220 40% 8%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 220 30% 12%;
-    --sidebar-ring: 45 100% 51%;
+    
+    --border: 210 17% 90%;
+    --input: 210 17% 90%;
+    --ring: 171 70% 40%;
+    
+    --radius: 10px; 
   }
 }
 
@@ -46,6 +45,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body;
+    -webkit-tap-highlight-color: transparent;
   }
 }

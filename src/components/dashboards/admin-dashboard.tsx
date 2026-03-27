@@ -1,120 +1,220 @@
-'use client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Users, ShoppingBag, Activity } from 'lucide-react';
-import type { User, Order } from '@/lib/types';
-import StatsCard from './stats-card';
-import SalesChart from './sales-chart';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Skeleton } from '../ui/skeleton';
-import { mockOrders, mockUsers, mockStores } from '@/lib/mock-data'; // Using mock data
+"use client"
 
-const StatsSkeleton = () => (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card><CardHeader><Skeleton className="w-24 h-5"/></CardHeader><CardContent><Skeleton className="w-32 h-8"/><Skeleton className="w-40 h-4 mt-1"/></CardContent></Card>
-        <Card><CardHeader><Skeleton className="w-24 h-5"/></CardHeader><CardContent><Skeleton className="w-32 h-8"/><Skeleton className="w-40 h-4 mt-1"/></CardContent></Card>
-        <Card><CardHeader><Skeleton className="w-24 h-5"/></CardHeader><CardContent><Skeleton className="w-32 h-8"/><Skeleton className="w-40 h-4 mt-1"/></CardContent></Card>
-        <Card><CardHeader><Skeleton className="w-24 h-5"/></CardHeader><CardContent><Skeleton className="w-32 h-8"/><Skeleton className="w-40 h-4 mt-1"/></CardContent></Card>
-    </div>
-);
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { 
+  TrendingUp, ShoppingBag, Truck, Users, 
+  ArrowUpRight, ArrowDownRight, MoreHorizontal,
+  ChevronLeft
+} from "lucide-react"
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer, PieChart, Pie, Cell 
+} from "recharts"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
-const RecentActivitySkeleton = () => (
-    <Card>
-        <CardHeader>
-            <CardTitle>آخر النشاطات</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            {Array.from({length: 3}).map((_, i) => (
-                <div key={i} className="flex items-center gap-4">
-                    <Skeleton className="w-10 h-10 rounded-full"/>
-                    <div className='space-y-2'>
-                        <Skeleton className="h-4 w-48"/>
-                        <Skeleton className="h-3 w-24"/>
-                    </div>
-                </div>
-            ))}
-        </CardContent>
-    </Card>
-);
+const SALES_DATA = [
+  { name: "السبت", sales: 45000 },
+  { name: "الأحد", sales: 52000 },
+  { name: "الاثنين", sales: 48000 },
+  { name: "الثلاثاء", sales: 61000 },
+  { name: "الأربعاء", sales: 55000 },
+  { name: "الخميس", sales: 72000 },
+  { name: "الجمعة", sales: 85000 },
+]
 
+const CATEGORY_DATA = [
+  { name: "مطاعم", value: 45, color: "#10B981" },
+  { name: "كافيهات", value: 20, color: "#F59E0B" },
+  { name: "صيدليات", value: 15, color: "#3B82F6" },
+  { name: "ماركت", value: 20, color: "#EC4899" },
+]
 
-export default function AdminDashboard({ user }: { user: User }) {
-  // NOTE: Using mock data while auth is bypassed.
-  const orders = mockOrders;
-  const users = mockUsers;
-  const stores = mockStores;
-  const recentUsers = mockUsers.slice(0, 3);
-  const loading = false; // Data is static, so not loading
+const STATS = [
+  { label: "إجمالي المبيعات", value: "٨٥٠,٠٠٠", currency: "ريال", icon: CreditCard, trend: "+١٢.٥٪", up: true, color: "text-emerald-600", bg: "bg-emerald-50" },
+  { label: "طلبات اليوم", value: "١٤٢", icon: ShoppingBag, trend: "+٨٪", up: true, color: "text-blue-600", bg: "bg-blue-50" },
+  { label: "المناديب النشطين", value: "٣٨", icon: Truck, trend: "-٢٪", up: false, color: "text-orange-600", bg: "bg-orange-50" },
+  { label: "مستخدمين جدد", value: "٥٤", icon: Users, trend: "+١٥٪", up: true, color: "text-purple-600", bg: "bg-purple-50" },
+]
 
-  const totalRevenue = orders?.reduce((sum, order) => sum + order.total_price, 0) ?? 0;
-  const totalUsers = users?.length ?? 0;
-  const totalStores = stores?.length ?? 0;
-  const totalOrders = orders?.length ?? 0;
+const RECENT_ORDERS = [
+  { id: "ORD-9921", customer: "عمر دعكيك", store: "مطعم مذاقي", amount: "٤,٥٠٠", status: "delivered", time: "منذ ٥ دقائق" },
+  { id: "ORD-9920", customer: "سالم محمد", store: "كافيه بن علي", amount: "١,٨٠٠", status: "onWay", time: "منذ ١٢ دقيقة" },
+  { id: "ORD-9919", customer: "أحمد حسن", store: "سوبر ماركت الخليج", amount: "١٢,٤٠٠", status: "preparing", time: "منذ ٢٠ دقيقة" },
+  { id: "ORD-9918", customer: "علي صالح", store: "صيدلية السلام", amount: "٣,٢٠٠", status: "pending", time: "منذ ٢٥ دقيقة" },
+  { id: "ORD-9917", customer: "محمد عمر", store: "عسل حضرمي", amount: "١٥,٠٠٠", status: "canceled", time: "منذ ٣٠ دقيقة" },
+]
 
+export default function AdminDashboard() {
   return (
-    <div className="grid gap-8">
-      <div className="text-right">
-        <h1 className="text-3xl font-bold">لوحة تحكم المدير</h1>
-        <p className="text-muted-foreground">نظرة عامة على نظام أبشر.</p>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900">نظرة عامة على النظام</h1>
+          <p className="text-gray-400 text-sm font-bold mt-1">أهلاً بك مجدداً، إليك ملخص نشاط تطبيق أبشر لليوم</p>
+        </div>
+        <Button className="rounded-lg bg-primary hover:bg-primary/90 font-black gap-2 h-11 shadow-lg shadow-primary/20">
+          <TrendingUp className="h-4 w-4" /> تحميل التقارير
+        </Button>
       </div>
-      {loading ? <StatsSkeleton /> : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <StatsCard
-            title="إجمالي الإيرادات"
-            value={`${totalRevenue.toLocaleString('ar-SA', { style: 'currency', currency: 'SAR' })}`}
-            description="جميع الأوقات"
-            Icon={DollarSign}
-            />
-            <StatsCard
-            title="المستخدمون"
-            value={`+${totalUsers}`}
-            description="إجمالي المستخدمين المسجلين"
-            Icon={Users}
-            />
-            <StatsCard
-            title="المتاجر"
-            value={`+${totalStores}`}
-            description="إجمالي المتاجر النشطة"
-            Icon={ShoppingBag}
-            />
-            <StatsCard
-            title="الطلبات"
-            value={`+${totalOrders}`}
-            description="جميع الأوقات"
-            Icon={Activity}
-            />
-        </div>
-      )}
-      <div className="grid grid-cols-1 gap-8 xl:grid-cols-3">
-        <div className="xl:col-span-2">
-          <SalesChart />
-        </div>
-        {loading ? <RecentActivitySkeleton /> : (
-            <Card>
-            <CardHeader>
-                <CardTitle>آخر المستخدمين</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {recentUsers?.map((activityUser, index) => (
-                <div key={index} className="flex items-center gap-4">
-                    <Avatar>
-                    <AvatarImage src={activityUser.profile_image} />
-                    <AvatarFallback>{activityUser.full_name ? activityUser.full_name.charAt(0) : 'A'}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                    <p className="text-sm font-medium leading-none">
-                        <span className="font-bold">{activityUser.full_name}</span> انضم مؤخرا
-                    </p>
-                    <p className="text-sm text-muted-foreground">{new Date(activityUser.created_at).toLocaleDateString('ar-EG')}</p>
-                    </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {STATS.map((stat, idx) => (
+          <Card key={idx} className="border-none shadow-sm rounded-[20px] overflow-hidden hover:shadow-md transition-all group bg-white">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", stat.bg)}>
+                  <stat.icon className={cn("h-6 w-6", stat.color)} />
                 </div>
-                ))}
-                {recentUsers?.length === 0 && (
-                    <p className="py-8 text-center text-muted-foreground">لا يوجد نشاط لعرضه.</p>
-                )}
+                <Badge className={cn(
+                  "rounded-full border-none font-black px-2 py-0.5 text-[10px] gap-1",
+                  stat.up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                )}>
+                  {stat.up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  {stat.trend}
+                </Badge>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                <div className="flex items-baseline gap-1">
+                  <h3 className="text-2xl font-black text-gray-900 tabular-nums">{stat.value}</h3>
+                  {stat.currency && <span className="text-[10px] font-black text-gray-400">{stat.currency}</span>}
+                </div>
+              </div>
             </CardContent>
-            </Card>
-        )}
+          </Card>
+        ))}
       </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 border-none shadow-sm rounded-[25px] bg-white overflow-hidden">
+          <CardHeader className="p-6 border-b border-gray-50 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-black flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" /> نمو المبيعات الأسبوعي
+            </CardTitle>
+            <Badge variant="outline" className="rounded-xl font-bold">آخر ٧ أيام</Badge>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={SALES_DATA}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', direction: 'rtl' }}
+                    labelStyle={{ fontWeight: 'black', marginBottom: '5px' }}
+                  />
+                  <Line type="monotone" dataKey="sales" stroke="#1FAF9A" strokeWidth={4} dot={{ r: 6, fill: '#1FAF9A', strokeWidth: 2, stroke: '#FFF' }} activeDot={{ r: 8 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-sm rounded-[25px] bg-white overflow-hidden">
+          <CardHeader className="p-6 border-b border-gray-50">
+            <CardTitle className="text-sm font-black flex items-center gap-2">
+              <Store className="h-4 w-4 text-primary" /> توزيع المتاجر حسب الفئة
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={CATEGORY_DATA}
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={8}
+                    dataKey="value"
+                  >
+                    {CATEGORY_DATA.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              {CATEGORY_DATA.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-[10px] font-black text-gray-600">{item.name}</span>
+                  <span className="text-[10px] font-bold text-gray-400 mr-auto">{item.value}٪</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Orders Table */}
+      <Card className="border-none shadow-sm rounded-[25px] bg-white overflow-hidden">
+        <CardHeader className="p-6 border-b border-gray-50 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm font-black flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-primary" /> أحدث الطلبات
+          </CardTitle>
+          <Button variant="ghost" size="sm" className="text-xs font-black text-primary gap-1">
+            عرض الكل <ChevronLeft className="h-3 w-3" />
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-right">
+              <thead>
+                <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                  <th className="px-6 py-4">رقم الطلب</th>
+                  <th className="px-6 py-4">العميل</th>
+                  <th className="px-6 py-4">المتجر</th>
+                  <th className="px-6 py-4">المبلغ</th>
+                  <th className="px-6 py-4">الحالة</th>
+                  <th className="px-6 py-4 text-left">الوقت</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {RECENT_ORDERS.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <td className="px-6 py-4">
+                      <span className="font-black text-xs text-primary bg-primary/5 px-2 py-1 rounded-md">#{order.id}</span>
+                    </td>
+                    <td className="px-6 py-4 font-bold text-xs text-gray-700">{order.customer}</td>
+                    <td className="px-6 py-4 font-bold text-xs text-gray-700">{order.store}</td>
+                    <td className="px-6 py-4">
+                      <span className="font-black text-xs text-gray-900">{order.amount} <small className="text-[10px] text-gray-400">ريال</small></span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge className={cn(
+                        "rounded-xl border-none font-black px-3 py-1 text-[9px]",
+                        order.status === 'delivered' ? "bg-green-100 text-green-600" :
+                        order.status === 'pending' ? "bg-yellow-100 text-yellow-600" :
+                        order.status === 'canceled' ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"
+                      )}>
+                        {order.status === 'delivered' ? 'تم التوصيل' : 
+                         order.status === 'onWay' ? 'في الطريق' :
+                         order.status === 'preparing' ? 'جاري التحضير' :
+                         order.status === 'pending' ? 'قيد الانتظار' : 'ملغي'}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-left">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-[10px] font-bold text-gray-400">{order.time}</span>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                          <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
