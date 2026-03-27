@@ -1,0 +1,268 @@
+import type { City, User, CategoryFilter, Store, Product, Order, Transaction } from './types';
+
+export const mockCities: City[] = [
+  {
+    city_id: 'riyadh',
+    name_ar: 'الرياض',
+    support_contact: 'support-riyadh@absher.com',
+    is_active: true,
+    geometry: { latitude: 24.7136, longitude: 46.6753 },
+  },
+  {
+    city_id: 'jeddah',
+    name_ar: 'جدة',
+    support_contact: 'support-jeddah@absher.com',
+    is_active: true,
+    geometry: { latitude: 21.4858, longitude: 39.1925 },
+  },
+];
+
+export const mockUsers: User[] = [
+  {
+    uid: 'client1',
+    full_name: 'أحمد العلي',
+    phone: '+966501234567',
+    role: 'client',
+    city_id: 'riyadh',
+    profile_image: 'https://picsum.photos/seed/user1/200/200',
+    created_at: new Date('2023-01-15T09:00:00Z').toISOString(),
+    account_status: { is_blocked: false },
+  },
+  {
+    uid: 'driver1',
+    full_name: 'فاطمة عبدالله',
+    phone: '+966557654321',
+    role: 'driver',
+    city_id: 'riyadh',
+    profile_image: 'https://picsum.photos/seed/user2/200/200',
+    created_at: new Date('2023-02-20T14:30:00Z').toISOString(),
+    driver_details: {
+      vehicle_type: 'سيارة',
+      id_card_image: 'id.jpg',
+      status: 'approved',
+      is_online: true,
+      rating: 4.8,
+      wallet_balance: 250.75,
+    },
+    account_status: { is_blocked: false },
+  },
+  {
+    uid: 'admin1',
+    full_name: 'يوسف الصالح',
+    phone: '+966512345678',
+    role: 'admin',
+    city_id: 'riyadh',
+    profile_image: 'https://picsum.photos/seed/user3/200/200',
+    created_at: new Date('2022-11-10T11:00:00Z').toISOString(),
+    account_status: { is_blocked: false },
+  },
+];
+
+export const mockCategories: CategoryFilter[] = [
+  {
+    filter_id: 'cat1',
+    name_ar: 'مطاعم',
+    type: 'restaurant',
+    icon_url: 'UtensilsCrossed',
+  },
+  {
+    filter_id: 'cat2',
+    name_ar: 'صيدليات',
+    type: 'pharmacy',
+    icon_url: 'HeartPulse',
+  },
+  {
+    filter_id: 'cat3',
+    name_ar: 'سوبر ماركت',
+    type: 'market',
+    icon_url: 'ShoppingBasket',
+  },
+];
+
+export const mockStores: Store[] = [
+  {
+    store_id: 'store1',
+    city_id: 'riyadh',
+    filter_id: 'cat1',
+    name_ar: 'مطعم البرجر السريع',
+    logo_url: 'https://picsum.photos/seed/logo1/200/200',
+    location: { latitude: 24.72, longitude: 46.68 },
+    address_text: 'شارع الملك فهد، الرياض',
+    working_hours: { default: '12:00 - 02:00' },
+    average_delivery_time: 25,
+    is_open: true,
+    rating: 4.5,
+    owner_uid: 'owner1',
+  },
+  {
+    store_id: 'store2',
+    city_id: 'riyadh',
+    filter_id: 'cat2',
+    name_ar: 'صيدلية الشفاء',
+    logo_url: 'https://picsum.photos/seed/logo2/200/200',
+    location: { latitude: 24.7, longitude: 46.66 },
+    address_text: 'حي العليا، الرياض',
+    working_hours: { default: '24/7' },
+    average_delivery_time: 15,
+    is_open: true,
+    rating: 4.9,
+    owner_uid: 'owner2',
+  },
+  {
+    store_id: 'store3',
+    city_id: 'jeddah',
+    filter_id: 'cat3',
+    name_ar: 'أسواق النخيل',
+    logo_url: 'https://picsum.photos/seed/logo3/200/200',
+    location: { latitude: 21.49, longitude: 39.18 },
+    address_text: 'طريق الكورنيش، جدة',
+    working_hours: { default: '08:00 - 23:00' },
+    average_delivery_time: 35,
+    is_open: false,
+    rating: 4.2,
+    owner_uid: 'owner3',
+  },
+    {
+    store_id: 'store4',
+    city_id: 'riyadh',
+    filter_id: 'cat1',
+    name_ar: 'بيتزا إيطاليانو',
+    logo_url: 'https://picsum.photos/seed/logo4/200/200',
+    location: { latitude: 24.75, longitude: 46.71 },
+    address_text: 'حي السليمانية، الرياض',
+    working_hours: { default: '13:00 - 01:00' },
+    average_delivery_time: 30,
+    is_open: true,
+    rating: 4.7,
+    owner_uid: 'owner4',
+  },
+];
+
+export const mockProducts: Product[] = [
+  {
+    product_id: 'prod1',
+    store_id: 'store1',
+    category_id: 'burgers',
+    name_ar: 'دبل تشيز برجر',
+    description_ar: 'شريحتان من اللحم البقري الصافي مع جبنة الشيدر والخس والطماطم.',
+    main_image: 'https://picsum.photos/seed/prod1/400/300',
+    base_price: 28.0,
+    has_variants: false,
+  },
+  {
+    product_id: 'prod2',
+    store_id: 'store4',
+    category_id: 'pizza',
+    name_ar: 'بيتزا بيبروني',
+    description_ar: 'عجينة إيطالية كلاسيكية مع صلصة الطماطم وجبنة الموزاريلا والبيبروني.',
+    main_image: 'https://picsum.photos/seed/prod2/400/300',
+    base_price: 45.0,
+    has_variants: true,
+    variants: [
+      { variant_id: 'v1s', size_name: 'S', price: 35.0 },
+      { variant_id: 'v1m', size_name: 'M', price: 45.0 },
+      { variant_id: 'v1l', size_name: 'L', price: 55.0 },
+    ],
+  },
+  {
+    product_id: 'prod3',
+    store_id: 'store2',
+    category_id: 'painkillers',
+    name_ar: 'بنادول اكسترا',
+    description_ar: 'مسكن للآلام وخافض للحرارة.',
+    main_image: 'https://picsum.photos/seed/prod3/400/300',
+    base_price: 15.5,
+    has_variants: false,
+  },
+  {
+    product_id: 'prod4',
+    store_id: 'store3',
+    category_id: 'beverages',
+    name_ar: 'مياه معدنية (كرتون)',
+    description_ar: 'كرتون مياه يحتوي على 24 قارورة.',
+    main_image: 'https://picsum.photos/seed/prod4/400/300',
+    base_price: 20.0,
+    has_variants: false,
+  },
+   {
+    product_id: 'prod5',
+    store_id: 'store1',
+    category_id: 'sides',
+    name_ar: 'بطاطس مقلية',
+    description_ar: 'بطاطس ذهبية مقرمشة.',
+    main_image: 'https://picsum.photos/seed/prod5/400/300',
+    base_price: 8.0,
+    has_variants: false,
+  },
+];
+
+export const mockOrders: Order[] = [
+  {
+    order_id: 'order1',
+    client_uid: 'client1',
+    driver_uid: 'driver1',
+    store_id: 'store1',
+    items: [
+      { product_id: 'prod1', name_ar: 'دبل تشيز برجر', quantity: 2, price: 28.0 },
+      { product_id: 'prod5', name_ar: 'بطاطس مقلية', quantity: 1, price: 8.0 },
+    ],
+    total_price: 64.0,
+    delivery_fee: 10,
+    status: 'delivered',
+    payment_method: 'wallet',
+    client_location: { latitude: 24.73, longitude: 46.69 },
+    timestamp: new Date('2024-05-20T19:30:00Z').toISOString(),
+  },
+  {
+    order_id: 'order2',
+    client_uid: 'client1',
+    driver_uid: 'driver1',
+    store_id: 'store4',
+    items: [{ product_id: 'prod2', name_ar: 'بيتزا بيبروني', variant_id: 'v1m', quantity: 1, price: 45.0 }],
+    total_price: 45.0,
+    delivery_fee: 12,
+    status: 'out_for_delivery',
+    payment_method: 'cash',
+    client_location: { latitude: 24.74, longitude: 46.7 },
+    timestamp: new Date().toISOString(),
+  },
+   {
+    order_id: 'order3',
+    client_uid: 'client1',
+    store_id: 'store2',
+    items: [{ product_id: 'prod3', name_ar: 'بنادول اكسترا', quantity: 1, price: 15.5 }],
+    total_price: 15.5,
+    delivery_fee: 9,
+    status: 'preparing',
+    payment_method: 'wallet',
+    client_location: { latitude: 24.74, longitude: 46.7 },
+    timestamp: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+  },
+];
+
+export const mockTransactions: Transaction[] = [
+    {
+        transaction_id: 'txn1',
+        user_uid: 'client1',
+        amount: 100,
+        type: 'top-up',
+        status: 'completed',
+        date: new Date('2024-05-19T10:00:00Z').toISOString()
+    },
+    {
+        transaction_id: 'txn2',
+        user_uid: 'client1',
+        amount: -74,
+        type: 'payment',
+        status: 'completed',
+        date: new Date('2024-05-20T19:45:00Z').toISOString()
+    },
+    {
+        transaction_id: 'txn3',
+        user_uid: 'driver1',
+        amount: -200,
+        type: 'withdrawal',
+        status: 'pending',
+        date: new Date('2024-05-21T09:00:00Z').toISOString()
+    }
+]

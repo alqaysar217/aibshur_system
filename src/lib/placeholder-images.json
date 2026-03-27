@@ -1,3 +1,70 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "user-ahmad",
+      "description": "Profile picture for Ahmad",
+      "imageUrl": "https://picsum.photos/seed/user1/200/200",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "user-fatima",
+      "description": "Profile picture for Fatima",
+      "imageUrl": "https://picsum.photos/seed/user2/200/200",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "user-yusuf",
+      "description": "Profile picture for Yusuf",
+      "imageUrl": "https://picsum.photos/seed/user3/200/200",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "store-logo-1",
+      "description": "Logo for a restaurant",
+      "imageUrl": "https://picsum.photos/seed/logo1/200/200",
+      "imageHint": "restaurant logo"
+    },
+    {
+      "id": "store-logo-2",
+      "description": "Logo for a pharmacy",
+      "imageUrl": "https://picsum.photos/seed/logo2/200/200",
+      "imageHint": "pharmacy logo"
+    },
+    {
+      "id": "store-logo-3",
+      "description": "Logo for a market",
+      "imageUrl": "https://picsum.photos/seed/logo3/200/200",
+      "imageHint": "market logo"
+    },
+    {
+      "id": "product-burger",
+      "description": "Image of a burger",
+      "imageUrl": "https://picsum.photos/seed/prod1/400/300",
+      "imageHint": "juicy burger"
+    },
+    {
+      "id": "product-pizza",
+      "description": "Image of a pizza",
+      "imageUrl": "https://picsum.photos/seed/prod2/400/300",
+      "imageHint": "pepperoni pizza"
+    },
+    {
+      "id": "product-medicine",
+      "description": "Image of medicine",
+      "imageUrl": "https://picsum.photos/seed/prod3/400/300",
+      "imageHint": "pills bottle"
+    },
+    {
+      "id": "product-water",
+      "description": "Image of bottled water",
+      "imageUrl": "https://picsum.photos/seed/prod4/400/300",
+      "imageHint": "water bottle"
+    },
+    {
+      "id": "promo-banner-1",
+      "description": "Promotional banner",
+      "imageUrl": "https://picsum.photos/seed/banner1/1200/400",
+      "imageHint": "food delivery"
+    }
+  ]
 }
