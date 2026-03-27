@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, GeoPoint } from 'firebase/firestore';
+import { collection, addDoc, doc, GeoPoint } from 'firebase/firestore';
 import type { Store, City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { mockCategories, mockAdminUser } from '@/lib/mock-data'; // Keeping mock categories for now
+import { mockCategories, mockAdminUser } from '@/lib/mock-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 
@@ -54,29 +54,41 @@ export default function AdminStoresPage() {
     const formData = new FormData(e.currentTarget);
     const lat = parseFloat(formData.get('latitude') as string);
     const lon = parseFloat(formData.get('longitude') as string);
+    const selectedCityDocId = formData.get('city_id') as string;
+    
+    const selectedCity = cities?.find(c => c.id === selectedCityDocId);
+    if (!selectedCity) {
+        toast({ variant: 'destructive', title: "خطأ", description: "الرجاء اختيار مدينة صحيحة." });
+        setIsSubmitting(false);
+        return;
+    }
 
     const newStoreData: Omit<Store, 'id' | 'storeId' | 'ownerUid' | 'storeOwnerUid'> = {
       name_ar: formData.get('name_ar') as string,
       logo_url: formData.get('logo_url') as string,
-      city_id: formData.get('city_id') as string,
+      city_id: selectedCity.cityId, // Save the city's custom ID, not Firestore's doc ID
       filter_ids: [formData.get('filter_id') as string],
       location: new GeoPoint(lat, lon),
       is_active: true,
       is_open: true,
+      rating: 0,
     };
 
     // In a real app, ownerUid would come from the logged-in store owner
-    // For now, we'll use a mock admin UID as the owner.
     const ownerUid = mockAdminUser.uid;
 
     try {
-        const storeId = newStoreData.name_ar.toLowerCase().replace(/\s/g, '-');
-        await addDoc(collection(firestore, 'stores'), {
+        const storeRef = collection(firestore, 'stores');
+        const newDoc = await addDoc(storeRef, {
             ...newStoreData,
-            storeId,
+            storeId: '', // Will be updated with doc ID
             ownerUid,
             storeOwnerUid: ownerUid // Denormalized for security rules
         });
+
+        // Now update the document with its own ID
+        await doc(storeRef, newDoc.id).update({ storeId: newDoc.id });
+
 
         toast({ title: "تمت إضافة المتجر بنجاح!" });
         setShowAddForm(false);
@@ -95,11 +107,11 @@ export default function AdminStoresPage() {
   };
   
   const getCityName = (cityId: string) => {
-    return cities?.find(c => c.id === cityId)?.name_ar || 'غير محدد';
+    return cities?.find(c => c.cityId === cityId)?.name_ar || 'غير محدد';
   }
 
   const combinedError = storesError || citiesError;
-  if (combinedError && combinedError.message.includes('database (default) does not exist')) {
+  if (combinedError) {
     return <SetupFirestoreMessage />;
   }
   if (!firestore) {
@@ -133,7 +145,7 @@ export default function AdminStoresPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="logo_url">رابط شعار المتجر (Logo URL)</Label>
-                            <Input id="logo_url" name="logo_url" type="url" required className="rounded-lg" dir="ltr"/>
+                            <Input id="logo_url" name="logo_url" type="url" required className="rounded-lg" dir="ltr" placeholder="https://example.com/logo.png"/>
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="city_id">المدينة</Label>
@@ -171,9 +183,9 @@ export default function AdminStoresPage() {
                             <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg" dir="ltr"/>
                         </div>
                     </div>
-                     <div className="flex justify-end gap-4">
+                     <div className="flex justify-end gap-4 pt-4">
                         <Button type="button" variant="secondary" onClick={() => setShowAddForm(false)} className="rounded-lg font-bold">إلغاء</Button>
-                        <Button type="submit" disabled={isSubmitting} className="rounded-lg font-black">
+                        <Button type="submit" disabled={isSubmitting || citiesLoading} className="rounded-lg font-black">
                             {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin"/>}
                             حفظ المتجر
                         </Button>
@@ -196,7 +208,7 @@ export default function AdminStoresPage() {
                 <TableHead className="px-6 py-4 text-right">اسم المتجر</TableHead>
                 <TableHead className="px-6 py-4">المدينة</TableHead>
                 <TableHead className="px-6 py-4">الحالة</TableHead>
-                <TableHead className="px-6 py-4">إجراءات</TableHead>
+                <TableHead className="px-6 py-4 text-center">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-50">
@@ -218,7 +230,7 @@ export default function AdminStoresPage() {
                         {store.is_active ? 'نشط' : 'غير نشط'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="px-6 py-4 flex gap-2">
+                    <TableCell className="px-6 py-4 flex justify-center gap-2">
                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
                         <Edit className="w-4 h-4 text-gray-400" />
                       </Button>
@@ -243,5 +255,3 @@ export default function AdminStoresPage() {
     </div>
   );
 }
-
-    

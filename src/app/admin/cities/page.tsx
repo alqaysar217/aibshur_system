@@ -75,7 +75,7 @@ export default function AdminCitiesPage() {
     const nameEn = formData.get('name_en') as string;
     const cityId = currentCity?.cityId || nameEn.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/--+/g, '-');
 
-    const cityData: Omit<City, 'id'| 'docId'> = {
+    const cityData: Omit<City, 'id'> = {
       cityId: cityId,
       name_ar: formData.get('name_ar') as string,
       name_en: nameEn,
@@ -124,7 +124,7 @@ export default function AdminCitiesPage() {
         const citiesCol = collection(firestore, 'cities');
 
         initialCities.forEach(cityData => {
-            const docRef = doc(citiesCol);
+            const docRef = doc(citiesCol, cityData.cityId); // Use cityId as document ID for predictability
             batch.set(docRef, cityData);
         });
 
@@ -139,7 +139,7 @@ export default function AdminCitiesPage() {
   }
 
 
-  if (error && error.message.includes('database (default) does not exist')) {
+  if (error) {
     return <SetupFirestoreMessage />;
   }
 
@@ -269,5 +269,3 @@ export default function AdminCitiesPage() {
     </div>
   );
 }
-
-    

@@ -6,7 +6,6 @@ import {
   TrendingUp, ShoppingBag, Truck, Users, 
   ArrowUpRight, ArrowDownRight, MoreHorizontal,
   ChevronLeft,
-  CreditCard,
   Store,
   Building2
 } from "lucide-react"
@@ -32,7 +31,7 @@ const SALES_DATA = [
 ]
 
 const CATEGORY_DATA = [
-  { name: "مطاعم", value: 45, color: "#10B981" },
+  { name: "مطاعم", value: 45, color: "#1FAF9A" },
   { name: "كافيهات", value: 20, color: "#F59E0B" },
   { name: "صيدليات", value: 15, color: "#3B82F6" },
   { name: "ماركت", value: 20, color: "#EC4899" },
@@ -66,12 +65,12 @@ export default function AdminDashboard() {
         const citiesCol = collection(firestore, 'cities');
 
         const [storesSnapshot, citiesSnapshot] = await Promise.all([
-          getCountFromServer(storesCol),
-          getCountFromServer(citiesCol),
+          getCountFromServer(storesCol).catch(() => null), // Prevent one error from stopping all
+          getCountFromServer(citiesCol).catch(() => null),
         ]);
         
-        const storesCount = storesSnapshot.data().count;
-        const citiesCount = citiesSnapshot.data().count;
+        const storesCount = storesSnapshot?.data().count ?? 0;
+        const citiesCount = citiesSnapshot?.data().count ?? 0;
 
         setStats(prevStats => prevStats.map(stat => {
           if (stat.label === "إجمالي المتاجر") return { ...stat, value: storesCount.toString() };
@@ -82,14 +81,16 @@ export default function AdminDashboard() {
 
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
-        setFirestoreError(error as Error);
+        if (error instanceof Error && error.message.includes('database (default) does not exist')) {
+            setFirestoreError(error);
+        }
       }
     };
 
     fetchStats();
   }, [firestore]);
 
-  if (firestoreError && firestoreError.message.includes('database (default) does not exist')) {
+  if (firestoreError) {
     return <SetupFirestoreMessage />;
   }
 
@@ -270,5 +271,3 @@ export default function AdminDashboard() {
     </div>
   )
 }
-
-    
