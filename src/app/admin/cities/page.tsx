@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { mockCities } from '@/lib/mock-data';
 import type { City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,123 +22,34 @@ import {
   DialogTrigger,
   DialogClose,
 } from '@/components/ui/dialog';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Database } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { PlusCircle, Edit, Trash2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 
-const yemeniCities = [
-    { name_ar: 'صنعاء', name_en: 'Sana\'a', country_code: 'YE', is_active: true },
-    { name_ar: 'عدن', name_en: 'Aden', country_code: 'YE', is_active: true },
-    { name_ar: 'تعز', name_en: 'Taiz', country_code: 'YE', is_active: true },
-    { name_ar: 'الحديدة', name_en: 'Al Hudaydah', country_code: 'YE', is_active: true },
-    { name_ar: 'إب', name_en: 'Ibb', country_code: 'YE', is_active: false },
-    { name_ar: 'ذمار', name_en: 'Dhamar', country_code: 'YE', is_active: false },
-    { name_ar: 'المكلا', name_en: 'Al Mukalla', country_code: 'YE', is_active: true },
-    { name_ar: 'سيئون', name_en: 'Say\'un', country_code: 'YE', is_active: false },
-    { name_ar: 'زبيد', name_en: 'Zabid', country_code: 'YE', is_active: false },
-    { name_ar: 'مأرب', name_en: 'Marib', country_code: 'YE', is_active: true },
-];
-
-const TableSkeleton = () => (
-    <div className="space-y-2">
-        {Array.from({length: 5}).map((_, i) => (
-            <div key={i} className="flex items-center space-x-4 p-4">
-                <Skeleton className="h-5 flex-1" />
-                <Skeleton className="h-5 flex-1" />
-                <Skeleton className="h-5 flex-1" />
-                <Skeleton className="h-5 flex-1" />
-                <Skeleton className="h-5 w-20" />
-            </div>
-        ))}
-    </div>
-)
-
 export default function AdminCitiesPage() {
-  const firestore = useFirestore();
-  const citiesCollection = firestore ? collection(firestore, 'cities') : null;
-  const { data: cities, loading, error } = useCollection<City>(citiesCollection);
   const { toast } = useToast();
-
+  const [cities, setCities] = useState<City[]>(mockCities);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [seeding, setSeeding] = useState(false);
   const [currentCity, setCurrentCity] = useState<Partial<City> | null>(null);
 
   const handleOpenDialog = (city: Partial<City> | null = null) => {
     setCurrentCity(city);
     setDialogOpen(true);
   };
-
+  
+  // NOTE: Form submission logic is disabled while auth is bypassed.
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!firestore || !currentCity || !citiesCollection) return;
-
-    const formData = new FormData(e.currentTarget);
-    const cityData = {
-      name_ar: formData.get('name_ar') as string,
-      name_en: formData.get('name_en') as string,
-      country_code: formData.get('country_code') as string,
-      is_active: formData.get('is_active') === 'on',
-    };
-
-    if (!cityData.name_ar || !cityData.name_en || !cityData.country_code) {
-        toast({ variant: 'destructive', title: "الرجاء ملء جميع الحقول"});
-        return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      if (currentCity.cityId) {
-        const cityRef = doc(firestore, 'cities', currentCity.cityId);
-        await updateDoc(cityRef, cityData);
-        toast({ title: 'تم تحديث المدينة بنجاح' });
-      } else {
-        const newDocRef = doc(citiesCollection);
-        await addDoc(citiesCollection, { ...cityData, cityId: newDocRef.id });
-        toast({ title: 'تمت إضافة المدينة بنجاح' });
-      }
-      setDialogOpen(false);
-      setCurrentCity(null);
-    } catch (err: any) {
-      console.error(err);
-      toast({ variant: 'destructive', title: 'حدث خطأ', description: err.message });
-    } finally {
-      setIsSubmitting(false);
-    }
+    toast({ variant: 'destructive', title: "التعديل معطل", description: "تم تعطيل هذه الميزة مؤقتاً." });
   };
 
+  // NOTE: Delete logic is disabled while auth is bypassed.
   const handleDelete = async (cityId: string) => {
-      if(!firestore || !window.confirm("هل أنت متأكد أنك تريد حذف هذه المدينة؟")) return;
-      try {
-          await deleteDoc(doc(firestore, 'cities', cityId));
-          toast({ title: 'تم حذف المدينة' });
-      } catch (err: any) {
-          console.error(err);
-          toast({ variant: 'destructive', title: 'حدث خطأ أثناء الحذف', description: err.message });
-      }
-  }
-
-  const handleSeedCities = async () => {
-    if (!firestore || !citiesCollection) return;
-    setSeeding(true);
-    try {
-      const batch = writeBatch(firestore);
-      yemeniCities.forEach(city => {
-        const docRef = doc(citiesCollection);
-        batch.set(docRef, { ...city, cityId: docRef.id });
-      });
-      await batch.commit();
-      toast({ title: 'نجاح', description: 'تمت إضافة المدن اليمنية إلى قاعدة البيانات بنجاح.' });
-    } catch (err: any) {
-      console.error(err);
-      toast({ variant: 'destructive', title: 'حدث خطأ', description: 'فشل إضافة البيانات الأولية.' });
-    } finally {
-        setSeeding(false);
-    }
+    toast({ variant: 'destructive', title: "الحذف معطل", description: "تم تعطيل هذه الميزة مؤقتاً." });
   }
 
   return (
@@ -168,8 +78,7 @@ export default function AdminCitiesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading && <TableSkeleton />}
-              {!loading && cities?.map((city) => (
+              {cities.map((city) => (
                 <TableRow key={city.cityId}>
                   <TableCell className="font-medium text-right">{city.name_ar}</TableCell>
                   <TableCell>{city.name_en}</TableCell>
@@ -189,17 +98,10 @@ export default function AdminCitiesPage() {
                   </TableCell>
                 </TableRow>
               ))}
-               {!loading && cities?.length === 0 && (
+               {cities.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="h-48 text-center">
-                    <div className="flex flex-col items-center gap-4">
-                        <p className="text-lg">لا توجد مدن بعد.</p>
-                        <p className='text-muted-foreground'>يمكنك البدء بإضافة مدينة يدوياً، أو ملء القائمة ببيانات أولية للمدن اليمنية.</p>
-                        <Button onClick={handleSeedCities} disabled={seeding}>
-                            {seeding ? <Loader2 className="w-4 h-4 ml-2 animate-spin" /> : <Database className="w-4 h-4 ml-2" />}
-                            {seeding ? 'جاري الإضافة...' : 'إضافة بيانات المدن اليمنية'}
-                        </Button>
-                    </div>
+                    <p className="text-lg">لا توجد مدن معرفة.</p>
                   </TableCell>
                 </TableRow>
               )}
@@ -245,7 +147,6 @@ export default function AdminCitiesPage() {
            </form>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

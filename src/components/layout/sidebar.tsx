@@ -27,8 +27,8 @@ import type { User, UserRole } from '@/lib/types';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Badge } from '../ui/badge';
-import { signOut } from 'firebase/auth';
-import { useAuth } from '@/firebase';
+// import { signOut } from 'firebase/auth';
+// import { useAuth } from '@/firebase';
 
 const getRoleName = (role: UserRole) => {
   switch (role) {
@@ -102,14 +102,15 @@ const getRoleIcon = (role: UserRole) => {
 export default function AppSidebar({ user }: { user: User }) {
   const pathname = usePathname();
   const navLinks = getNavLinks(user.role);
-  const auth = useAuth();
+  // const auth = useAuth();
 
   const handleSignOut = () => {
-    if (auth) {
-        signOut(auth);
-    } else {
-        console.error("Firebase Auth object not available for sign out.");
-    }
+    alert("Auth is currently bypassed. Sign out is disabled.");
+    // if (auth) {
+    //     signOut(auth);
+    // } else {
+    //     console.error("Firebase Auth object not available for sign out.");
+    // }
   }
 
   return (

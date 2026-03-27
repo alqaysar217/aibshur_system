@@ -4,11 +4,9 @@ import { DollarSign, Users, ShoppingBag, Activity } from 'lucide-react';
 import type { User, Order } from '@/lib/types';
 import StatsCard from './stats-card';
 import SalesChart from './sales-chart';
-import { useCollection } from '@/firebase';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { collection, query, limit, orderBy } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
 import { Skeleton } from '../ui/skeleton';
+import { mockOrders, mockUsers, mockStores } from '@/lib/mock-data'; // Using mock data
 
 const StatsSkeleton = () => (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -40,22 +38,17 @@ const RecentActivitySkeleton = () => (
 
 
 export default function AdminDashboard({ user }: { user: User }) {
-  const firestore = useFirestore();
-
-  const { data: orders, loading: ordersLoading } = useCollection<Order>(firestore ? collection(firestore, 'orders') : null);
-  const { data: users, loading: usersLoading } = useCollection<User>(firestore ? collection(firestore, 'users') : null);
-  const { data: stores, loading: storesLoading } = useCollection(firestore ? collection(firestore, 'stores') : null);
-  
-  const { data: recentUsers, loading: recentUsersLoading } = useCollection<User>(
-    firestore ? query(collection(firestore, 'users'), orderBy('created_at', 'desc'), limit(3)) : null
-  );
+  // NOTE: Using mock data while auth is bypassed.
+  const orders = mockOrders;
+  const users = mockUsers;
+  const stores = mockStores;
+  const recentUsers = mockUsers.slice(0, 3);
+  const loading = false; // Data is static, so not loading
 
   const totalRevenue = orders?.reduce((sum, order) => sum + order.total_price, 0) ?? 0;
   const totalUsers = users?.length ?? 0;
   const totalStores = stores?.length ?? 0;
   const totalOrders = orders?.length ?? 0;
-
-  const loading = ordersLoading || usersLoading || storesLoading;
 
   return (
     <div className="grid gap-8">
@@ -95,7 +88,7 @@ export default function AdminDashboard({ user }: { user: User }) {
         <div className="xl:col-span-2">
           <SalesChart />
         </div>
-        {recentUsersLoading ? <RecentActivitySkeleton /> : (
+        {loading ? <RecentActivitySkeleton /> : (
             <Card>
             <CardHeader>
                 <CardTitle>آخر المستخدمين</CardTitle>

@@ -5,18 +5,12 @@ import { ArrowLeft, PlusCircle, ShoppingBasket } from 'lucide-react';
 import type { User } from '@/lib/types';
 import OrderListItem from '../order/order-list-item';
 import AIRecommendations from '../ai/recommendations';
-import { useCollection, useFirestore } from '@/firebase';
-import { collection, query, where, limit } from 'firebase/firestore';
+import { mockOrders } from '@/lib/mock-data'; // Using mock data
 
 export default function ClientDashboard({ user }: { user: User }) {
-  const firestore = useFirestore();
-  const { data: recentOrders, loading } = useCollection(
-      firestore ? query(
-          collection(firestore, "orders"),
-          where("clientUid", "==", user.uid),
-          limit(3)
-      ) : null
-  );
+  // NOTE: Using mock data while auth is bypassed.
+  const recentOrders = mockOrders.filter(o => o.clientUid === user.uid).slice(0, 3);
+  const loading = false;
 
   return (
     <div className="grid gap-8">
