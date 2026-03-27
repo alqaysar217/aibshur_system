@@ -1,9 +1,7 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, doc, GeoPoint, writeBatch } from 'firebase/firestore';
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { firebaseApp } from '@/firebase/config';
+import { collection, addDoc, updateDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
 import type { Store, City, DailyHours } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -69,13 +67,9 @@ const dayNames: Record<string, string> = {
 export default function AdminStoresPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const storage = useMemo(() => firebaseApp ? getStorage(firebaseApp) : null, []);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [schedule, setSchedule] = useState(initialSchedule);
 
 
@@ -85,23 +79,6 @@ export default function AdminStoresPage() {
   const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
   const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(citiesQuery);
 
-  useEffect(() => {
-    if (logoFile) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setLogoPreview(reader.result as string);
-        };
-        reader.readAsDataURL(logoFile);
-    } else {
-        setLogoPreview(null);
-    }
-  }, [logoFile]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-        setLogoFile(e.target.files[0]);
-    }
-  }
 
   const handleScheduleChange = (day: string, field: 'is_closed' | 'open' | 'close', value: any, slotIndex?: number) => {
     setSchedule(prev => {
@@ -149,54 +126,23 @@ export default function AdminStoresPage() {
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!firestore || !storage) {
+    if (!firestore) {
         toast({ variant: 'destructive', title: "خطأ", description: "خدمات Firebase غير جاهزة." });
         return;
     }
     setIsSubmitting(true);
-    setUploadProgress(0);
-
-    let logoUrl = 'https://picsum.photos/seed/default-logo/200/200'; // Default logo
-
+    
     try {
-        // --- 1. Handle Image Upload ---
-        if (logoFile) {
-            try {
-                logoUrl = await new Promise<string>((resolve, reject) => {
-                    const storageRef = ref(storage, `store-logos/${Date.now()}_${logoFile.name}`);
-                    const uploadTask = uploadBytesResumable(storageRef, logoFile);
-                    
-                    uploadTask.on('state_changed',
-                        (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                        (error) => reject(new Error(`فشل رفع الصورة: ${error.message}`)),
-                        async () => {
-                            try {
-                                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                                resolve(downloadURL);
-                            } catch (error) {
-                                reject(new Error(`فشل الحصول على رابط الصورة: ${(error as Error).message}`));
-                            }
-                        }
-                    );
-                });
-            } catch (uploadError) {
-                console.error("Image upload failed, using default.", uploadError);
-                toast({
-                    variant: 'destructive',
-                    title: "فشل رفع الصورة",
-                    description: "سيتم استخدام صورة افتراضية للمتجر. يمكنك تعديلها لاحقاً."
-                });
-            }
-        }
-        
-        // --- 2. Prepare Firestore Data ---
         const formData = new FormData(e.currentTarget);
         const latString = formData.get('latitude') as string;
         const lonString = formData.get('longitude') as string;
-
+        const logoUrlFromInput = formData.get('logo_url') as string;
+        
         if (!latString || !lonString) {
             throw new Error("الرجاء إدخال إحداثيات الموقع (خط العرض وخط الطول).");
         }
+        
+        const logoUrl = logoUrlFromInput || 'https://picsum.photos/seed/default-logo/200/200';
 
         const lat = parseFloat(latString);
         const lon = parseFloat(lonString);
@@ -223,32 +169,26 @@ export default function AdminStoresPage() {
             storeOwnerUid: ownerUid,
         };
         
-        // --- 3. Save to Firestore ---
         const storesCollection = collection(firestore, 'stores');
-        const newDocRef = doc(storesCollection); // Create a reference with a new ID
+        const newDocRef = doc(storesCollection);
 
-        // Create the new store object with the generated ID
         const newStoreData: Store = {
             ...storeData,
             storeId: newDocRef.id
         };
 
-        await updateDoc(newDocRef, newStoreData);
+        await setDoc(newDocRef, newStoreData);
 
         toast({ title: "تمت إضافة المتجر بنجاح!" });
         setIsDialogOpen(false);
-        setLogoFile(null);
-        setLogoPreview(null);
         setSchedule(initialSchedule);
         (e.target as HTMLFormElement).reset();
-
 
     } catch (error) {
         console.error("Error adding store: ", error);
         toast({ variant: 'destructive', title: "حدث خطأ فادح", description: (error as Error).message || "لم يتم حفظ المتجر. يرجى مراجعة الكونسول." });
     } finally {
         setIsSubmitting(false);
-        setUploadProgress(0);
     }
   };
 
@@ -359,18 +299,9 @@ export default function AdminStoresPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="logo_file" className="font-bold text-gray-700">شعار المتجر (Logo)</Label>
-                        <div className="flex items-center gap-4">
-                            <div className="w-24 h-24 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
-                                {logoPreview ? <Image src={logoPreview} alt="preview" width={96} height={96} className="w-full h-full object-contain rounded-md"/> : <Upload className="w-8 h-8 text-gray-400" />}
-                            </div>
-                            <Input id="logo_file" name="logo_file" type="file" onChange={handleFileChange} accept="image/*" className="rounded-lg file:font-black file:rounded-lg file:border-none file:bg-gray-100 file:text-primary"/>
-                        </div>
-                        {isSubmitting && uploadProgress > 0 && (
-                            <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                                <div className="bg-primary h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
-                            </div>
-                        )}
+                        <Label htmlFor="logo_url" className="font-bold text-gray-700">رابط شعار المتجر (Logo URL)</Label>
+                        <Input id="logo_url" name="logo_url" type="url" placeholder="https://example.com/logo.png" className="rounded-lg" dir="ltr"/>
+                        <p className="text-xs text-muted-foreground">الصق رابطاً مباشراً للصورة. سيتم استخدام شعار افتراضي إذا ترك فارغاً.</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
