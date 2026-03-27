@@ -29,6 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 const yemeniCities = [
     { name_ar: 'صنعاء', name_en: 'Sana\'a', country_code: 'YE', is_active: true },
