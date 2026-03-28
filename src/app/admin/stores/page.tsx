@@ -43,6 +43,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import Image from 'next/image';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 const StoreRowSkeleton = () => (
     <TableRow>
@@ -145,7 +147,8 @@ export default function AdminStoresPage() {
           rating: 4.5,
           ownerUid: mockAdminUser.uid,
           storeOwnerUid: mockAdminUser.uid,
-          logo_url: ''
+          logo_url: '',
+          location: { latitude: 0, longitude: 0 }
       });
       setSchedule(initialSchedule);
       setLogoPreview('');
@@ -212,16 +215,16 @@ export default function AdminStoresPage() {
 
     try {
         const formData = new FormData(e.currentTarget);
-        const latString = formData.get('latitude') as string;
-        const lonString = formData.get('longitude') as string;
         
         if (!currentStore.city_id) throw new Error("الرجاء اختيار مدينة صحيحة.");
         if (!currentStore.filter_ids || currentStore.filter_ids.length === 0) throw new Error("الرجاء اختيار فئة صحيحة.");
-        if (!latString || !lonString) throw new Error("الرجاء إدخال إحداثيات الموقع (خط العرض وخط الطول).");
         
-        const lat = parseFloat(latString);
-        const lon = parseFloat(lonString);
-        if (isNaN(lat) || isNaN(lon)) throw new Error("إحداثيات الموقع غير صحيحة.");
+        const lat = currentStore.location?.latitude;
+        const lon = currentStore.location?.longitude;
+
+        if (lat === undefined || lon === undefined) {
+            throw new Error("الرجاء إدخال إحداثيات الموقع (خط العرض وخط الطول).");
+        }
 
         const selectedCity = cities?.find(c => c.id === currentStore.city_id);
         if (!selectedCity) throw new Error("المدينة المختارة غير موجودة.");
@@ -474,11 +477,51 @@ export default function AdminStoresPage() {
                         <div className="grid grid-cols-2 gap-4 pt-2">
                             <div className="space-y-2">
                                 <Label htmlFor="latitude">خط العرض (Latitude)</Label>
-                                <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg bg-gray-50" dir="ltr" placeholder="e.g. 15.3694" defaultValue={currentStore?.location?.latitude}/>
+                                <Input
+                                    id="latitude"
+                                    name="latitude"
+                                    type="number"
+                                    step="any"
+                                    required
+                                    className="rounded-lg bg-gray-50"
+                                    dir="ltr"
+                                    placeholder="e.g. 15.3694"
+                                    value={currentStore?.location?.latitude ?? ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setCurrentStore(prev => ({
+                                            ...prev,
+                                            location: {
+                                                ...(prev?.location as GeoPoint),
+                                                latitude: value === '' ? 0 : parseFloat(value),
+                                            }
+                                        }))
+                                    }}
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="longitude">خط الطول (Longitude)</Label>
-                                <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg bg-gray-50" dir="ltr" placeholder="e.g. 44.1910" defaultValue={currentStore?.location?.longitude}/>
+                                <Input
+                                    id="longitude"
+                                    name="longitude"
+                                    type="number"
+                                    step="any"
+                                    required
+                                    className="rounded-lg bg-gray-50"
+                                    dir="ltr"
+                                    placeholder="e.g. 44.1910"
+                                    value={currentStore?.location?.longitude ?? ''}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setCurrentStore(prev => ({
+                                            ...prev,
+                                            location: {
+                                                ...(prev?.location as GeoPoint),
+                                                longitude: value === '' ? 0 : parseFloat(value),
+                                            }
+                                        }))
+                                    }}
+                                />
                             </div>
                         </div>
                     </div>
