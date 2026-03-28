@@ -44,10 +44,18 @@ service cloud.firestore {
       allow read: if true;
       allow write: if true; // DEV-ONLY: Open write access
     }
+
+    // DEV-ONLY: Allow full access to users collection for admin panel development
+    match /users/{userId} {
+      allow read, write: if true;
+    }
     // --- END DEVELOPMENT ONLY RULES ---
 
 
-    // User profiles - This rule remains secure
+    // --- PRODUCTION User profiles rule ---
+    // This rule is SECURE and should be used in production.
+    // It is commented out during development to allow the admin panel to work.
+    /*
     match /users/{userId} {
       // This rule requires a real authenticated user. It will not work with the auth bypass.
       // To create a user profile, you would need to disable the bypass and sign up properly.
@@ -55,9 +63,8 @@ service cloud.firestore {
       allow read, update: if request.auth.uid == userId;
       allow get, list: if isAdmin();
     }
+    */
 
     // Other collections (orders, financeTransactions, etc.) are implicitly denied for now.
   }
 }
-
-    
