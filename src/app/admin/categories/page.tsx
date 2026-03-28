@@ -112,7 +112,8 @@ export default function AdminCategoriesPage() {
 
   const getStoreName = useCallback((storeId: string) => {
     if (storesLoading) return 'جاري التحميل...';
-    return stores.find(s => s.id === storeId)?.name_ar || 'متجر غير معروف';
+    const store = stores.find(s => s.id === storeId);
+    return store?.name_ar || 'متجر غير معروف';
   }, [stores, storesLoading]);
  
   // Handlers for Store Categories
