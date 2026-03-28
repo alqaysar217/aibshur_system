@@ -129,20 +129,20 @@ export default function AdminCategoriesPage() {
 
   // Handlers for Product Categories
   const handleOpenProdCatDialog = (category: Partial<ProductCategory> | null = null) => {
-    setCurrentProdCategory(category ? { ...category } : { sortOrder: 0, image_url: '' });
+    setCurrentProdCategory(category ? { ...category } : { sortOrder: 0, image_url: '', storeId: '' });
     setProdCatImagePreview(category?.image_url || '');
     setProdCatDialogOpen(true);
   };
 
   const handleProdCategorySubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!firestore) return;
+    if (!firestore || !currentProdCategory) return;
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
     const categoryData: Omit<ProductCategory, 'id' | 'productCategoryId'> = {
         name_ar: formData.get('name_ar') as string,
-        storeId: formData.get('storeId') as string,
+        storeId: currentProdCategory.storeId!,
         sortOrder: parseInt(formData.get('sortOrder') as string || '0', 10),
         image_url: formData.get('image_url') as string,
     };
@@ -344,11 +344,22 @@ export default function AdminCategoriesPage() {
                 )}
                 <div className="space-y-2">
                     <Label>المتجر التابع له</Label>
-                    <Select name="storeId" dir="rtl" required defaultValue={currentProdCategory?.storeId}>
+                    <Select
+                        key={currentProdCategory?.id || 'new'}
+                        dir="rtl"
+                        required
+                        value={currentProdCategory?.storeId}
+                        onValueChange={(val) => setCurrentProdCategory(prev => ({ ...prev, storeId: val }))}
+                    >
                         <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر المتجر" /></SelectTrigger>
                         <SelectContent className="rounded-lg">
-                            {storesLoading ? <SelectItem value="loading" disabled>جاري تحميل المتاجر...</SelectItem> 
-                            : stores?.map(store => <SelectItem key={store.id} value={store.id!}>{store.name_ar}</SelectItem>)}
+                            {storesLoading ? (
+                                <SelectItem value="loading" disabled>جاري جلب قائمة المتاجر...</SelectItem>
+                            ) : stores && stores.length > 0 ? (
+                                stores.map(store => <SelectItem key={store.id} value={store.id!}>{store.name_ar}</SelectItem>)
+                            ) : (
+                                <div className="p-2 text-center text-sm text-muted-foreground">لا يوجد متاجر مضافة حالياً.</div>
+                            )}
                         </SelectContent>
                     </Select>
                 </div>
