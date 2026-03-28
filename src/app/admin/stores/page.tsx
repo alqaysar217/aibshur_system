@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc, getDocs } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -224,7 +224,7 @@ export default function AdminStoresPage() {
         const lon = parseFloat(lonString);
         if (isNaN(lat) || isNaN(lon)) throw new Error("إحداثيات الموقع غير صحيحة.");
 
-        const selectedCity = cities?.find(c => c.cityId === currentStore.city_id);
+        const selectedCity = cities?.find(c => c.id === currentStore.city_id);
         if (!selectedCity) throw new Error("المدينة المختارة غير موجودة.");
 
         const storeDataObject: Partial<Store> = {
