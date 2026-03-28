@@ -178,11 +178,11 @@ export default function AdminCitiesPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
-                <TableHead className="px-6 py-4 text-right">الاسم (العربية)</TableHead>
-                <TableHead className="px-6 py-4">الاسم (الإنجليزية)</TableHead>
-                <TableHead className="px-6 py-4">رقم الدعم</TableHead>
-                <TableHead className="px-6 py-4">رمز الدولة</TableHead>
-                <TableHead className="px-6 py-4">الحالة</TableHead>
+                <TableHead className="px-6 py-4 text-center">الاسم (العربية)</TableHead>
+                <TableHead className="px-6 py-4 text-center">الاسم (الإنجليزية)</TableHead>
+                <TableHead className="px-6 py-4 text-center">رقم الدعم</TableHead>
+                <TableHead className="px-6 py-4 text-center">رمز الدولة</TableHead>
+                <TableHead className="px-6 py-4 text-center">الحالة</TableHead>
                 <TableHead className="px-6 py-4 text-center">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
@@ -191,11 +191,11 @@ export default function AdminCitiesPage() {
                 Array.from({length: 4}).map((_, i) => <CityRowSkeleton key={i}/>)
               ) : cities && cities.map((city) => (
                 <TableRow key={city.id} className="hover:bg-gray-50/50">
-                  <TableCell className="px-6 py-4 font-bold text-xs text-gray-700">{city.name_ar}</TableCell>
-                  <TableCell className="px-6 py-4 font-bold text-xs text-gray-400">{city.name_en}</TableCell>
-                  <TableCell className="px-6 py-4 font-bold text-xs text-gray-700" dir="ltr">{city.support_number}</TableCell>
-                  <TableCell className="px-6 py-4 font-bold text-xs text-gray-700">{city.country_code}</TableCell>
-                  <TableCell className="px-6 py-4">
+                  <TableCell className="px-6 py-4 font-bold text-xs text-gray-700 text-center">{city.name_ar}</TableCell>
+                  <TableCell className="px-6 py-4 font-bold text-xs text-gray-400 text-center">{city.name_en}</TableCell>
+                  <TableCell className="px-6 py-4 font-bold text-xs text-gray-700 text-center" dir="ltr">{city.support_number}</TableCell>
+                  <TableCell className="px-6 py-4 font-bold text-xs text-gray-700 text-center">{city.country_code}</TableCell>
+                  <TableCell className="px-6 py-4 text-center">
                     <Badge className={cn(
                         "rounded-xl border-none font-black px-3 py-1 text-[9px]",
                         city.is_active ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
