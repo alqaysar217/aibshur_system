@@ -367,7 +367,7 @@ export default function AdminCategoriesPage() {
                             {storesLoading ? (
                                 <SelectItem value="loading" disabled>جاري جلب قائمة المتاجر...</SelectItem>
                             ) : stores && stores.length > 0 ? (
-                                stores.map(store => <SelectItem key={store.id} value={store.storeId}>{store.name_ar}</SelectItem>)
+                                stores.map(store => <SelectItem key={store.storeId} value={store.storeId}>{store.name_ar}</SelectItem>)
                             ) : (
                                 <div className="p-2 text-center text-sm text-muted-foreground">لا يوجد متاجر مضافة حالياً.</div>
                             )}
