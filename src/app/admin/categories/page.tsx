@@ -88,6 +88,9 @@ export default function AdminCategoriesPage() {
     console.log('Collection: store_categories', { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError });
     console.log('Collection: product_categories', { data: productCategories, loading: productCategoriesLoading, error: productCategoriesError });
     console.log('Collection: stores', { data: stores, loading: storesLoading, error: storesError });
+    if(stores) {
+        console.log('Total Stores Found:', stores?.length);
+    }
     console.groupEnd();
   }, [storeCategories, productCategories, stores, storeCategoriesLoading, productCategoriesLoading, storesLoading, storeCategoriesError, productCategoriesError, storesError]);
 
