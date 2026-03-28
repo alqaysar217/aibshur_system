@@ -177,7 +177,7 @@ export default function AdminProductsPage() {
         productData.variants = currentProduct.variants || [];
         delete productData.base_price;
     } else {
-        productData.base_price = parseFloat(formData.get('base_price') as string);
+        productData.base_price = parseFloat(formData.get('base_price') as string) || 0;
         productData.variants = [];
     }
     
@@ -250,8 +250,14 @@ export default function AdminProductsPage() {
     setCurrentProduct(prev => {
         if (!prev || !prev.variants) return prev;
         const newVariants = [...prev.variants];
-        // @ts-ignore
-        newVariants[index][field] = value;
+        if (field === 'price') {
+            const price = Number(value);
+            // @ts-ignore
+            newVariants[index][field] = isNaN(price) ? 0 : price;
+        } else {
+            // @ts-ignore
+            newVariants[index][field] = value;
+        }
         return { ...prev, variants: newVariants };
     });
   }
@@ -411,7 +417,7 @@ export default function AdminProductsPage() {
                 {!hasVariants ? (
                     <div className="space-y-2 animate-in fade-in duration-300">
                         <Label>السعر الأساسي للمنتج (ر.ي)</Label>
-                        <Input name="base_price" type="number" defaultValue={currentProduct?.base_price} required className="rounded-lg bg-gray-50" dir="ltr" />
+                        <Input name="base_price" type="number" defaultValue={currentProduct?.base_price || 0} required className="rounded-lg bg-gray-50" dir="ltr" />
                     </div>
                 ) : (
                     <div className="space-y-4 animate-in fade-in duration-300">
@@ -427,7 +433,7 @@ export default function AdminProductsPage() {
                                   </div>
                                    <div className="space-y-1">
                                     <Label className="text-xs">السعر (ر.ي)</Label>
-                                    <Input value={variant.price} type="number" onChange={e => handleVariantChange(index, 'price', e.target.valueAsNumber)} className="h-9" dir="ltr"/>
+                                    <Input value={variant.price} type="number" onChange={e => handleVariantChange(index, 'price', e.target.value)} className="h-9" dir="ltr"/>
                                   </div>
                                 </div>
                                  <div className="space-y-1">
@@ -470,5 +476,3 @@ export default function AdminProductsPage() {
     </div>
   );
 }
-
-    
