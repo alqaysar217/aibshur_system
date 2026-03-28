@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useFirestore, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { AdBanner, Store, Product } from '@/lib/types';
@@ -34,7 +34,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, GalleryHorizontal, Link as LinkIcon } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, GalleryHorizontal, Search, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -66,6 +66,11 @@ export default function AdminBannersPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Search/Picker State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   // Fetch Banners
   const bannersQuery = useMemo(() => firestore ? collection(firestore, 'ad_banners') : null, [firestore]);
@@ -99,6 +104,18 @@ export default function AdminBannersPage() {
     fetchDropdownData();
   }, [firestore, toast]);
   
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setIsPickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [pickerRef]);
+
   const handleOpenDialog = (banner: Partial<AdBanner> | null = null) => {
     if (banner) {
       setCurrentBanner({ ...banner });
@@ -111,6 +128,8 @@ export default function AdminBannersPage() {
       });
       setImagePreview('');
     }
+    setSearchQuery('');
+    setIsPickerOpen(false);
     setDialogOpen(true);
   };
   
@@ -138,6 +157,12 @@ export default function AdminBannersPage() {
 
     if (!bannerData.image_url) {
         toast({ variant: 'destructive', title: "بيانات ناقصة", description: "الرجاء إدخال رابط صورة الإعلان." });
+        setIsSubmitting(false);
+        return;
+    }
+
+    if (bannerData.target_type !== 'general' && !bannerData.target_id) {
+        toast({ variant: 'destructive', title: "بيانات ناقصة", description: `الرجاء اختيار ${bannerData.target_type === 'store' ? 'متجر' : 'منتج'} للربط.` });
         setIsSubmitting(false);
         return;
     }
@@ -209,6 +234,7 @@ export default function AdminBannersPage() {
   
   const getTargetName = useCallback((type: string, id?: string) => {
     if (!id || type === 'general') return 'لا يوجد';
+    if (dataLoading) return 'جاري التحميل...';
     if (type === 'store') {
         return stores.find(s => s.id === id)?.name_ar || 'متجر محذوف';
     }
@@ -216,7 +242,19 @@ export default function AdminBannersPage() {
         return products.find(p => p.id === id)?.name_ar || 'منتج محذوف';
     }
     return 'غير معروف';
-  }, [stores, products]);
+  }, [stores, products, dataLoading]);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery) return [];
+    const lowercasedQuery = searchQuery.toLowerCase();
+    if (currentBanner?.target_type === 'store') {
+        return stores.filter(s => s.name_ar.toLowerCase().includes(lowercasedQuery));
+    }
+    if (currentBanner?.target_type === 'product') {
+        return products.filter(p => p.name_ar.toLowerCase().includes(lowercasedQuery));
+    }
+    return [];
+  }, [searchQuery, currentBanner?.target_type, stores, products]);
 
   if (bannersError) {
     if (bannersError.message.includes('database (default) does not exist') || bannersError.message.includes('permission-denied')) {
@@ -301,7 +339,7 @@ export default function AdminBannersPage() {
                     </div>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 border rounded-xl space-y-4">
                     <div className="space-y-2">
                         <Label>وجهة النقر (Deep Link)</Label>
                         <select
@@ -315,34 +353,59 @@ export default function AdminBannersPage() {
                         </select>
                     </div>
 
-                    {currentBanner?.target_type === 'store' && (
-                        <div className="space-y-2 animate-in fade-in duration-300">
-                            <Label>اختر المتجر</Label>
-                            <select
-                                required
-                                disabled={dataLoading}
-                                value={currentBanner?.target_id || ''}
-                                onChange={(e) => setCurrentBanner(prev => ({ ...prev, target_id: e.target.value }))}
-                                className="h-10 w-full rounded-md border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
-                            >
-                                <option value="" disabled>اختر المتجر...</option>
-                                {stores.map(store => <option key={store.id} value={store.id!}>{store.name_ar}</option>)}
-                            </select>
+                    {currentBanner?.target_type !== 'general' && !currentBanner?.target_id && (
+                        <div ref={pickerRef} className="space-y-2 animate-in fade-in duration-300 relative">
+                            <Label>ابحث عن {currentBanner?.target_type === 'store' ? 'المتجر' : 'المنتج'}</Label>
+                            <div className="relative">
+                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    placeholder="ابحث بالاسم..."
+                                    className="pr-10"
+                                    onFocus={() => setIsPickerOpen(true)}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            {isPickerOpen && searchResults.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                    {searchResults.map((item: any) => (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setCurrentBanner(prev => ({ ...prev, target_id: item.id }));
+                                                setSearchQuery('');
+                                                setIsPickerOpen(false);
+                                            }}
+                                            className="flex items-center w-full text-right p-2 gap-3 hover:bg-gray-100"
+                                        >
+                                            <Image src={item.logo_url || item.main_image_url || ''} alt={item.name_ar} width={40} height={40} className="w-10 h-10 rounded-md object-cover bg-gray-100" />
+                                            <div className="flex-1">
+                                                <p className="font-bold text-sm">{item.name_ar}</p>
+                                                {item.base_price && <p className="text-xs text-muted-foreground">{item.base_price} ر.ي</p>}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
-                     {currentBanner?.target_type === 'product' && (
-                        <div className="space-y-2 animate-in fade-in duration-300">
-                            <Label>اختر المنتج</Label>
-                            <select
-                                required
-                                disabled={dataLoading}
-                                value={currentBanner?.target_id || ''}
-                                onChange={(e) => setCurrentBanner(prev => ({ ...prev, target_id: e.target.value }))}
-                                className="h-10 w-full rounded-md border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
-                            >
-                                <option value="" disabled>اختر المنتج...</option>
-                                {products.map(p => <option key={p.id} value={p.id!}>{p.name_ar}</option>)}
-                            </select>
+                    
+                    {currentBanner?.target_id && (
+                        <div className="p-3 border rounded-lg bg-primary/5 flex items-center justify-between animate-in fade-in duration-300">
+                             <div className="flex items-center gap-3">
+                                <Image 
+                                    src={(currentBanner.target_type === 'store' ? stores.find(s=>s.id === currentBanner.target_id)?.logo_url : products.find(p=>p.id === currentBanner.target_id)?.main_image_url) || ''} 
+                                    alt="Selected item" width={40} height={40} className="w-10 h-10 rounded-md object-cover bg-gray-100" 
+                                />
+                                <div>
+                                    <Label className="text-xs text-muted-foreground">الوجهة المحددة</Label>
+                                    <p className="font-bold text-sm text-primary">{getTargetName(currentBanner.target_type!, currentBanner.target_id)}</p>
+                                </div>
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => setCurrentBanner(prev => ({...prev, target_id: ''}))}>
+                                <X className="w-4 h-4"/>
+                            </Button>
                         </div>
                     )}
                 </div>
