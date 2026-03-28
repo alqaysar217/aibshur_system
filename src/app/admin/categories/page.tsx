@@ -730,7 +730,7 @@ export default function AdminCategoriesPage() {
 
                 <div className="space-y-2"><Label>رابط الصورة</Label><Input name="image_url" defaultValue={currentStoreCategory?.image_url} placeholder="https://example.com/image.png" required className="rounded-lg bg-gray-50" dir="ltr" onChange={(e) => setStoreCatImagePreview(e.target.value)} /></div>
 
-                {storeCatImagePreview && (
+                {storeCatImagePreview && storeCatImagePreview.startsWith('http') && (
 
                     <div className="flex justify-center p-2 border rounded-xl bg-gray-50/50">
 
@@ -788,7 +788,7 @@ export default function AdminCategoriesPage() {
 
                  <div className="space-y-2"><Label>رابط الصورة</Label><Input name="image_url" defaultValue={currentProdCategory?.image_url} placeholder="https://example.com/image.png" required className="rounded-lg bg-gray-50" dir="ltr" onChange={(e) => setProdCatImagePreview(e.target.value)} /></div>
 
-                {prodCatImagePreview && (
+                {prodCatImagePreview && prodCatImagePreview.startsWith('http') && (
 
                     <div className="flex justify-center p-2 border rounded-xl bg-gray-50/50">
 
