@@ -281,10 +281,10 @@ export default function AdminBannersPage() {
           <CardTitle className="text-sm font-black flex items-center gap-2"><GalleryHorizontal className="h-4 w-4 text-primary" /> قائمة الإعلانات</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
-                <TableHead className="text-center w-[250px]">صورة الإعلان</TableHead>
+                <TableHead className="text-center w-[180px]">صورة الإعلان</TableHead>
                 <TableHead className="text-center">وجهة النقر</TableHead>
                 <TableHead className="text-center">الترتيب</TableHead>
                 <TableHead className="text-center">الحالة</TableHead>
@@ -294,22 +294,28 @@ export default function AdminBannersPage() {
             <TableBody className="divide-y divide-gray-50">
               {bannersLoading ? Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)
                 : banners?.map((banner) => (
-                    <TableRow key={banner.id}>
-                      <TableCell className="text-center p-2">
-                        <Image src={banner.image_url} alt="Banner image" width={150} height={75} className="rounded-md object-cover bg-gray-100 mx-auto" />
+                    <TableRow key={banner.id} className="hover:bg-muted/50">
+                      <TableCell className="p-2 align-middle">
+                        <Image src={banner.image_url} alt="Banner image" width={128} height={64} className="mx-auto h-16 w-32 rounded-lg bg-gray-100 object-cover" />
                       </TableCell>
-                      <TableCell className="text-center font-bold text-xs text-gray-500">{getTargetName(banner.target_type, banner.target_id)}</TableCell>
-                      <TableCell className="text-center font-bold text-xs text-gray-500">{banner.sort_order}</TableCell>
-                      <TableCell className="text-center">
-                        <Switch
-                            checked={banner.is_active}
-                            onCheckedChange={() => handleToggleActive(banner.id!, banner.is_active)}
-                            dir="ltr"
-                        />
+                      <TableCell className="text-center align-middle font-bold text-xs text-gray-500">{getTargetName(banner.target_type, banner.target_id)}</TableCell>
+                      <TableCell className="text-center align-middle font-bold text-xs text-gray-500">{banner.sort_order}</TableCell>
+                      <TableCell className="text-center align-middle">
+                        <Badge
+                            onClick={() => handleToggleActive(banner.id!, banner.is_active)}
+                            className={cn(
+                                "cursor-pointer rounded-xl border-none font-black px-3 py-1 text-[9px] transition-colors",
+                                banner.is_active ? "bg-green-100 text-green-600 hover:bg-green-200" : "bg-red-100 text-red-600 hover:bg-red-200"
+                            )}
+                        >
+                            {banner.is_active ? 'نشط' : 'معطل'}
+                        </Badge>
                       </TableCell>
-                      <TableCell className="flex justify-center items-center gap-2 py-6">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenDialog(banner)}><Edit className="w-4 h-4 text-gray-400" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleOpenDeleteDialog(banner)}><Trash2 className="w-4 h-4" /></Button>
+                      <TableCell className="align-middle">
+                        <div className="flex items-center justify-center gap-2">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenDialog(banner)}><Edit className="w-4 h-4 text-gray-400" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleOpenDeleteDialog(banner)}><Trash2 className="w-4 h-4" /></Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                 ))}

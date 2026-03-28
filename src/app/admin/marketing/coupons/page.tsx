@@ -285,7 +285,7 @@ export default function AdminCouponsPage() {
           <CardTitle className="text-sm font-black flex items-center gap-2"><TicketPercent className="h-4 w-4 text-primary" /> قائمة الكوبونات</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
                 <TableHead className="text-center">الكود</TableHead>
@@ -299,19 +299,21 @@ export default function AdminCouponsPage() {
             <TableBody className="divide-y divide-gray-50">
               {couponsLoading ? Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)
                 : coupons?.map((coupon) => (
-                    <TableRow key={coupon.id}>
-                      <TableCell className="text-center font-mono font-bold text-primary">{coupon.code}</TableCell>
-                      <TableCell className="text-center font-bold text-xs text-gray-700">
+                    <TableRow key={coupon.id} className="hover:bg-muted/50">
+                      <TableCell className="text-center align-middle font-mono font-bold text-primary">{coupon.code}</TableCell>
+                      <TableCell className="text-center align-middle font-bold text-xs text-gray-700">
                         {coupon.discount_value} {coupon.discount_type === 'percentage' ? '%' : 'ر.ي'}
                       </TableCell>
-                      <TableCell className="text-center font-bold text-xs text-gray-500">{getScopeName(coupon.scope, coupon.scope_ids)}</TableCell>
-                      <TableCell className="text-center font-bold text-xs text-gray-500">{format(new Date(coupon.expiry_date), 'yyyy/MM/dd')}</TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center align-middle font-bold text-xs text-gray-500">{getScopeName(coupon.scope, coupon.scope_ids)}</TableCell>
+                      <TableCell className="text-center align-middle font-bold text-xs text-gray-500">{format(new Date(coupon.expiry_date), 'yyyy/MM/dd')}</TableCell>
+                      <TableCell className="text-center align-middle">
                         <Badge className={cn("font-black", coupon.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>{coupon.is_active ? 'فعال' : 'معطل'}</Badge>
                       </TableCell>
-                      <TableCell className="flex justify-center items-center gap-2 py-4">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenDialog(coupon)}><Edit className="w-4 h-4 text-gray-400" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleOpenDeleteDialog(coupon)}><Trash2 className="w-4 h-4" /></Button>
+                      <TableCell className="align-middle">
+                        <div className="flex items-center justify-center gap-2">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenDialog(coupon)}><Edit className="w-4 h-4 text-gray-400" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleOpenDeleteDialog(coupon)}><Trash2 className="w-4 h-4" /></Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                 ))}
@@ -439,5 +441,3 @@ export default function AdminCouponsPage() {
     </div>
   );
 }
-
-    
