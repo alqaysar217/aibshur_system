@@ -3,51 +3,49 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // This function checks if the signed-in user has an 'admin' role in their user document.
     function isAdmin() {
-      // Check if the user is authenticated and their user document has the 'admin' role.
       return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Publicly readable collections
+    // --- DEVELOPMENT ONLY: Temporarily open rules for admin panel ---
+    // These rules are insecure and should be locked down before production.
     match /cities/{cityId} {
       allow read: if true;
-      // Temporarily changed for debugging. Allows any authenticated user to write.
-      allow write: if request.auth != null; 
+      allow write: if true; // DEV-ONLY: Open write access
     }
 
     match /store_categories/{categoryId} {
       allow read: if true;
-      // Temporarily changed for debugging. Allows any authenticated user to write.
-      allow write: if request.auth != null;
+      allow write: if true; // DEV-ONLY: Open write access
     }
 
     match /stores/{storeId} {
       allow read: if true;
-      // Temporarily changed for debugging. Allows any authenticated user to write.
-      allow write: if request.auth != null;
+      allow write: if true; // DEV-ONLY: Open write access
     }
 
     match /product_categories/{prodCatId} {
       allow read: if true;
-      // Temporarily changed for debugging. Allows any authenticated user to write.
-      allow write: if request.auth != null;
+      allow write: if true; // DEV-ONLY: Open write access
     }
 
     match /products/{productId} {
         allow read: if true;
-        // Temporarily changed for debugging. Allows any authenticated user to write.
-        allow write: if request.auth != null;
+        allow write: if true; // DEV-ONLY: Open write access
     }
+    // --- END DEVELOPMENT ONLY RULES ---
 
-    // User profiles
+
+    // User profiles - This rule remains secure
     match /users/{userId} {
-      // A user can create their own profile, and read/update it.
+      // This rule requires a real authenticated user. It will not work with the auth bypass.
+      // To create a user profile, you would need to disable the bypass and sign up properly.
       allow create: if request.auth.uid == userId;
       allow read, update: if request.auth.uid == userId;
-      // Admins can read any user profile.
       allow get, list: if isAdmin();
     }
 
-    // Deny all other access by default
+    // Other collections (orders, financeTransactions, etc.) are implicitly denied for now.
   }
 }
