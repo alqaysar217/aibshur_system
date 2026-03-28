@@ -112,16 +112,18 @@
       "properties": {
         "productId": { "type": "string" },
         "storeId": { "type": "string" },
+        "productCategoryId": { "type": "string", "description": "Reference to the ProductCategory." },
         "name_ar": { "type": "string" },
         "name_en": { "type": "string" },
         "description_ar": { "type": "string" },
         "description_en": { "type": "string" },
         "main_image_url": { "type": "string", "format": "uri" },
         "base_price": { "type": "number" },
+        "discount_price": { "type": "number", "description": "Optional discounted price." },
         "is_available": { "type": "boolean" },
         "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." }
       },
-      "required": ["productId", "storeId", "name_ar", "base_price", "is_available", "storeOwnerUid"]
+      "required": ["productId", "storeId", "productCategoryId", "name_ar", "base_price", "is_available", "storeOwnerUid"]
     },
     "ProductVariant": {
       "title": "Product Variant",
