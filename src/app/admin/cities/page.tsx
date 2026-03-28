@@ -59,9 +59,11 @@ export default function AdminCitiesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [currentCity, setCurrentCity] = useState<Partial<City> | null>(null);
+  const [isCityActive, setIsCityActive] = useState(true);
 
   const handleOpenDialog = (city: Partial<City> | null = null) => {
     setCurrentCity(city);
+    setIsCityActive(city?.is_active ?? true);
     setDialogOpen(true);
   };
   
@@ -81,7 +83,7 @@ export default function AdminCitiesPage() {
       name_en: nameEn,
       country_code: formData.get('country_code') as string,
       support_number: formData.get('support_number') as string,
-      is_active: formData.get('is_active') === 'on',
+      is_active: isCityActive,
     };
 
     try {
@@ -250,8 +252,15 @@ export default function AdminCitiesPage() {
                     <Input id="country_code" name="country_code" dir='ltr' defaultValue={currentCity?.country_code || 'YE'} required className="rounded-lg" />
                 </div>
                 <div className="flex items-center justify-end gap-4 pt-2">
-                    <Label htmlFor="is_active" className="font-bold text-gray-700">المدينة فعالة</Label>
-                    <Switch id="is_active" name="is_active" defaultChecked={currentCity?.is_active ?? true} />
+                    <Label htmlFor="is_active" className="font-bold text-gray-700">
+                      {isCityActive ? 'المدينة نشطة' : 'المدينة غير نشطة'}
+                    </Label>
+                    <Switch
+                        id="is_active"
+                        name="is_active"
+                        checked={isCityActive}
+                        onCheckedChange={setIsCityActive}
+                    />
                 </div>
             </div>
             <DialogFooter className="flex-row-reverse">
