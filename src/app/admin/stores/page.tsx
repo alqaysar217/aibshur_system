@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
@@ -85,6 +85,10 @@ export default function AdminStoresPage() {
   const [schedule, setSchedule] = useState<Record<string, DailyHours>>(initialSchedule);
   const [logoPreview, setLogoPreview] = useState('');
 
+  // Form state for controlled selects
+  const [selectedCityDocId, setSelectedCityDocId] = useState<string | undefined>();
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
+
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
   const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery);
   
@@ -93,6 +97,21 @@ export default function AdminStoresPage() {
 
   const storeCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]);
   const { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError } = useCollection<StoreCategory>(storeCategoriesQuery);
+
+  // Effect to sync controlled selects when editing
+  useEffect(() => {
+    if (currentStore && isFormDialogOpen) {
+        if (cities) {
+            const cityDocId = cities.find(c => c.cityId === currentStore.city_id)?.id;
+            setSelectedCityDocId(cityDocId);
+        }
+        if (storeCategories) {
+            const categoryId = currentStore.filter_ids?.[0];
+            setSelectedCategoryId(categoryId);
+        }
+    }
+  }, [currentStore, cities, storeCategories, isFormDialogOpen]);
+
 
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
     if (store) {
@@ -105,6 +124,8 @@ export default function AdminStoresPage() {
       setCurrentStore(null);
       setSchedule(initialSchedule);
       setLogoPreview('');
+      setSelectedCityDocId(undefined);
+      setSelectedCategoryId(undefined);
     }
     setIsFormDialogOpen(true);
   };
@@ -176,10 +197,14 @@ export default function AdminStoresPage() {
         const logoUrl = formData.get('logo_url') as string || 'https://picsum.photos/seed/default-logo/200/200';
         const lat = parseFloat(latString);
         const lon = parseFloat(lonString);
-        const selectedCityDocId = formData.get('city_id') as string;
-        const selectedCity = cities?.find(c => c.id === selectedCityDocId);
         
+        const cityDocIdFromForm = formData.get('city_id') as string;
+        const selectedCity = cities?.find(c => c.id === cityDocIdFromForm);
+        
+        const categoryIdFromForm = formData.get('filter_id') as string;
+
         if (!selectedCity) throw new Error("الرجاء اختيار مدينة صحيحة.");
+        if (!categoryIdFromForm) throw new Error("الرجاء اختيار فئة صحيحة.");
         if (isNaN(lat) || isNaN(lon)) throw new Error("إحداثيات الموقع غير صحيحة.");
 
         const ownerUid = mockAdminUser.uid;
@@ -191,7 +216,7 @@ export default function AdminStoresPage() {
             description_en: 'A store specializing in everything new',
             logo_url: logoUrl,
             city_id: selectedCity.cityId,
-            filter_ids: [formData.get('filter_id') as string],
+            filter_ids: [categoryIdFromForm],
             location: new GeoPoint(lat, lon),
             address_text: `${selectedCity.name_ar} - بالقرب من...`,
             rating: parseFloat(formData.get('rating') as string) || 0,
@@ -246,10 +271,6 @@ export default function AdminStoresPage() {
   
   const getCityName = (cityId: string) => {
     return cities?.find(c => c.cityId === cityId)?.name_ar || cityId;
-  }
-  
-  const getCityDocId = (cityId: string) => {
-    return cities?.find(c => c.cityId === cityId)?.id;
   }
 
   const combinedError = storesError || citiesError || storeCategoriesError;
@@ -336,7 +357,7 @@ export default function AdminStoresPage() {
       <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
         <DialogContent className="sm:max-w-4xl rounded-2xl">
            <form onSubmit={handleFormSubmit}>
-            <DialogHeader className="text-right">
+            <DialogHeader>
                 <DialogTitle className="font-black text-gray-900">{currentStore?.id ? 'تعديل بيانات المتجر' : 'إضافة متجر احترافي جديد'}</DialogTitle>
                 <DialogDescription className="font-bold text-gray-400">املأ كافة التفاصيل لمتجرك.</DialogDescription>
             </DialogHeader>
@@ -362,21 +383,29 @@ export default function AdminStoresPage() {
                     <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-2">
                             <Label htmlFor="city_id" className="font-bold text-gray-700">المحافظة</Label>
-                            <Select name="city_id" dir="rtl" required defaultValue={currentStore?.city_id ? getCityDocId(currentStore.city_id) : undefined}>
+                            <Select name="city_id" dir="rtl" required value={selectedCityDocId} onValueChange={setSelectedCityDocId}>
                                 <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
                                     {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
-                                    : cities?.map(city => <SelectItem key={city.id} value={city.id!}>{city.name_ar}</SelectItem>)}
+                                    : cities && cities.length > 0 ? (
+                                        cities.map(city => <SelectItem key={city.id} value={city.id!}>{city.name_ar}</SelectItem>)
+                                    ) : (
+                                        <div className="text-center text-sm text-muted-foreground p-4">لا توجد مدن. أضف مدينة أولاً.</div>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="filter_id" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
-                            <Select name="filter_id" dir="rtl" required defaultValue={currentStore?.filter_ids?.[0]}>
+                            <Select name="filter_id" dir="rtl" required value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
                                 <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر الفئة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
                                     {storeCategoriesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
-                                    : storeCategories?.map(cat => <SelectItem key={cat.id} value={cat.categoryId}>{cat.name_ar}</SelectItem>)}
+                                    : storeCategories && storeCategories.length > 0 ? (
+                                        storeCategories.map(cat => <SelectItem key={cat.id} value={cat.categoryId}>{cat.name_ar}</SelectItem>)
+                                    ) : (
+                                        <div className="text-center text-sm text-muted-foreground p-4">لا توجد فئات. أضف فئة أولاً.</div>
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>
