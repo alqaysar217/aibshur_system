@@ -196,6 +196,38 @@
       },
       "required": ["transactionId", "userUid", "amount", "type", "status", "created_at"]
     },
+    "AdBanner": {
+      "title": "Ad Banner",
+      "description": "Represents a clickable banner in the app for promotions.",
+      "type": "object",
+      "properties": {
+        "bannerId": { "type": "string" },
+        "image_url": { "type": "string", "format": "uri" },
+        "is_active": { "type": "boolean" },
+        "sort_order": { "type": "number" },
+        "target_type": { "type": "string", "enum": ["general", "store", "product"] },
+        "target_id": { "type": "string", "description": "ID of the store or product to link to." }
+      },
+      "required": ["bannerId", "image_url", "is_active", "sort_order", "target_type"]
+    },
+    "Coupon": {
+      "title": "Coupon",
+      "description": "Represents a discount coupon.",
+      "type": "object",
+      "properties": {
+        "couponId": { "type": "string" },
+        "code": { "type": "string" },
+        "discount_type": { "type": "string", "enum": ["percentage", "fixed_amount"] },
+        "discount_value": { "type": "number" },
+        "min_order_value": { "type": "number" },
+        "expiry_date": { "type": "string", "format": "date-time" },
+        "usage_limit": { "type": "number", "description": "Total number of times the coupon can be used." },
+        "scope": { "type": "string", "enum": ["global", "store", "product"] },
+        "scope_id": { "type": "string", "description": "The ID of the store or product the coupon applies to." },
+        "is_active": { "type": "boolean" }
+      },
+      "required": ["couponId", "code", "discount_type", "discount_value", "expiry_date", "scope", "is_active"]
+    },
     "AppInfoSetting": {
       "title": "App Info Setting",
       "description": "Publicly accessible application information like 'About Us' or ad banners.",
@@ -280,6 +312,16 @@
     "/admin_config_settings/{settingId}": {
       "schema": { "$ref": "#/entities/AdminConfigSetting" },
       "description": "Private system configurations, accessible only by admins."
+    },
+    "/ad_banners/{bannerId}": {
+      "schema": { "$ref": "#/entities/AdBanner" },
+      "description": "App banners. Writable by admins."
+    },
+    "/coupons/{couponId}": {
+      "schema": { "$ref": "#/entities/Coupon" },
+      "description": "Discount coupons. Writable by admins."
     }
   }
 }
+
+    

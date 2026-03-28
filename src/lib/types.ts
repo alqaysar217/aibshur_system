@@ -2,6 +2,7 @@
 
 
 
+
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
@@ -9,7 +10,9 @@ export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refun
 export type TransactionStatus = 'pending' | 'completed' | 'failed';
 export type AppInfoSettingType = 'about_us' | 'privacy_policy' | 'terms_of_service' | 'ad_banner';
 export type AdminConfigSettingType = 'coupon' | 'vip_package' | 'loyalty_points_config' | 'system_fee_config';
-
+export type TargetType = 'general' | 'store' | 'product';
+export type DiscountType = 'percentage' | 'fixed_amount';
+export type CouponScope = 'global' | 'store' | 'product';
 
 // Using a generic GeoPoint type as Firestore GeoPoint is a class instance.
 export interface GeoPoint {
@@ -186,3 +189,29 @@ export interface AdminConfigSetting {
   config_data: any;
   is_active: boolean;
 }
+
+export interface AdBanner {
+    id?: string; // Firestore doc ID
+    bannerId: string;
+    image_url: string;
+    is_active: boolean;
+    sort_order: number;
+    target_type: TargetType;
+    target_id?: string; // Store or Product ID
+}
+
+export interface Coupon {
+    id?: string; // Firestore doc ID
+    couponId: string;
+    code: string;
+    discount_type: DiscountType;
+    discount_value: number;
+    min_order_value?: number;
+    expiry_date: string; // ISO String
+    usage_limit: number;
+    scope: CouponScope;
+    scope_id?: string; // Store or Product ID
+    is_active: boolean;
+}
+
+    

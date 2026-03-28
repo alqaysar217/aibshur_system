@@ -4,7 +4,8 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Store, Users, ShoppingBag, Truck, CreditCard, AreaChart,
   BadgePercent, Settings, LifeBuoy, ShieldCheck, BarChart2,
-  ChevronDown, LogOut, Package, ChevronsRight, CircleDot, UserPlus, Building2
+  ChevronDown, LogOut, Package, ChevronsRight, CircleDot, UserPlus, Building2,
+  Ticket, GalleryHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -44,8 +45,8 @@ const marketingNav = {
   title: 'التسويق',
   icon: BadgePercent,
   links: [
-    { name: 'كوبونات الخصم', href: '/admin/marketing/coupons', icon: CircleDot },
-    { name: 'الإعلانات', href: '/admin/marketing/banners', icon: CircleDot },
+    { name: 'كوبونات الخصم', href: '/admin/marketing/coupons', icon: Ticket },
+    { name: 'الإعلانات', href: '/admin/marketing/banners', icon: GalleryHorizontal },
   ]
 };
 
@@ -182,3 +183,5 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
     </aside>
   );
 }
+
+    

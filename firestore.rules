@@ -34,6 +34,16 @@ service cloud.firestore {
         allow read: if true;
         allow write: if true; // DEV-ONLY: Open write access
     }
+
+    match /ad_banners/{bannerId} {
+      allow read: if true;
+      allow write: if true; // DEV-ONLY: Open write access
+    }
+
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if true; // DEV-ONLY: Open write access
+    }
     // --- END DEVELOPMENT ONLY RULES ---
 
 
@@ -49,3 +59,5 @@ service cloud.firestore {
     // Other collections (orders, financeTransactions, etc.) are implicitly denied for now.
   }
 }
+
+    
