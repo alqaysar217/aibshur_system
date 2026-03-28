@@ -1,3 +1,4 @@
+'use client';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
@@ -767,7 +768,7 @@ export default function AdminCategoriesPage() {
 
       {/* Product Category Dialog */}
 
-      <Dialog open={isProdCatDialogOpen} onOpenChange={setProdCatDialogOpen}>
+      <Dialog open={isProdCatDialogOpen} onOpenChange={setProdCatDialogOpen} modal={false}>
 
         <DialogContent className="sm:max-w-md rounded-2xl">
 
@@ -889,4 +890,4 @@ export default function AdminCategoriesPage() {
 
   );
 
-} 
+}
