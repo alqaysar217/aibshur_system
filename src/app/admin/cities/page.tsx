@@ -23,7 +23,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Building2, Database } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Building2, Database, PowerOff, Power } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -251,17 +251,28 @@ export default function AdminCitiesPage() {
                     <Label htmlFor="country_code" className="font-bold text-gray-700">رمز الدولة</Label>
                     <Input id="country_code" name="country_code" dir='ltr' defaultValue={currentCity?.country_code || 'YE'} required className="rounded-lg bg-gray-50" />
                 </div>
-                <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
-                    <Switch
-                        id="is_active"
-                        name="is_active"
-                        checked={isCityActive}
-                        onCheckedChange={setIsCityActive}
-                    />
-                    <Label htmlFor="is_active" className="w-32 text-right font-bold text-gray-700">
-                      {isCityActive ? 'المدينة نشطة' : 'المدينة غير نشطة'}
-                    </Label>
-                </div>
+                <Button
+                    type="button"
+                    onClick={() => setIsCityActive(!isCityActive)}
+                    className={cn(
+                        "w-full h-12 text-base font-black transition-colors",
+                        isCityActive
+                            ? "bg-red-50 text-red-600 hover:bg-red-100"
+                            : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                    )}
+                >
+                    {isCityActive ? (
+                        <>
+                            <PowerOff className="w-5 h-5 ml-2" />
+                            <span>إيقاف تفعيل المحافظة</span>
+                        </>
+                    ) : (
+                        <>
+                            <Power className="w-5 h-5 ml-2" />
+                            <span>تفعيل المحافظة الآن</span>
+                        </>
+                    )}
+                </Button>
             </div>
             <DialogFooter className="flex-row-reverse pt-4 border-t">
                 <Button type="submit" disabled={isSubmitting} className="rounded-lg font-black">
@@ -278,5 +289,3 @@ export default function AdminCitiesPage() {
     </div>
   );
 }
-
-    
