@@ -100,12 +100,11 @@ export default function AdminCategoriesPage() {
     const formData = new FormData(e.currentTarget);
     const name_en = (formData.get('name_ar') as string).toLowerCase().replace(/\s+/g, '_');
     
-    const categoryData: Omit<StoreCategory, 'id'> = {
+    const categoryData: Omit<StoreCategory, 'id' | 'categoryId'> = {
         name_ar: formData.get('name_ar') as string,
         name_en: name_en,
         image_url: formData.get('image_url') as string,
         is_active: currentStoreCategory.is_active ?? true,
-        categoryId: currentStoreCategory.categoryId || ''
     };
 
     try {
@@ -115,8 +114,8 @@ export default function AdminCategoriesPage() {
             toast({ title: "تم التحديث بنجاح" });
         } else {
             const newDocRef = doc(collection(firestore, 'store_categories'));
-            categoryData.categoryId = newDocRef.id;
-            await setDoc(newDocRef, categoryData);
+            const fullData = { ...categoryData, categoryId: newDocRef.id };
+            await setDoc(newDocRef, fullData);
             toast({ title: "تمت الإضافة بنجاح" });
         }
         setStoreCatDialogOpen(false);
@@ -304,7 +303,7 @@ export default function AdminCategoriesPage() {
       <Dialog open={isStoreCatDialogOpen} onOpenChange={setStoreCatDialogOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl">
            <form onSubmit={handleStoreCategorySubmit}>
-            <DialogHeader className="text-right">
+            <DialogHeader>
                 <DialogTitle className="font-black text-gray-900">{currentStoreCategory?.id ? 'تعديل فئة' : 'إضافة فئة متجر جديدة'}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-6">
@@ -332,7 +331,7 @@ export default function AdminCategoriesPage() {
       <Dialog open={isProdCatDialogOpen} onOpenChange={setProdCatDialogOpen}>
         <DialogContent className="sm:max-w-md rounded-2xl">
            <form onSubmit={handleProdCategorySubmit}>
-            <DialogHeader className="text-right">
+            <DialogHeader>
                 <DialogTitle className="font-black text-gray-900">{currentProdCategory?.id ? 'تعديل قسم' : 'إضافة قسم منتجات جديد'}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-6">
