@@ -92,7 +92,8 @@ export default function AdminCitiesPage() {
         await updateDoc(cityDocRef, cityData);
         toast({ title: "تم التحديث بنجاح", description: `تم تحديث بيانات مدينة ${cityData.name_ar}.` });
       } else {
-        await addDoc(collection(firestore, 'cities'), cityData);
+        const newDocRef = doc(collection(firestore, 'cities'), cityId);
+        await setDoc(newDocRef, cityData);
         toast({ title: "تمت الإضافة بنجاح", description: `تمت إضافة مدينة ${cityData.name_ar} إلى النظام.` });
       }
       setDialogOpen(false);
@@ -142,7 +143,10 @@ export default function AdminCitiesPage() {
 
 
   if (error) {
-    return <SetupFirestoreMessage />;
+    console.error("Critical Error fetching cities data:", error);
+    if (error.message.includes('database (default) does not exist') || error.message.includes('Could not reach Firestore backend') || error.message.includes('permission-denied') || error.message.includes('Missing or insufficient permissions')) {
+        return <SetupFirestoreMessage />;
+    }
   }
 
   if (!firestore) {
@@ -289,3 +293,5 @@ export default function AdminCitiesPage() {
     </div>
   );
 }
+
+    

@@ -214,8 +214,10 @@ export default function AdminCategoriesPage() {
 
   const dbError = storeCategoriesError || productCategoriesError || storesError;
   if (dbError) {
-      console.error("Error fetching data for categories page:", dbError);
-      return <SetupFirestoreMessage />;
+      console.error("Critical Error fetching data for categories page:", dbError);
+      if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('Could not reach Firestore backend') || dbError.message.includes('permission-denied') || dbError.message.includes('Missing or insufficient permissions')) {
+        return <SetupFirestoreMessage />;
+      }
   }
   if (!firestore) return <SetupFirestoreMessage />;
 
@@ -409,3 +411,5 @@ export default function AdminCategoriesPage() {
     </div>
   );
 }
+
+    
