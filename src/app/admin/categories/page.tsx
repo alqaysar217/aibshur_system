@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
     AlertDialog,
@@ -92,7 +93,7 @@ export default function AdminCategoriesPage() {
 
 
   const getStoreName = useCallback((storeId: string) => {
-    if (!stores) return '...';
+    if (!stores) return 'جاري التحميل...';
     return stores.find(s => s.storeId === storeId)?.name_ar || 'متجر غير معروف';
   }, [stores]);
   
@@ -209,7 +210,10 @@ export default function AdminCategoriesPage() {
   };
 
   const dbError = storeCategoriesError || productCategoriesError || storesError;
-  if (dbError) return <SetupFirestoreMessage />;
+  if (dbError) {
+      console.error("Error fetching data for categories page:", dbError);
+      return <SetupFirestoreMessage />;
+  }
   if (!firestore) return <SetupFirestoreMessage />;
 
   return (
@@ -316,6 +320,7 @@ export default function AdminCategoriesPage() {
            <form onSubmit={handleStoreCategorySubmit}>
             <DialogHeader>
                 <DialogTitle className="font-black text-gray-900">{currentStoreCategory?.id ? 'تعديل فئة' : 'إضافة فئة متجر جديدة'}</DialogTitle>
+                <DialogDescription>املأ تفاصيل الفئة أدناه.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-6">
                 <div className="space-y-2"><Label>اسم الفئة</Label><Input name="name_ar" defaultValue={currentStoreCategory?.name_ar} required className="rounded-lg bg-gray-50" /></div>
@@ -344,6 +349,7 @@ export default function AdminCategoriesPage() {
            <form onSubmit={handleProdCategorySubmit}>
             <DialogHeader>
                 <DialogTitle className="font-black text-gray-900">{currentProdCategory?.id ? 'تعديل قسم' : 'إضافة قسم منتجات جديد'}</DialogTitle>
+                <DialogDescription>املأ تفاصيل قسم المنتج أدناه.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-6">
                 <div className="space-y-2"><Label>اسم القسم (مثال: مشويات)</Label><Input name="name_ar" defaultValue={currentProdCategory?.name_ar} required className="rounded-lg bg-gray-50" /></div>

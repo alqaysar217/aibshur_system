@@ -97,9 +97,9 @@ export default function AdminStoresPage() {
   // CONSOLE DEBUGGING as requested
   useEffect(() => {
     console.groupCollapsed('--- STORES PAGE: DATA AUDIT ---');
+    console.log('Final Check Cities:', { data: cities, loading: citiesLoading, error: citiesError });
+    console.log('Final Check Store Categories:', { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError });
     console.log('Collection: stores', { data: stores, loading: storesLoading, error: storesError });
-    console.log('Collection: cities', { data: cities, loading: citiesLoading, error: citiesError });
-    console.log('Collection: store_categories', { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError });
     console.groupEnd();
   }, [stores, cities, storeCategories, storesLoading, citiesLoading, storeCategoriesLoading, storesError, citiesError, storeCategoriesError]);
 
@@ -253,16 +253,17 @@ export default function AdminStoresPage() {
   };
   
   const getCityName = (cityId: string) => {
-    return cities?.find(c => c.cityId === cityId)?.name_ar || cityId;
+    if (!cities) return '...';
+    return cities.find(c => c.cityId === cityId)?.name_ar || cityId;
   }
 
   const dbError = storesError || citiesError || storeCategoriesError;
   if (dbError) {
     console.error("Error fetching data for stores page:", dbError);
-    if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('Could not reach Firestore backend') || dbError.message.includes('permission-denied')) {
+    // This allows the page to render and the SetupFirestoreMessage to potentially show if the error is config-related
+    if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('Could not reach Firestore backend') || dbError.message.includes('permission-denied') || dbError.message.includes('Missing or insufficient permissions')) {
         return <SetupFirestoreMessage />;
     }
-    return <div className="text-destructive text-center">خطأ: {dbError.message}</div>;
   }
   if (!firestore) {
     return <SetupFirestoreMessage />;
