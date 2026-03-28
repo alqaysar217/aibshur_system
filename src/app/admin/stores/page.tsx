@@ -303,7 +303,7 @@ export default function AdminStoresPage() {
   };
   
   const getCityName = (cityId: string) => {
-    if (!cities) return '...';
+    if (citiesLoading) return '...';
     return cities.find(c => c.cityId === cityId)?.name_ar || cityId;
   }
 
@@ -406,7 +406,7 @@ export default function AdminStoresPage() {
                     <div className="space-y-2">
                         <Label htmlFor="logo_url" className="font-bold text-gray-700">رابط شعار المتجر (Logo URL)</Label>
                         <Input id="logo_url" name="logo_url" type="url" placeholder="https://example.com/logo.png" className="rounded-lg bg-gray-50" dir="ltr" defaultValue={currentStore?.logo_url || ''} onChange={(e) => setLogoPreview(e.target.value)} />
-                        {logoPreview && (
+                        {logoPreview && logoPreview.startsWith('http') && (
                             <div className="flex justify-center p-2 border rounded-xl bg-gray-50/50 mt-2">
                                 <Image src={logoPreview} alt="معاينة الشعار" width={100} height={100} className="rounded-lg object-cover"/>
                             </div>
