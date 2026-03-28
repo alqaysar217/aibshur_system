@@ -177,7 +177,8 @@ export default function AdminProductsPage() {
         productData.variants = currentProduct.variants || [];
         delete productData.base_price;
     } else {
-        productData.base_price = parseFloat(formData.get('base_price') as string) || 0;
+        const basePrice = parseFloat(formData.get('base_price') as string);
+        productData.base_price = isNaN(basePrice) ? 0 : basePrice;
         productData.variants = [];
     }
     
@@ -334,11 +335,15 @@ export default function AdminProductsPage() {
                         ) : `${prod.base_price || 0} ر.ي` }
                       </TableCell>
                       <TableCell className="text-center">
-                        <Switch
-                            checked={prod.is_active}
-                            onCheckedChange={() => handleToggleActive(prod.id!, prod.is_active)}
-                            aria-label="Toggle product status"
-                        />
+                        <Badge
+                            onClick={() => handleToggleActive(prod.id!, prod.is_active)}
+                            className={cn(
+                            "cursor-pointer rounded-xl border-none font-black px-3 py-1 text-[9px] transition-colors",
+                            prod.is_active ? "bg-green-100 text-green-600 hover:bg-green-200" : "bg-red-100 text-red-600 hover:bg-red-200"
+                            )}
+                        >
+                            {prod.is_active ? 'فعال' : 'مخفي'}
+                        </Badge>
                       </TableCell>
                       <TableCell className="flex justify-center gap-2">
                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenDialog(prod)}><Edit className="w-4 h-4 text-gray-400" /></Button>
@@ -433,7 +438,7 @@ export default function AdminProductsPage() {
                                   </div>
                                    <div className="space-y-1">
                                     <Label className="text-xs">السعر (ر.ي)</Label>
-                                    <Input value={variant.price} type="number" onChange={e => handleVariantChange(index, 'price', e.target.value)} className="h-9" dir="ltr"/>
+                                    <Input value={variant.price || 0} type="number" onChange={e => handleVariantChange(index, 'price', e.target.valueAsNumber)} className="h-9" dir="ltr"/>
                                   </div>
                                 </div>
                                  <div className="space-y-1">
