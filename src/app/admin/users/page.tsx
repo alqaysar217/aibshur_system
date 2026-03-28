@@ -33,7 +33,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Users, Search, X, ShieldCheck, Truck, User as UserIcon } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Users, Search, X, ShieldCheck, Truck, User as UserIcon, Store as StoreIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -60,7 +60,7 @@ export default function AdminUsersPage() {
   const [activeTab, setActiveTab] = useState('clients');
  
   const [isDialogOpen, setDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<Partial<User> | null>(null);
@@ -331,7 +331,7 @@ export default function AdminUsersPage() {
         </TabsContent>
         <TabsContent value="store_owners">
             <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
-                <CardHeader><CardTitle className="text-sm font-black flex items-center gap-2"><Store className="h-4 w-4 text-primary" /> قائمة أصحاب المتاجر ({storeOwners.length})</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-sm font-black flex items-center gap-2"><StoreIcon className="h-4 w-4 text-primary" /> قائمة أصحاب المتاجر ({storeOwners.length})</CardTitle></CardHeader>
                 <CardContent className="p-0">{renderUserTable(storeOwners, 'store_owner')}</CardContent>
             </Card>
         </TabsContent>
