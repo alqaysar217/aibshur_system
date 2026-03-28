@@ -251,16 +251,16 @@ export default function AdminCitiesPage() {
                     <Label htmlFor="country_code" className="font-bold text-gray-700">رمز الدولة</Label>
                     <Input id="country_code" name="country_code" dir='ltr' defaultValue={currentCity?.country_code || 'YE'} required className="rounded-lg" />
                 </div>
-                <div className="flex items-center justify-end gap-4 pt-2">
-                    <Label htmlFor="is_active" className="font-bold text-gray-700">
-                      {isCityActive ? 'المدينة نشطة' : 'المدينة غير نشطة'}
-                    </Label>
+                <div className="flex flex-row-reverse items-center justify-end gap-3">
                     <Switch
                         id="is_active"
                         name="is_active"
                         checked={isCityActive}
                         onCheckedChange={setIsCityActive}
                     />
+                    <Label htmlFor="is_active" className="font-bold text-gray-700">
+                      {isCityActive ? 'المدينة نشطة' : 'المدينة غير نشطة'}
+                    </Label>
                 </div>
             </div>
             <DialogFooter className="flex-row-reverse">
