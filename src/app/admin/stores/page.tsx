@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
 import type { Store, City, DailyHours } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,8 +22,18 @@ import {
   DialogTitle,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Upload, Clock, Plus, X } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Plus, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -63,15 +73,16 @@ const dayNames: Record<string, string> = {
     friday: 'الجمعة',
 };
 
-
 export default function AdminStoresPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
   
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [schedule, setSchedule] = useState(initialSchedule);
-
+  const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
+  const [currentStore, setCurrentStore] = useState<Store | null>(null);
+  const [schedule, setSchedule] = useState<Record<string, DailyHours>>(initialSchedule);
 
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
   const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery);
@@ -79,11 +90,27 @@ export default function AdminStoresPage() {
   const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
   const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(citiesQuery);
 
+  const handleOpenFormDialog = (store: Store | null = null) => {
+    if (store) {
+      // Editing existing store
+      setCurrentStore(store);
+      setSchedule(store.working_hours || initialSchedule);
+    } else {
+      // Adding new store
+      setCurrentStore(null);
+      setSchedule(initialSchedule);
+    }
+    setIsFormDialogOpen(true);
+  };
+  
+  const handleOpenDeleteDialog = (store: Store) => {
+    setStoreToDelete(store);
+    setIsDeleteDialogOpen(true);
+  };
 
   const handleScheduleChange = (day: string, field: 'is_closed' | 'open' | 'close', value: any, slotIndex?: number) => {
     setSchedule(prev => {
-        const dayData = { ...prev[day] };
-
+        const dayData = { ...(prev[day] || { is_closed: false, slots: [] }) };
         if (field === 'is_closed') {
             dayData.is_closed = value;
             if (value) {
@@ -96,7 +123,6 @@ export default function AdminStoresPage() {
             newSlots[slotIndex] = { ...newSlots[slotIndex], [field]: value };
             dayData.slots = newSlots;
         }
-
         return { ...prev, [day]: dayData };
     });
   };
@@ -136,25 +162,22 @@ export default function AdminStoresPage() {
         const formData = new FormData(e.currentTarget);
         const latString = formData.get('latitude') as string;
         const lonString = formData.get('longitude') as string;
-        const logoUrlFromInput = formData.get('logo_url') as string;
         
         if (!latString || !lonString) {
             throw new Error("الرجاء إدخال إحداثيات الموقع (خط العرض وخط الطول).");
         }
         
-        const logoUrl = logoUrlFromInput || 'https://picsum.photos/seed/default-logo/200/200';
-
+        const logoUrl = formData.get('logo_url') as string || 'https://picsum.photos/seed/default-logo/200/200';
         const lat = parseFloat(latString);
         const lon = parseFloat(lonString);
-        const selectedCityDocId = formData.get('city_id') as string;
+        const selectedCity = cities?.find(c => c.id === formData.get('city_id') as string);
         
-        const selectedCity = cities?.find(c => c.id === selectedCityDocId);
         if (!selectedCity) throw new Error("الرجاء اختيار مدينة صحيحة.");
         if (isNaN(lat) || isNaN(lon)) throw new Error("إحداثيات الموقع غير صحيحة.");
 
         const ownerUid = mockAdminUser.uid;
 
-        const storeData: Omit<Store, 'id' | 'storeId' | 'ownerUid' | 'storeOwnerUid'> & { ownerUid: string; storeOwnerUid: string } = {
+        const storeDataObject = {
             name_ar: formData.get('name_ar') as string,
             logo_url: logoUrl,
             city_id: selectedCity.cityId,
@@ -168,37 +191,55 @@ export default function AdminStoresPage() {
             ownerUid: ownerUid,
             storeOwnerUid: ownerUid,
         };
-        
-        const storesCollection = collection(firestore, 'stores');
-        const newDocRef = doc(storesCollection);
 
-        const newStoreData: Store = {
-            ...storeData,
-            storeId: newDocRef.id
-        };
+        if (currentStore?.id) {
+            const storeDocRef = doc(firestore, 'stores', currentStore.id);
+            await updateDoc(storeDocRef, storeDataObject);
+            toast({ title: "تم تحديث المتجر بنجاح!" });
+        } else {
+            const storesCollection = collection(firestore, 'stores');
+            const newDocRef = doc(storesCollection);
+            const newStoreData: Store = {
+                ...storeDataObject,
+                id: newDocRef.id,
+                storeId: newDocRef.id
+            };
+            await setDoc(newDocRef, newStoreData);
+            toast({ title: "تمت إضافة المتجر بنجاح!" });
+        }
 
-        await setDoc(newDocRef, newStoreData);
-
-        toast({ title: "تمت إضافة المتجر بنجاح!" });
-        setIsDialogOpen(false);
-        setSchedule(initialSchedule);
-        (e.target as HTMLFormElement).reset();
+        setIsFormDialogOpen(false);
+        setCurrentStore(null);
 
     } catch (error) {
-        console.error("Error adding store: ", error);
+        console.error("Error saving store: ", error);
         toast({ variant: 'destructive', title: "حدث خطأ فادح", description: (error as Error).message || "لم يتم حفظ المتجر. يرجى مراجعة الكونسول." });
     } finally {
         setIsSubmitting(false);
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!storeToDelete || !firestore) return;
 
-  const handleDelete = async (storeId: string) => {
-    toast({ variant: 'destructive', title: "الحذف معطل", description: "تم تعطيل هذه الميزة مؤقتاً." });
+    try {
+        await deleteDoc(doc(firestore, 'stores', storeToDelete.id!));
+        toast({ title: "تم الحذف", description: `تم حذف متجر "${storeToDelete.name_ar}" بنجاح.` });
+    } catch (error) {
+        console.error("Error deleting store: ", error);
+        toast({ variant: 'destructive', title: "خطأ في الحذف", description: "حدث خطأ أثناء محاولة الحذف." });
+    } finally {
+        setIsDeleteDialogOpen(false);
+        setStoreToDelete(null);
+    }
   };
   
   const getCityName = (cityId: string) => {
-    return cities?.find(c => c.cityId === cityId)?.name_ar || 'غير محدد';
+    return cities?.find(c => c.cityId === cityId)?.name_ar || cityId;
+  }
+  
+  const getCityDocId = (cityId: string) => {
+    return cities?.find(c => c.cityId === cityId)?.id;
   }
 
   const combinedError = storesError || citiesError;
@@ -219,7 +260,7 @@ export default function AdminStoresPage() {
           <h1 className="text-2xl font-black text-gray-900">إدارة المتاجر</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">إضافة وتعديل بيانات المتاجر المسجلة في النظام.</p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
+        <Button onClick={() => handleOpenFormDialog()} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
           <PlusCircle className="w-4 h-4" />
           إضافة متجر جديد
         </Button>
@@ -261,10 +302,10 @@ export default function AdminStoresPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="px-6 py-4 flex justify-center gap-2">
-                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenFormDialog(store)}>
                         <Edit className="w-4 h-4 text-gray-400" />
                       </Button>
-                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleDelete(store.id!)}>
+                       <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleOpenDeleteDialog(store)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </TableCell>
@@ -282,32 +323,31 @@ export default function AdminStoresPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
         <DialogContent className="sm:max-w-4xl rounded-lg">
            <form onSubmit={handleFormSubmit}>
             <DialogHeader className="text-right">
-                <DialogTitle className="font-black text-gray-900">إضافة متجر احترافي جديد</DialogTitle>
-                <DialogDescription className="font-bold text-gray-400">املأ كافة التفاصيل لمتجرك الجديد.</DialogDescription>
+                <DialogTitle className="font-black text-gray-900">{currentStore ? 'تعديل بيانات المتجر' : 'إضافة متجر احترافي جديد'}</DialogTitle>
+                <DialogDescription className="font-bold text-gray-400">املأ كافة التفاصيل لمتجرك.</DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 py-4 text-right max-h-[70vh] overflow-y-auto pr-2 pl-4">
                 
-                {/* Right Column: Basic Info */}
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="name_ar" className="font-bold text-gray-700">اسم المتجر</Label>
-                        <Input id="name_ar" name="name_ar" required className="rounded-lg" />
+                        <Input id="name_ar" name="name_ar" required className="rounded-lg" defaultValue={currentStore?.name_ar || ''} />
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="logo_url" className="font-bold text-gray-700">رابط شعار المتجر (Logo URL)</Label>
-                        <Input id="logo_url" name="logo_url" type="url" placeholder="https://example.com/logo.png" className="rounded-lg" dir="ltr"/>
+                        <Input id="logo_url" name="logo_url" type="url" placeholder="https://example.com/logo.png" className="rounded-lg" dir="ltr" defaultValue={currentStore?.logo_url || ''} />
                         <p className="text-xs text-muted-foreground">الصق رابطاً مباشراً للصورة. سيتم استخدام شعار افتراضي إذا ترك فارغاً.</p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-2">
                             <Label htmlFor="city_id" className="font-bold text-gray-700">المحافظة</Label>
-                            <Select name="city_id" dir="rtl" required>
+                            <Select name="city_id" dir="rtl" required defaultValue={currentStore ? getCityDocId(currentStore.city_id) : undefined}>
                                 <SelectTrigger className="rounded-lg font-bold"><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
                                     {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
@@ -317,7 +357,7 @@ export default function AdminStoresPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="filter_id" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
-                            <Select name="filter_id" dir="rtl" required>
+                            <Select name="filter_id" dir="rtl" required defaultValue={currentStore?.filter_ids[0]}>
                                 <SelectTrigger className="rounded-lg font-bold"><SelectValue placeholder="اختر الفئة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
                                     {mockCategories.map(cat => <SelectItem key={cat.filterId} value={cat.filterId}>{cat.name_ar}</SelectItem>)}
@@ -328,31 +368,30 @@ export default function AdminStoresPage() {
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="rating" className="font-bold text-gray-700">التقييم الأولي (من 5)</Label>
-                            <Input id="rating" name="rating" type="number" step="0.1" min="0" max="5" required className="rounded-lg" dir="ltr" defaultValue="4.5"/>
+                            <Input id="rating" name="rating" type="number" step="0.1" min="0" max="5" required className="rounded-lg" dir="ltr" defaultValue={currentStore?.rating || 4.5}/>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="preparation_time" className="font-bold text-gray-700">وقت التوصيل المتوقع</Label>
-                            <Input id="preparation_time" name="preparation_time" required className="rounded-lg" placeholder="مثال: 30-45 دقيقة"/>
+                            <Input id="preparation_time" name="preparation_time" required className="rounded-lg" placeholder="مثال: 30-45 دقيقة" defaultValue={currentStore?.preparation_time || ''}/>
                         </div>
                     </div>
                     
                     <div className="md:col-span-2 space-y-2 p-4 border-2 border-dashed rounded-lg bg-gray-50/50">
                         <Label className="font-black text-gray-700">موقع المتجر على الخريطة</Label>
-                        <p className="text-xs text-amber-600 font-bold bg-amber-50 p-2 rounded-md">ملاحظة: سيتم استبدال هذه الحقول بخريطة تفاعلية في المرحلة القادمة بعد تثبيت مكتبة الخرائط (مثل Leaflet أو Google Maps).</p>
+                        <p className="text-xs text-amber-600 font-bold bg-amber-50 p-2 rounded-md">ملاحظة: سيتم استبدال هذه الحقول بخريطة تفاعلية في المرحلة القادمة.</p>
                         <div className="grid grid-cols-2 gap-4 pt-2">
                             <div className="space-y-2">
                                 <Label htmlFor="latitude">خط العرض (Latitude)</Label>
-                                <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 15.3694"/>
+                                <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 15.3694" defaultValue={currentStore?.location.latitude}/>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="longitude">خط الطول (Longitude)</Label>
-                                <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 44.1910"/>
+                                <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 44.1910" defaultValue={currentStore?.location.longitude}/>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Left Column: Working Hours */}
                 <div className="space-y-4 border-r pr-8">
                      <Label className="font-bold text-gray-700 text-lg">ساعات العمل المتقدمة</Label>
                      <div className="space-y-3">
@@ -362,20 +401,20 @@ export default function AdminStoresPage() {
                                     <Label className="font-black text-primary">{dayNames[dayKey]}</Label>
                                     <div className="flex items-center gap-2">
                                         <Label htmlFor={`${dayKey}_closed`} className="text-xs font-bold text-red-500">مغلق</Label>
-                                        <Switch id={`${dayKey}_closed`} checked={schedule[dayKey].is_closed} onCheckedChange={(checked) => handleScheduleChange(dayKey, 'is_closed', checked)} dir="ltr" />
+                                        <Switch id={`${dayKey}_closed`} checked={schedule[dayKey]?.is_closed ?? false} onCheckedChange={(checked) => handleScheduleChange(dayKey, 'is_closed', checked)} dir="ltr" />
                                     </div>
                                 </div>
-                                {!schedule[dayKey].is_closed && (
+                                {!(schedule[dayKey]?.is_closed) && (
                                     <div className="space-y-2">
-                                        {schedule[dayKey].slots.map((slot, index) => (
+                                        {schedule[dayKey]?.slots.map((slot, index) => (
                                             <div key={index} className="flex items-center gap-2">
-                                                <Input type="time" name={`${dayKey}_open_${index}`} value={slot.open} onChange={(e) => handleScheduleChange(dayKey, 'open', e.target.value, index)} className="rounded-lg" dir="ltr"/>
+                                                <Input type="time" value={slot.open} onChange={(e) => handleScheduleChange(dayKey, 'open', e.target.value, index)} className="rounded-lg" dir="ltr"/>
                                                 <span className="font-bold text-gray-400">-</span>
-                                                <Input type="time" name={`${dayKey}_close_${index}`} value={slot.close} onChange={(e) => handleScheduleChange(dayKey, 'close', e.target.value, index)} className="rounded-lg" dir="ltr"/>
+                                                <Input type="time" value={slot.close} onChange={(e) => handleScheduleChange(dayKey, 'close', e.target.value, index)} className="rounded-lg" dir="ltr"/>
                                                 {schedule[dayKey].slots.length > 1 && <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => removeSlot(dayKey, index)}><X className="w-4 h-4" /></Button>}
                                             </div>
                                         ))}
-                                        {schedule[dayKey].slots.length < 2 && <Button type="button" variant="outline" size="sm" className="text-xs font-bold gap-1" onClick={() => addSlot(dayKey)}><Plus className="w-3 h-3"/> إضافة فترة مسائية</Button>}
+                                        {schedule[dayKey]?.slots.length < 2 && <Button type="button" variant="outline" size="sm" className="text-xs font-bold gap-1" onClick={() => addSlot(dayKey)}><Plus className="w-3 h-3"/> إضافة فترة مسائية</Button>}
                                     </div>
                                 )}
                             </div>
@@ -386,7 +425,7 @@ export default function AdminStoresPage() {
             </div>
             <DialogFooter className="flex-row-reverse pt-4 border-t mt-4">
                 <Button type="submit" disabled={isSubmitting || citiesLoading} className="rounded-lg font-black w-32">
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : 'حفظ المتجر'}
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : (currentStore ? 'حفظ التعديلات' : 'حفظ المتجر')}
                 </Button>
                  <DialogClose asChild>
                     <Button type="button" variant="secondary" className="rounded-lg font-bold">إلغاء</Button>
@@ -395,6 +434,24 @@ export default function AdminStoresPage() {
            </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader className="text-right">
+            <AlertDialogTitle>هل أنت متأكد تماماً؟</AlertDialogTitle>
+            <AlertDialogDescription>
+                هذا الإجراء سيقوم بحذف متجر "{storeToDelete?.name_ar}" بشكل نهائي. لا يمكن التراجع عن هذا القرار.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">
+                نعم، قم بالحذف
+            </AlertDialogAction>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
