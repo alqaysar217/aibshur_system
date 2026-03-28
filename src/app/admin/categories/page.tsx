@@ -79,12 +79,40 @@ export default function AdminCategoriesPage() {
   const productCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'product_categories') : null, [firestore]);
   const { data: productCategories, loading: productCategoriesLoading, error: productCategoriesError } = useCollection<ProductCategory>(productCategoriesQuery, 'product_categories');
   
-  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, 'stores');
+  const [stores, setStores] = useState<Store[]>([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [storesError, setStoresError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!firestore) {
+      setStoresLoading(false);
+      return;
+    }
+
+    const fetchStores = async () => {
+      setStoresLoading(true);
+      try {
+        const storesCollection = collection(firestore, 'stores');
+        const querySnapshot = await getDocs(storesCollection);
+        const storesData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Store));
+        setStores(storesData);
+        console.log('Stores fetched for dropdown:', storesData);
+        setStoresError(null);
+      } catch (error) {
+        console.error("Error fetching stores directly:", error);
+        setStoresError(error as Error);
+      } finally {
+        setStoresLoading(false);
+      }
+    };
+
+    fetchStores();
+  }, [firestore]);
+
 
   const getStoreName = useCallback((storeId: string) => {
     if (storesLoading) return 'جاري التحميل...';
-    return stores?.find(s => s.id === storeId || s.storeId === storeId)?.name_ar || 'متجر غير معروف';
+    return stores.find(s => s.id === storeId)?.name_ar || 'متجر غير معروف';
   }, [stores, storesLoading]);
   
   // Handlers for Store Categories
@@ -385,7 +413,7 @@ export default function AdminCategoriesPage() {
                 <div className="space-y-2">
                     <Label>المتجر التابع له</Label>
                     <Select
-                        key={currentProdCategory?.id || 'new'}
+                        key={currentProdCategory?.id || 'new-prod-cat-store'}
                         dir="rtl"
                         required
                         disabled={storesLoading}
@@ -397,7 +425,7 @@ export default function AdminCategoriesPage() {
                             {storesLoading ? (
                                 <SelectItem value="loading" disabled>جاري جلب قائمة المتاجر...</SelectItem>
                             ) : stores && stores.length > 0 ? (
-                                stores.map(store => <SelectItem key={store.storeId} value={store.storeId}>{store.name_ar}</SelectItem>)
+                                stores.map(store => <SelectItem key={store.id} value={store.id!}>{store.name_ar}</SelectItem>)
                             ) : (
                                 <div className="p-2 text-center text-sm text-muted-foreground">لا يوجد متاجر مضافة حالياً.</div>
                             )}
