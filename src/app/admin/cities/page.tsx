@@ -259,7 +259,7 @@ export default function AdminCitiesPage() {
                         onCheckedChange={setIsCityActive}
                     />
                     <Label htmlFor="is_active" className="font-bold text-gray-700">
-                      {isCityActive ? 'المدينة نشطة' : 'المدينة غير نشطة'}
+                      ياخي الزر مش كويس عدله او استبدله
                     </Label>
                 </div>
             </div>
