@@ -228,42 +228,42 @@ export default function AdminCitiesPage() {
       </Card>
       
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] rounded-lg">
+        <DialogContent className="sm:max-w-md rounded-2xl">
            <form onSubmit={handleFormSubmit}>
             <DialogHeader className="text-right">
                 <DialogTitle className="font-black text-gray-900">{currentCity?.id ? 'تعديل مدينة' : 'إضافة مدينة جديدة'}</DialogTitle>
                 <DialogDescription className="font-bold text-gray-400">املأ التفاصيل أدناه.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4 text-right">
+            <div className="grid gap-4 py-6">
                 <div className="space-y-2">
                     <Label htmlFor="name_ar" className="font-bold text-gray-700">الاسم (العربية)</Label>
-                    <Input id="name_ar" name="name_ar" defaultValue={currentCity?.name_ar || ''} required className="rounded-lg" />
+                    <Input id="name_ar" name="name_ar" defaultValue={currentCity?.name_ar || ''} required className="rounded-lg bg-gray-50" />
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="name_en" className="font-bold text-gray-700">الاسم (الإنجليزية)</Label>
-                    <Input id="name_en" name="name_en" dir='ltr' defaultValue={currentCity?.name_en || ''} required className="rounded-lg" />
+                    <Input id="name_en" name="name_en" dir='ltr' defaultValue={currentCity?.name_en || ''} required className="rounded-lg bg-gray-50" />
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="support_number" className="font-bold text-gray-700">رقم خدمة العملاء</Label>
-                    <Input id="support_number" name="support_number" dir='ltr' defaultValue={currentCity?.support_number || ''} required className="rounded-lg" />
+                    <Input id="support_number" name="support_number" dir='ltr' defaultValue={currentCity?.support_number || ''} required className="rounded-lg bg-gray-50" />
                 </div>
                  <div className="space-y-2">
                     <Label htmlFor="country_code" className="font-bold text-gray-700">رمز الدولة</Label>
-                    <Input id="country_code" name="country_code" dir='ltr' defaultValue={currentCity?.country_code || 'YE'} required className="rounded-lg" />
+                    <Input id="country_code" name="country_code" dir='ltr' defaultValue={currentCity?.country_code || 'YE'} required className="rounded-lg bg-gray-50" />
                 </div>
-                <div className="flex flex-row-reverse items-center justify-end gap-3">
+                <div className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
                     <Switch
                         id="is_active"
                         name="is_active"
                         checked={isCityActive}
                         onCheckedChange={setIsCityActive}
                     />
-                    <Label htmlFor="is_active" className="font-bold text-gray-700">
-                      ياخي الزر مش كويس عدله او استبدله
+                    <Label htmlFor="is_active" className="w-32 text-right font-bold text-gray-700">
+                      {isCityActive ? 'المدينة نشطة' : 'المدينة غير نشطة'}
                     </Label>
                 </div>
             </div>
-            <DialogFooter className="flex-row-reverse">
+            <DialogFooter className="flex-row-reverse pt-4 border-t">
                 <Button type="submit" disabled={isSubmitting} className="rounded-lg font-black">
                     {isSubmitting && <Loader2 className="w-4 h-4 ml-2 animate-spin"/>}
                     {currentCity?.id ? 'حفظ التغييرات' : 'إضافة'}
@@ -278,3 +278,5 @@ export default function AdminCitiesPage() {
     </div>
   );
 }
+
+    
