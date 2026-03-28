@@ -92,7 +92,8 @@ export default function AdminCategoriesPage() {
 
 
   const getStoreName = useCallback((storeId: string) => {
-    return stores?.find(s => s.storeId === storeId)?.name_ar || 'متجر غير معروف';
+    if (!stores) return '...';
+    return stores.find(s => s.storeId === storeId)?.name_ar || 'متجر غير معروف';
   }, [stores]);
   
   // Handlers for Store Categories
@@ -399,5 +400,3 @@ export default function AdminCategoriesPage() {
     </div>
   );
 }
-
-    
