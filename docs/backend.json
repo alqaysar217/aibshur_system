@@ -53,19 +53,30 @@
       },
       "required": ["uid", "phone", "role", "created_at", "last_login_at", "account_status"]
     },
-    "CategoryFilter": {
-      "title": "Category Filter",
-      "description": "Represents a category for filtering stores.",
+    "StoreCategory": {
+      "title": "Store Category",
+      "description": "Represents a main category for stores (e.g., Restaurant, Pharmacy).",
       "type": "object",
       "properties": {
-        "filterId": { "type": "string" },
+        "categoryId": { "type": "string", "description": "Unique identifier for the category." },
         "name_ar": { "type": "string" },
         "name_en": { "type": "string" },
-        "type": { "type": "string", "enum": ["restaurant", "pharmacy", "market", "other"] },
-        "icon_url": { "type": "string", "format": "uri" },
-        "parent_filter_id": { "type": "string" }
+        "icon": { "type": "string", "description": "Name of the Lucide icon." },
+        "is_active": { "type": "boolean" }
       },
-      "required": ["filterId", "name_ar", "type"]
+      "required": ["categoryId", "name_ar", "is_active"]
+    },
+    "ProductCategory": {
+        "title": "Product Category",
+        "description": "Represents a sub-category or menu section within a specific store (e.g., Appetizers, Grills).",
+        "type": "object",
+        "properties": {
+            "productCategoryId": { "type": "string", "description": "Unique identifier for the product category." },
+            "name_ar": { "type": "string" },
+            "storeId": { "type": "string", "description": "Reference to the Store." },
+            "sortOrder": { "type": "number", "description": "Order for displaying categories." }
+        },
+        "required": ["productCategoryId", "name_ar", "storeId"]
     },
     "Store": {
       "title": "Store",
@@ -227,9 +238,13 @@
       "schema": { "$ref": "#/entities/User" },
       "description": "User profile data, private to each user."
     },
-    "/categoryFilters/{filterId}": {
-      "schema": { "$ref": "#/entities/CategoryFilter" },
-      "description": "Publicly readable list of store categories and filters."
+    "/store_categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/StoreCategory" },
+      "description": "Publicly readable list of main store categories."
+    },
+    "/product_categories/{productCategoryId}": {
+        "schema": { "$ref": "#/entities/ProductCategory" },
+        "description": "Product categories/menu sections for stores. Writable by store owner."
     },
     "/stores/{storeId}": {
       "schema": { "$ref": "#/entities/Store" },

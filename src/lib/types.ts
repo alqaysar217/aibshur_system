@@ -1,9 +1,9 @@
+
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
 export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee';
 export type TransactionStatus = 'pending' | 'completed' | 'failed';
-export type StoreCategoryType = 'restaurant' | 'pharmacy' | 'market' | 'other';
 export type AppInfoSettingType = 'about_us' | 'privacy_policy' | 'terms_of_service' | 'ad_banner';
 export type AdminConfigSettingType = 'coupon' | 'vip_package' | 'loyalty_points_config' | 'system_fee_config';
 
@@ -52,13 +52,21 @@ export interface User {
   // Custom claims on the auth token will reflect the user's role
 }
 
-export interface CategoryFilter {
-  filterId: string;
+export interface StoreCategory {
+  id?: string; // Document ID from Firestore
+  categoryId: string;
   name_ar: string;
-  name_en: string;
-  type: StoreCategoryType;
-  icon_url?: string;
-  parent_filter_id?: string; // For sub-categories like 'Cuisine' under 'Restaurant'
+  name_en?: string;
+  icon: string; // Lucide icon name
+  is_active: boolean;
+}
+
+export interface ProductCategory {
+  id?: string; // Document ID from Firestore
+  productCategoryId: string;
+  name_ar: string;
+  storeId: string; // ref to Store
+  sortOrder: number;
 }
 
 export interface WorkingHoursSlot {
