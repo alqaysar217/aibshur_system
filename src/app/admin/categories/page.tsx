@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, getDocs } from 'firebase/firestore';
 import type { StoreCategory, ProductCategory, Store } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,15 +79,43 @@ export default function AdminCategoriesPage() {
   const productCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'product_categories') : null, [firestore]);
   const { data: productCategories, loading: productCategoriesLoading, error: productCategoriesError } = useCollection<ProductCategory>(productCategoriesQuery);
   
-  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery);
+  // NEW: Direct fetch for stores to populate dropdown
+  const [stores, setStores] = useState<Store[]>([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [storesError, setStoresError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!firestore) {
+        setStoresLoading(false);
+        return;
+    };
+
+    const fetchStores = async () => {
+        setStoresLoading(true);
+        try {
+            const storesCol = collection(firestore, 'stores');
+            const snapshot = await getDocs(storesCol);
+            const storesData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Store));
+            setStores(storesData);
+            setStoresError(null);
+        } catch (err: any) {
+            console.error("Error fetching stores directly:", err);
+            setStoresError(err);
+        } finally {
+            setStoresLoading(false);
+        }
+    };
+
+    fetchStores();
+  }, [firestore]);
+
 
   // CONSOLE DEBUGGING as requested
   useEffect(() => {
     console.groupCollapsed('--- CATEGORIES PAGE: DATA AUDIT ---');
     console.log('Collection: store_categories', { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError });
     console.log('Collection: product_categories', { data: productCategories, loading: productCategoriesLoading, error: productCategoriesError });
-    console.log('Collection: stores', { data: stores, loading: storesLoading, error: storesError });
+    console.log('Collection: stores (Direct Fetch)', { data: stores, loading: storesLoading, error: storesError });
     if(stores) {
         console.log('Total Stores Found:', stores?.length);
     }
@@ -96,9 +124,9 @@ export default function AdminCategoriesPage() {
 
 
   const getStoreName = useCallback((storeId: string) => {
-    if (!stores) return 'جاري التحميل...';
-    return stores.find(s => s.storeId === storeId)?.name_ar || 'متجر غير معروف';
-  }, [stores]);
+    if (storesLoading) return 'جاري التحميل...';
+    return stores.find(s => s.id === storeId || s.storeId === storeId)?.name_ar || 'متجر غير معروف';
+  }, [stores, storesLoading]);
   
   // Handlers for Store Categories
   const handleOpenStoreCatDialog = (category: Partial<StoreCategory> | null = null) => {
@@ -370,6 +398,7 @@ export default function AdminCategoriesPage() {
                         key={currentProdCategory?.id || 'new'}
                         dir="rtl"
                         required
+                        disabled={storesLoading}
                         value={currentProdCategory?.storeId || ''}
                         onValueChange={(val) => setCurrentProdCategory(prev => ({ ...prev, storeId: val }))}
                     >
@@ -411,5 +440,3 @@ export default function AdminCategoriesPage() {
     </div>
   );
 }
-
-    
