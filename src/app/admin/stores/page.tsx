@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc, getDocs } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -304,7 +304,7 @@ export default function AdminStoresPage() {
   
   const getCityName = (cityId: string) => {
     if (citiesLoading) return '...';
-    return cities.find(c => c.cityId === cityId)?.name_ar || cityId;
+    return cities.find(c => c.id === cityId)?.name_ar || cityId;
   }
 
   const dbError = storesError || citiesError || storeCategoriesError;
@@ -388,7 +388,7 @@ export default function AdminStoresPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
+      <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen} modal={false}>
         <DialogContent className="sm:max-w-4xl rounded-2xl">
            <form onSubmit={handleFormSubmit}>
             <DialogHeader>
@@ -422,7 +422,7 @@ export default function AdminStoresPage() {
                                 <SelectContent className="rounded-lg">
                                     {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
                                     : cities && cities.length > 0 ? (
-                                        cities.map(city => <SelectItem key={city.id} value={city.cityId}>{city.name_ar}</SelectItem>)
+                                        cities.map(city => <SelectItem key={city.id} value={city.id!}>{city.name_ar}</SelectItem>)
                                     ) : (
                                         <div className="text-center text-sm text-muted-foreground p-4">لا توجد مدن. أضف مدينة أولاً.</div>
                                     )}
@@ -436,7 +436,7 @@ export default function AdminStoresPage() {
                                 <SelectContent className="rounded-lg">
                                     {storeCategoriesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
                                     : storeCategories && storeCategories.length > 0 ? (
-                                        storeCategories.map(cat => <SelectItem key={cat.id} value={cat.categoryId}>{cat.name_ar}</SelectItem>)
+                                        storeCategories.map(cat => <SelectItem key={cat.id} value={cat.id!}>{cat.name_ar}</SelectItem>)
                                     ) : (
                                         <div className="text-center text-sm text-muted-foreground p-4">لا توجد فئات. أضف فئة أولاً.</div>
                                     )}
