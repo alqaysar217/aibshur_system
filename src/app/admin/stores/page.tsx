@@ -221,8 +221,8 @@ export default function AdminStoresPage() {
         const lat = currentStore.location?.latitude;
         const lon = currentStore.location?.longitude;
 
-        if (lat === undefined || lon === undefined) {
-            throw new Error("الرجاء إدخال إحداثيات الموقع (خط العرض وخط الطول).");
+        if (lat === undefined || lon === undefined || isNaN(lat) || isNaN(lon)) {
+            throw new Error("الرجاء إدخال إحداثيات الموقع (خط العرض وخط الطول) كأرقام صالحة.");
         }
 
         const selectedCity = cities?.find(c => c.id === currentStore.city_id);
@@ -406,8 +406,8 @@ export default function AdminStoresPage() {
 
                     <div className="space-y-2">
                         <Label htmlFor="logo_url" className="font-bold text-gray-700">رابط شعار المتجر (Logo URL)</Label>
-                        <Input id="logo_url" name="logo_url" type="url" placeholder="https://example.com/logo.png" className="rounded-lg bg-gray-50" dir="ltr" defaultValue={currentStore?.logo_url || ''} onChange={(e) => setLogoPreview(e.target.value)} />
-                        {logoPreview && logoPreview.startsWith('http') && (
+                        <Input id="logo_url" name="logo_url" type="text" placeholder="/images/logo.png أو https://..." className="rounded-lg bg-gray-50" dir="ltr" defaultValue={currentStore?.logo_url || ''} onChange={(e) => setLogoPreview(e.target.value)} />
+                        {logoPreview && (logoPreview.startsWith('http') || logoPreview.startsWith('/')) && (
                             <div className="flex justify-center p-2 border rounded-xl bg-gray-50/50 mt-2">
                                 <Image src={logoPreview} alt="معاينة الشعار" width={100} height={100} className="rounded-lg object-cover"/>
                             </div>
