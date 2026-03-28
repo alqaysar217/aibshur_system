@@ -1,10 +1,11 @@
 'use client';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useFirestore, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { Coupon, Store, Product } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import Image from 'next/image';
 import {
   Table,
   TableBody,
@@ -20,7 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogClose,
-  DialogDescription,
 } from '@/components/ui/dialog';
 import {
     AlertDialog,
@@ -33,7 +33,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, TicketPercent } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, TicketPercent, X, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -66,6 +66,11 @@ export default function AdminCouponsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
+  // Search/Picker State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
   // Fetch Coupons
   const couponsQuery = useMemo(() => firestore ? collection(firestore, 'coupons') : null, [firestore]);
   const { data: coupons, loading: couponsLoading, error: couponsError } = useCollection<Coupon>(couponsQuery, 'coupons');
@@ -94,19 +99,34 @@ export default function AdminCouponsPage() {
     fetchDropdownData();
   }, [firestore, toast]);
   
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setIsPickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [pickerRef]);
+
   const handleOpenDialog = (coupon: Partial<Coupon> | null = null) => {
     if (coupon) {
-      setCurrentCoupon({ ...coupon });
+      setCurrentCoupon({ ...coupon, scope_ids: coupon.scope_ids || [] });
     } else {
       setCurrentCoupon({ 
         is_active: true,
         discount_type: 'percentage',
         discount_value: 10,
         scope: 'global',
+        scope_ids: [],
         usage_limit: 100,
         expiry_date: new Date().toISOString(),
       });
     }
+    setSearchQuery('');
+    setIsPickerOpen(false);
     setDialogOpen(true);
   };
   
@@ -132,7 +152,11 @@ export default function AdminCouponsPage() {
     };
 
     if (couponData.scope === 'global') {
-        couponData.scope_id = '';
+        couponData.scope_ids = [];
+    } else if (!couponData.scope_ids || couponData.scope_ids.length === 0) {
+        toast({ variant: 'destructive', title: "بيانات ناقصة", description: "الرجاء اختيار متجر أو منتج واحد على الأقل." });
+        setIsSubmitting(false);
+        return;
     }
 
     if (!couponData.code || !couponData.discount_value || !couponData.expiry_date) {
@@ -141,7 +165,6 @@ export default function AdminCouponsPage() {
         return;
     }
     
-    // Date validation
     if (new Date(couponData.expiry_date) < new Date() && couponData.is_active) {
         toast({ variant: 'destructive', title: "تاريخ غير صالح", description: "لا يمكن تفعيل كوبون منتهي الصلاحية." });
         couponData.is_active = false;
@@ -198,12 +221,44 @@ export default function AdminCouponsPage() {
     }
   };
   
-  const getScopeName = useCallback((scope: string, id?: string) => {
-    if (!id || scope === 'global') return 'شامل';
-    if (scope === 'store') return stores.find(s => s.id === id)?.name_ar || 'متجر محذوف';
-    if (scope === 'product') return products.find(p => p.id === id)?.name_ar || 'منتج محذوف';
-    return 'غير معروف';
+  const getScopeName = useCallback((scope: string, ids?: string[]) => {
+    if (scope === 'global' || !ids || ids.length === 0) return 'شامل';
+
+    const names = ids.map(id => {
+        if (scope === 'store') return stores.find(s => s.id === id)?.name_ar;
+        if (scope === 'product') return products.find(p => p.id === id)?.name_ar;
+        return null;
+    }).filter(Boolean) as string[];
+
+    if (names.length === 0) return 'عناصر محذوفة';
+    if (names.length <= 2) return names.join(' و ');
+    return `${names.length} ${scope === 'store' ? 'متاجر' : 'منتجات'}`;
   }, [stores, products]);
+
+  const handleScopeItemSelect = (id: string) => {
+    if (!currentCoupon?.scope_ids?.includes(id)) {
+        setCurrentCoupon(prev => ({...prev, scope_ids: [...(prev?.scope_ids || []), id]}));
+    }
+    setSearchQuery('');
+    setIsPickerOpen(false);
+  }
+
+  const handleScopeItemRemove = (id: string) => {
+    setCurrentCoupon(prev => ({...prev, scope_ids: prev?.scope_ids?.filter(scopeId => scopeId !== id)}));
+  }
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery) return [];
+    const lowercasedQuery = searchQuery.toLowerCase();
+    if (currentCoupon?.scope === 'store') {
+        return stores.filter(s => s.name_ar.toLowerCase().includes(lowercasedQuery));
+    }
+    if (currentCoupon?.scope === 'product') {
+        return products.filter(p => p.name_ar.toLowerCase().includes(lowercasedQuery));
+    }
+    return [];
+  }, [searchQuery, currentCoupon?.scope, stores, products]);
+
 
   if (couponsError) {
     if (couponsError.message.includes('database (default) does not exist') || couponsError.message.includes('permission-denied')) {
@@ -249,7 +304,7 @@ export default function AdminCouponsPage() {
                       <TableCell className="text-center font-bold text-xs text-gray-700">
                         {coupon.discount_value} {coupon.discount_type === 'percentage' ? '%' : 'ر.ي'}
                       </TableCell>
-                      <TableCell className="text-center font-bold text-xs text-gray-500">{getScopeName(coupon.scope, coupon.scope_id)}</TableCell>
+                      <TableCell className="text-center font-bold text-xs text-gray-500">{getScopeName(coupon.scope, coupon.scope_ids)}</TableCell>
                       <TableCell className="text-center font-bold text-xs text-gray-500">{format(new Date(coupon.expiry_date), 'yyyy/MM/dd')}</TableCell>
                       <TableCell className="text-center">
                         <Badge className={cn("font-black", coupon.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700')}>{coupon.is_active ? 'فعال' : 'معطل'}</Badge>
@@ -292,43 +347,74 @@ export default function AdminCouponsPage() {
               </div>
                <div className="space-y-2"><Label>تاريخ الانتهاء</Label><Input name="expiry_date" type="date" defaultValue={currentCoupon?.expiry_date ? format(new Date(currentCoupon.expiry_date), 'yyyy-MM-dd') : ''} required className="rounded-lg bg-gray-50" /></div>
                
-               <div className="space-y-2 p-4 border rounded-xl">
-                 <Label className="font-bold">نطاق تطبيق الخصم</Label>
-                 <select
-                    value={currentCoupon?.scope || 'global'}
-                    onChange={(e) => setCurrentCoupon(prev => ({ ...prev, scope: e.target.value as Coupon['scope'], scope_id: '' }))}
-                    className="h-10 w-full rounded-md border border-input bg-gray-50 px-3 py-2 font-bold mb-4"
-                 >
-                    <option value="global">شامل (على كل الطلبات)</option>
-                    <option value="store">متجر محدد</option>
-                    <option value="product">منتج محدد</option>
-                 </select>
-                 
-                 {currentCoupon?.scope === 'store' && (
-                    <div className="space-y-2 animate-in fade-in duration-300">
-                        <Label>اختر المتجر</Label>
-                        <select required disabled={dataLoading} value={currentCoupon?.scope_id || ''} onChange={(e) => setCurrentCoupon(prev => ({...prev, scope_id: e.target.value}))} className="h-10 w-full rounded-md border border-input bg-gray-50 px-3 py-2 font-bold">
-                           <option value="" disabled>اختر المتجر...</option>
-                           {stores.map(store => <option key={store.id} value={store.id!}>{store.name_ar}</option>)}
-                        </select>
-                    </div>
-                 )}
-                 {currentCoupon?.scope === 'product' && (
-                    <div className="space-y-2 animate-in fade-in duration-300">
-                        <Label>اختر المنتج</Label>
-                         <select required disabled={dataLoading} value={currentCoupon?.scope_id || ''} onChange={(e) => setCurrentCoupon(prev => ({...prev, scope_id: e.target.value}))} className="h-10 w-full rounded-md border border-input bg-gray-50 px-3 py-2 font-bold">
-                           <option value="" disabled>اختر المنتج...</option>
-                           {products.map(p => <option key={p.id} value={p.id!}>{p.name_ar}</option>)}
-                        </select>
-                    </div>
-                 )}
-               </div>
+                <div className="space-y-2 p-4 border rounded-xl">
+                    <Label className="font-bold">نطاق تطبيق الخصم</Label>
+                    <select
+                        value={currentCoupon?.scope || 'global'}
+                        onChange={(e) => setCurrentCoupon(prev => ({ ...prev, scope: e.target.value as Coupon['scope'], scope_ids: [] }))}
+                        className="h-10 w-full rounded-md border border-input bg-gray-50 px-3 py-2 font-bold mb-4"
+                    >
+                        <option value="global">شامل (على كل الطلبات)</option>
+                        <option value="store">متجر/متاجر محددة</option>
+                        <option value="product">منتج/منتجات محددة</option>
+                    </select>
+                    
+                    {currentCoupon?.scope !== 'global' && (
+                        <div ref={pickerRef} className="space-y-2 animate-in fade-in duration-300 relative">
+                            <Label>اختر {currentCoupon?.scope === 'store' ? 'المتاجر' : 'المنتجات'}</Label>
+                            <div className="relative">
+                                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    placeholder="ابحث بالاسم..."
+                                    className="pr-10"
+                                    onFocus={() => setIsPickerOpen(true)}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            
+                            {isPickerOpen && searchResults.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                    {searchResults.map((item: any) => (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            onClick={() => handleScopeItemSelect(item.id)}
+                                            className="flex items-center w-full text-right p-2 gap-3 hover:bg-gray-100 disabled:opacity-50"
+                                            disabled={currentCoupon.scope_ids?.includes(item.id)}
+                                        >
+                                            <Image src={item.logo_url || item.main_image_url} alt={item.name_ar} width={40} height={40} className="w-10 h-10 rounded-md object-cover" />
+                                            <div className="flex-1">
+                                                <p className="font-bold text-sm">{item.name_ar}</p>
+                                                {item.base_price && <p className="text-xs text-muted-foreground">{item.base_price} ر.ي</p>}
+                                            </div>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {currentCoupon?.scope_ids?.map(id => {
+                                    const item = currentCoupon.scope === 'store' ? stores.find(s => s.id === id) : products.find(p => p.id === id);
+                                    if (!item) return null;
+                                    return (
+                                        <Badge key={id} variant="secondary" className="pl-2 pr-1 py-1 text-sm gap-1">
+                                            {item.name_ar}
+                                            <button type="button" onClick={() => handleScopeItemRemove(id)} className="h-4 w-4 rounded-full bg-gray-400 text-white flex items-center justify-center hover:bg-gray-500">
+                                                <X className="w-3 h-3" />
+                                            </button>
+                                        </Badge>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50">
                     <Label htmlFor="is_active" className="font-bold text-gray-700">{currentCoupon?.is_active ? 'الكوبون فعال' : 'الكوبون معطل'}</Label>
                     <Switch id="is_active" checked={currentCoupon?.is_active} onCheckedChange={(checked) => setCurrentCoupon(prev => ({...prev, is_active: checked}))} dir="ltr"/>
                 </div>
-
             </div>
             <DialogFooter>
               <Button type="submit" disabled={isSubmitting || dataLoading} className="rounded-lg font-black">{isSubmitting ? <Loader2 className="animate-spin"/> : 'حفظ'}</Button>
@@ -353,3 +439,5 @@ export default function AdminCouponsPage() {
     </div>
   );
 }
+
+    

@@ -223,7 +223,11 @@
         "expiry_date": { "type": "string", "format": "date-time" },
         "usage_limit": { "type": "number", "description": "Total number of times the coupon can be used." },
         "scope": { "type": "string", "enum": ["global", "store", "product"] },
-        "scope_id": { "type": "string", "description": "The ID of the store or product the coupon applies to." },
+        "scope_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "The IDs of the stores or products the coupon applies to."
+        },
         "is_active": { "type": "boolean" }
       },
       "required": ["couponId", "code", "discount_type", "discount_value", "expiry_date", "scope", "is_active"]
@@ -323,3 +327,5 @@
     }
   }
 }
+
+    
