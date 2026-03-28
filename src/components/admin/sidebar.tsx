@@ -126,7 +126,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
           {!isCollapsed && <h1 className="text-xl font-black text-primary">أبشر | لوحة التحكم</h1>}
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {mainNav.map((item) => (
             <Link
               key={item.name}
@@ -183,5 +183,3 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
     </aside>
   );
 }
-
-    

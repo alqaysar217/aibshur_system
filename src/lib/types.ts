@@ -3,6 +3,7 @@
 
 
 
+
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
@@ -213,5 +214,3 @@ export interface Coupon {
     scope_id?: string; // Store or Product ID
     is_active: boolean;
 }
-
-    
