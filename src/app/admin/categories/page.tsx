@@ -46,7 +46,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 const RowSkeleton = () => (
     <TableRow>
-        <TableCell colSpan={4} className="p-0">
+        <TableCell colSpan={5} className="p-0">
             <Skeleton className="w-full h-[60px]"/>
         </TableCell>
     </TableRow>
@@ -100,11 +100,12 @@ export default function AdminCategoriesPage() {
     const formData = new FormData(e.currentTarget);
     const name_en = (formData.get('name_ar') as string).toLowerCase().replace(/\s+/g, '_');
     
-    const categoryData = {
+    const categoryData: Omit<StoreCategory, 'id'> = {
         name_ar: formData.get('name_ar') as string,
         name_en: name_en,
         image_url: formData.get('image_url') as string,
-        is_active: currentStoreCategory.is_active,
+        is_active: currentStoreCategory.is_active ?? true,
+        categoryId: currentStoreCategory.categoryId || ''
     };
 
     try {
@@ -114,7 +115,8 @@ export default function AdminCategoriesPage() {
             toast({ title: "تم التحديث بنجاح" });
         } else {
             const newDocRef = doc(collection(firestore, 'store_categories'));
-            await setDoc(newDocRef, { ...categoryData, categoryId: newDocRef.id });
+            categoryData.categoryId = newDocRef.id;
+            await setDoc(newDocRef, categoryData);
             toast({ title: "تمت الإضافة بنجاح" });
         }
         setStoreCatDialogOpen(false);
@@ -139,7 +141,7 @@ export default function AdminCategoriesPage() {
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
-    const categoryData = {
+    const categoryData: Omit<ProductCategory, 'id' | 'productCategoryId'> = {
         name_ar: formData.get('name_ar') as string,
         storeId: formData.get('storeId') as string,
         sortOrder: parseInt(formData.get('sortOrder') as string || '0', 10),
@@ -159,7 +161,8 @@ export default function AdminCategoriesPage() {
             toast({ title: "تم التحديث بنجاح" });
         } else {
             const newDocRef = doc(collection(firestore, 'product_categories'));
-            await setDoc(newDocRef, { ...categoryData, productCategoryId: newDocRef.id });
+            const fullData = { ...categoryData, productCategoryId: newDocRef.id };
+            await setDoc(newDocRef, fullData);
             toast({ title: "تمت الإضافة بنجاح" });
         }
         setProdCatDialogOpen(false);

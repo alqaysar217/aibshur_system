@@ -1,8 +1,8 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
-import type { Store, City, DailyHours } from '@/lib/types';
+import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -39,7 +39,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { mockCategories, mockAdminUser } from '@/lib/mock-data';
+import { mockAdminUser } from '@/lib/mock-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import Image from 'next/image';
@@ -47,7 +47,7 @@ import { Switch } from '@/components/ui/switch';
 
 const StoreRowSkeleton = () => (
     <TableRow>
-        <TableCell colSpan={5} className="p-0">
+        <TableCell colSpan={4} className="p-0">
             <Skeleton className="w-full h-[60px]"/>
         </TableCell>
     </TableRow>
@@ -83,6 +83,7 @@ export default function AdminStoresPage() {
   const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
   const [currentStore, setCurrentStore] = useState<Partial<Store> | null>(null);
   const [schedule, setSchedule] = useState<Record<string, DailyHours>>(initialSchedule);
+  const [logoPreview, setLogoPreview] = useState('');
 
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
   const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery);
@@ -90,15 +91,20 @@ export default function AdminStoresPage() {
   const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
   const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(citiesQuery);
 
+  const storeCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]);
+  const { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError } = useCollection<StoreCategory>(storeCategoriesQuery);
+
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
     if (store) {
       // Editing existing store
       setCurrentStore(store);
       setSchedule(store.working_hours || initialSchedule);
+      setLogoPreview(store.logo_url || '');
     } else {
       // Adding new store
       setCurrentStore(null);
       setSchedule(initialSchedule);
+      setLogoPreview('');
     }
     setIsFormDialogOpen(true);
   };
@@ -246,7 +252,7 @@ export default function AdminStoresPage() {
     return cities?.find(c => c.cityId === cityId)?.id;
   }
 
-  const combinedError = storesError || citiesError;
+  const combinedError = storesError || citiesError || storeCategoriesError;
   if (combinedError) {
     if (combinedError.message.includes('database (default) does not exist')) {
         return <SetupFirestoreMessage />;
@@ -270,7 +276,7 @@ export default function AdminStoresPage() {
         </Button>
       </div>
       
-      <Card className="border-none shadow-sm rounded-[20px] bg-white overflow-hidden">
+      <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
          <CardHeader className="p-6 border-b border-gray-50 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-black flex items-center gap-2">
                 <StoreIcon className="h-4 w-4 text-primary" /> المتاجر المسجلة
@@ -328,23 +334,28 @@ export default function AdminStoresPage() {
       </Card>
 
       <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
-        <DialogContent className="sm:max-w-4xl rounded-lg">
+        <DialogContent className="sm:max-w-4xl rounded-2xl">
            <form onSubmit={handleFormSubmit}>
-            <DialogHeader>
-                <DialogTitle>{currentStore?.id ? 'تعديل بيانات المتجر' : 'إضافة متجر احترافي جديد'}</DialogTitle>
-                <DialogDescription>املأ كافة التفاصيل لمتجرك.</DialogDescription>
+            <DialogHeader className="text-right">
+                <DialogTitle className="font-black text-gray-900">{currentStore?.id ? 'تعديل بيانات المتجر' : 'إضافة متجر احترافي جديد'}</DialogTitle>
+                <DialogDescription className="font-bold text-gray-400">املأ كافة التفاصيل لمتجرك.</DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 py-4 text-right max-h-[70vh] overflow-y-auto pr-2 pl-4">
                 
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="name_ar" className="font-bold text-gray-700">اسم المتجر</Label>
-                        <Input id="name_ar" name="name_ar" required className="rounded-lg" defaultValue={currentStore?.name_ar || ''} />
+                        <Input id="name_ar" name="name_ar" required className="rounded-lg bg-gray-50" defaultValue={currentStore?.name_ar || ''} />
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="logo_url" className="font-bold text-gray-700">رابط شعار المتجر (Logo URL)</Label>
-                        <Input id="logo_url" name="logo_url" type="url" placeholder="https://example.com/logo.png" className="rounded-lg" dir="ltr" defaultValue={currentStore?.logo_url || ''} />
+                        <Input id="logo_url" name="logo_url" type="url" placeholder="https://example.com/logo.png" className="rounded-lg bg-gray-50" dir="ltr" defaultValue={currentStore?.logo_url || ''} onChange={(e) => setLogoPreview(e.target.value)} />
+                        {logoPreview && (
+                            <div className="flex justify-center p-2 border rounded-xl bg-gray-50/50 mt-2">
+                                <Image src={logoPreview} alt="معاينة الشعار" width={100} height={100} className="rounded-lg object-cover"/>
+                            </div>
+                        )}
                         <p className="text-xs text-muted-foreground">الصق رابطاً مباشراً للصورة. سيتم استخدام شعار افتراضي إذا ترك فارغاً.</p>
                     </div>
 
@@ -352,7 +363,7 @@ export default function AdminStoresPage() {
                          <div className="space-y-2">
                             <Label htmlFor="city_id" className="font-bold text-gray-700">المحافظة</Label>
                             <Select name="city_id" dir="rtl" required defaultValue={currentStore?.city_id ? getCityDocId(currentStore.city_id) : undefined}>
-                                <SelectTrigger className="rounded-lg font-bold"><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
+                                <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
                                     {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
                                     : cities?.map(city => <SelectItem key={city.id} value={city.id!}>{city.name_ar}</SelectItem>)}
@@ -362,9 +373,10 @@ export default function AdminStoresPage() {
                         <div className="space-y-2">
                             <Label htmlFor="filter_id" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
                             <Select name="filter_id" dir="rtl" required defaultValue={currentStore?.filter_ids?.[0]}>
-                                <SelectTrigger className="rounded-lg font-bold"><SelectValue placeholder="اختر الفئة" /></SelectTrigger>
+                                <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر الفئة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
-                                    {mockCategories.map(cat => <SelectItem key={cat.filterId} value={cat.filterId}>{cat.name_ar}</SelectItem>)}
+                                    {storeCategoriesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
+                                    : storeCategories?.map(cat => <SelectItem key={cat.id} value={cat.categoryId}>{cat.name_ar}</SelectItem>)}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -372,11 +384,11 @@ export default function AdminStoresPage() {
                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label htmlFor="rating" className="font-bold text-gray-700">التقييم الأولي (من 5)</Label>
-                            <Input id="rating" name="rating" type="number" step="0.1" min="0" max="5" required className="rounded-lg" dir="ltr" defaultValue={currentStore?.rating || 4.5}/>
+                            <Input id="rating" name="rating" type="number" step="0.1" min="0" max="5" required className="rounded-lg bg-gray-50" dir="ltr" defaultValue={currentStore?.rating || 4.5}/>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="preparation_time" className="font-bold text-gray-700">وقت التوصيل المتوقع</Label>
-                            <Input id="preparation_time" name="preparation_time" required className="rounded-lg" placeholder="مثال: 30-45 دقيقة" defaultValue={currentStore?.preparation_time || ''}/>
+                            <Input id="preparation_time" name="preparation_time" required className="rounded-lg bg-gray-50" placeholder="مثال: 30-45 دقيقة" defaultValue={currentStore?.preparation_time || ''}/>
                         </div>
                     </div>
                     
@@ -386,11 +398,11 @@ export default function AdminStoresPage() {
                         <div className="grid grid-cols-2 gap-4 pt-2">
                             <div className="space-y-2">
                                 <Label htmlFor="latitude">خط العرض (Latitude)</Label>
-                                <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 15.3694" defaultValue={currentStore?.location?.latitude}/>
+                                <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg bg-gray-50" dir="ltr" placeholder="e.g. 15.3694" defaultValue={currentStore?.location?.latitude}/>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="longitude">خط الطول (Longitude)</Label>
-                                <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 44.1910" defaultValue={currentStore?.location?.longitude}/>
+                                <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg bg-gray-50" dir="ltr" placeholder="e.g. 44.1910" defaultValue={currentStore?.location?.longitude}/>
                             </div>
                         </div>
                     </div>
@@ -428,7 +440,7 @@ export default function AdminStoresPage() {
 
             </div>
             <DialogFooter className="pt-4 border-t mt-4">
-                <Button type="submit" disabled={isSubmitting || citiesLoading} className="rounded-lg font-black w-32">
+                <Button type="submit" disabled={isSubmitting || citiesLoading || storeCategoriesLoading} className="rounded-lg font-black w-32">
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : (currentStore?.id ? 'حفظ التعديلات' : 'حفظ المتجر')}
                 </Button>
                  <DialogClose asChild>
