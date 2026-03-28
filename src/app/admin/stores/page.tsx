@@ -94,6 +94,15 @@ export default function AdminStoresPage() {
   const storeCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]);
   const { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError } = useCollection<StoreCategory>(storeCategoriesQuery);
 
+  // CONSOLE DEBUGGING as requested
+  useEffect(() => {
+    console.groupCollapsed('--- STORES PAGE: DATA AUDIT ---');
+    console.log('Collection: stores', { data: stores, loading: storesLoading, error: storesError });
+    console.log('Collection: cities', { data: cities, loading: citiesLoading, error: citiesError });
+    console.log('Collection: store_categories', { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError });
+    console.groupEnd();
+  }, [stores, cities, storeCategories, storesLoading, citiesLoading, storeCategoriesLoading, storesError, citiesError, storeCategoriesError]);
+
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
     if (store) {
       setCurrentStore({ ...store });
@@ -475,3 +484,5 @@ export default function AdminStoresPage() {
     </div>
   );
 }
+
+    

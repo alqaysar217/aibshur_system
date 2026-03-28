@@ -84,13 +84,15 @@ export default function AdminCategoriesPage() {
   // CONSOLE DEBUGGING as requested
   useEffect(() => {
     console.groupCollapsed('--- CATEGORIES PAGE: DATA AUDIT ---');
+    console.log('Collection: store_categories', { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError });
+    console.log('Collection: product_categories', { data: productCategories, loading: productCategoriesLoading, error: productCategoriesError });
     console.log('Collection: stores', { data: stores, loading: storesLoading, error: storesError });
     console.groupEnd();
-  }, [stores, storesLoading, storesError]);
+  }, [storeCategories, productCategories, stores, storeCategoriesLoading, productCategoriesLoading, storesLoading, storeCategoriesError, productCategoriesError, storesError]);
 
 
   const getStoreName = useCallback((storeId: string) => {
-    return stores?.find(s => s.id === storeId)?.name_ar || 'متجر غير معروف';
+    return stores?.find(s => s.storeId === storeId)?.name_ar || 'متجر غير معروف';
   }, [stores]);
   
   // Handlers for Store Categories
@@ -205,7 +207,7 @@ export default function AdminCategoriesPage() {
     }
   };
 
-  const dbError = storeCategoriesError || productCategoriesError;
+  const dbError = storeCategoriesError || productCategoriesError || storesError;
   if (dbError) return <SetupFirestoreMessage />;
   if (!firestore) return <SetupFirestoreMessage />;
 
@@ -356,7 +358,7 @@ export default function AdminCategoriesPage() {
                         key={currentProdCategory?.id || 'new'}
                         dir="rtl"
                         required
-                        value={currentProdCategory?.storeId}
+                        value={currentProdCategory?.storeId || ''}
                         onValueChange={(val) => setCurrentProdCategory(prev => ({ ...prev, storeId: val }))}
                     >
                         <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر المتجر" /></SelectTrigger>
@@ -397,3 +399,5 @@ export default function AdminCategoriesPage() {
     </div>
   );
 }
+
+    
