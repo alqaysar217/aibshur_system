@@ -94,14 +94,20 @@ export default function AdminStoresPage() {
   const storeCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]);
   const { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError } = useCollection<StoreCategory>(storeCategoriesQuery);
 
+  // CONSOLE DEBUGGING as requested
+  useEffect(() => {
+    console.groupCollapsed('--- STORES PAGE: DATA AUDIT ---');
+    console.log('Collection: cities', { data: cities, loading: citiesLoading, error: citiesError });
+    console.log('Collection: store_categories', { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError });
+    console.groupEnd();
+  }, [cities, citiesLoading, citiesError, storeCategories, storeCategoriesLoading, storeCategoriesError]);
+
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
     if (store) {
-      // Editing existing store
       setCurrentStore({ ...store });
       setSchedule(store.working_hours || initialSchedule);
       setLogoPreview(store.logo_url || '');
     } else {
-      // Adding new store
       setCurrentStore({ 
           working_hours: initialSchedule,
           is_active: true,
@@ -359,7 +365,7 @@ export default function AdminStoresPage() {
                     <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-2">
                             <Label htmlFor="city_id" className="font-bold text-gray-700">المحافظة</Label>
-                            <Select name="city_id" dir="rtl" required value={currentStore?.city_id || ''} onValueChange={(value) => setCurrentStore(prev => ({...prev, city_id: value}))}>
+                            <Select name="city_id" dir="rtl" required value={currentStore?.city_id || ''} onValueChange={(value) => setCurrentStore(prev => ({...prev, city_id: value}))} key={currentStore?.id || 'new-store-city'}>
                                 <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
                                     {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
@@ -373,7 +379,7 @@ export default function AdminStoresPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="filter_id" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
-                            <Select name="filter_id" dir="rtl" required value={currentStore?.filter_ids?.[0] || ''} onValueChange={(value) => setCurrentStore(prev => ({...prev, filter_ids: [value]}))}>
+                            <Select name="filter_id" dir="rtl" required value={currentStore?.filter_ids?.[0] || ''} onValueChange={(value) => setCurrentStore(prev => ({...prev, filter_ids: [value]}))} key={currentStore?.id || 'new-store-category'}>
                                 <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر الفئة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
                                     {storeCategoriesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 

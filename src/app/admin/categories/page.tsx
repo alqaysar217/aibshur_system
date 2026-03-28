@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
 import type { StoreCategory, ProductCategory, Store } from '@/lib/types';
@@ -79,7 +79,15 @@ export default function AdminCategoriesPage() {
   const { data: productCategories, loading: productCategoriesLoading, error: productCategoriesError } = useCollection<ProductCategory>(productCategoriesQuery);
   
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
-  const { data: stores, loading: storesLoading } = useCollection<Store>(storesQuery);
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery);
+
+  // CONSOLE DEBUGGING as requested
+  useEffect(() => {
+    console.groupCollapsed('--- CATEGORIES PAGE: DATA AUDIT ---');
+    console.log('Collection: stores', { data: stores, loading: storesLoading, error: storesError });
+    console.groupEnd();
+  }, [stores, storesLoading, storesError]);
+
 
   const getStoreName = useCallback((storeId: string) => {
     return stores?.find(s => s.id === storeId)?.name_ar || 'متجر غير معروف';
@@ -356,7 +364,7 @@ export default function AdminCategoriesPage() {
                             {storesLoading ? (
                                 <SelectItem value="loading" disabled>جاري جلب قائمة المتاجر...</SelectItem>
                             ) : stores && stores.length > 0 ? (
-                                stores.map(store => <SelectItem key={store.id} value={store.id!}>{store.name_ar}</SelectItem>)
+                                stores.map(store => <SelectItem key={store.id} value={store.storeId}>{store.name_ar}</SelectItem>)
                             ) : (
                                 <div className="p-2 text-center text-sm text-muted-foreground">لا يوجد متاجر مضافة حالياً.</div>
                             )}
