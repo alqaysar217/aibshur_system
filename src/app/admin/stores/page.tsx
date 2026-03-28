@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc, getDocs } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -44,6 +44,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import Image from 'next/image';
 import { Switch } from '@/components/ui/switch';
+import { useCollection } from '@/firebase';
 
 const StoreRowSkeleton = () => (
     <TableRow>
@@ -419,7 +420,7 @@ export default function AdminStoresPage() {
                             <Label htmlFor="city_id" className="font-bold text-gray-700">المحافظة</Label>
                             <Select dir="rtl" required value={currentStore?.city_id || ''} onValueChange={(value) => setCurrentStore(prev => ({...prev, city_id: value}))} key={currentStore?.id || 'new-store-city'}>
                                 <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
-                                <SelectContent className="rounded-lg" onPointerDownOutside={(e) => e.preventDefault()}>
+                                <SelectContent position="popper" className="rounded-lg" onPointerDownOutside={(e) => e.preventDefault()}>
                                     {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
                                     : cities && cities.length > 0 ? (
                                         cities.map(city => <SelectItem key={city.id} value={city.id!}>{city.name_ar}</SelectItem>)
@@ -433,7 +434,7 @@ export default function AdminStoresPage() {
                             <Label htmlFor="filter_id" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
                             <Select dir="rtl" required value={currentStore?.filter_ids?.[0] || ''} onValueChange={(value) => setCurrentStore(prev => ({...prev, filter_ids: [value]}))} key={currentStore?.id || 'new-store-category'}>
                                 <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر الفئة" /></SelectTrigger>
-                                <SelectContent className="rounded-lg" onPointerDownOutside={(e) => e.preventDefault()}>
+                                <SelectContent position="popper" className="rounded-lg" onPointerDownOutside={(e) => e.preventDefault()}>
                                     {storeCategoriesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
                                     : storeCategories && storeCategories.length > 0 ? (
                                         storeCategories.map(cat => <SelectItem key={cat.id} value={cat.id!}>{cat.name_ar}</SelectItem>)

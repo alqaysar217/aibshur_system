@@ -768,7 +768,7 @@ export default function AdminCategoriesPage() {
 
       {/* Product Category Dialog */}
 
-      <Dialog open={isProdCatDialogOpen} onOpenChange={setProdCatDialogOpen} modal={false}>
+      <Dialog open={isProdCatDialogOpen} onOpenChange={setProdCatDialogOpen}>
 
         <DialogContent className="sm:max-w-md rounded-2xl">
 
@@ -820,7 +820,7 @@ export default function AdminCategoriesPage() {
 
                         <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر المتجر" /></SelectTrigger>
 
-                        <SelectContent className="rounded-lg">
+                        <SelectContent position="popper" className="rounded-lg" onPointerDownOutside={(e) => e.preventDefault()}>
 
                             {storesLoading ? (
 
