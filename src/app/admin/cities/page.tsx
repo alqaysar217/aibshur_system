@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch, setDoc } from 'firebase/firestore';
 import type { City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,7 +77,7 @@ export default function AdminCitiesPage() {
     const nameEn = formData.get('name_en') as string;
     const cityId = currentCity?.cityId || nameEn.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/--+/g, '-');
 
-    const cityData: Omit<City, 'id'> = {
+    const cityData: Omit<City, 'id' | 'cityId'> & { cityId: string } = {
       cityId: cityId,
       name_ar: formData.get('name_ar') as string,
       name_en: nameEn,
@@ -92,7 +92,7 @@ export default function AdminCitiesPage() {
         await updateDoc(cityDocRef, cityData);
         toast({ title: "تم التحديث بنجاح", description: `تم تحديث بيانات مدينة ${cityData.name_ar}.` });
       } else {
-        const newDocRef = doc(collection(firestore, 'cities'), cityId);
+        const newDocRef = doc(firestore, 'cities', cityId);
         await setDoc(newDocRef, cityData);
         toast({ title: "تمت الإضافة بنجاح", description: `تمت إضافة مدينة ${cityData.name_ar} إلى النظام.` });
       }
@@ -144,7 +144,8 @@ export default function AdminCitiesPage() {
 
   if (error) {
     console.error("Critical Error fetching cities data:", error);
-    if (error.message.includes('database (default) does not exist') || error.message.includes('Could not reach Firestore backend') || error.message.includes('permission-denied') || error.message.includes('Missing or insufficient permissions')) {
+    const msg = error.message || '';
+    if (msg.includes('database (default) does not exist') || msg.includes('Could not reach Firestore backend') || msg.includes('permission-denied') || msg.includes('Missing or insufficient permissions') || msg.includes('Cloud Firestore API has not been used')) {
         return <SetupFirestoreMessage />;
     }
   }
@@ -293,5 +294,3 @@ export default function AdminCitiesPage() {
     </div>
   );
 }
-
-    

@@ -58,15 +58,18 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (!firestore) return;
+      if (!firestore) {
+        // This case is handled by the root check below
+        return;
+      }
 
       try {
         const storesCol = collection(firestore, 'stores');
         const citiesCol = collection(firestore, 'cities');
 
         const [storesSnapshot, citiesSnapshot] = await Promise.all([
-          getCountFromServer(storesCol).catch(() => null), // Prevent one error from stopping all
-          getCountFromServer(citiesCol).catch(() => null),
+          getCountFromServer(storesCol),
+          getCountFromServer(citiesCol),
         ]);
         
         const storesCount = storesSnapshot?.data().count ?? 0;
@@ -79,9 +82,11 @@ export default function AdminDashboard() {
         }));
         setFirestoreError(null); // Clear error on success
 
-      } catch (error) {
-        console.error("Error fetching dashboard stats:", error);
-        if (error instanceof Error && error.message.includes('database (default) does not exist')) {
+      } catch (error: any) {
+        console.error("Critical Error fetching dashboard stats:", error);
+        // This is a more robust check for Firestore setup errors.
+        const msg = error.message || '';
+        if (msg.includes('database (default) does not exist') || msg.includes('Could not reach Firestore backend') || msg.includes('permission-denied') || msg.includes('Missing or insufficient permissions') || msg.includes('Cloud Firestore API has not been used')) {
             setFirestoreError(error);
         }
       }
@@ -90,11 +95,8 @@ export default function AdminDashboard() {
     fetchStats();
   }, [firestore]);
 
-  if (firestoreError) {
-    return <SetupFirestoreMessage />;
-  }
-
-  if (!firestore) {
+  // If firestore instance is not available OR there's a specific setup error
+  if (!firestore || firestoreError) {
     return <SetupFirestoreMessage />;
   }
 
