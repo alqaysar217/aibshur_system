@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useFirestore, FirestorePermissionError, errorEmitter, useCollection } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc, getDocs } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import Image from 'next/image';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 
 const StoreRowSkeleton = () => (
@@ -440,7 +439,7 @@ export default function AdminStoresPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="filter_id" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
-                            <select
+                             <select
                                 id="filter_id"
                                 required
                                 value={currentStore?.filter_ids?.[0] || ''}
@@ -488,12 +487,12 @@ export default function AdminStoresPage() {
                                     placeholder="e.g. 15.3694"
                                     value={currentStore?.location?.latitude ?? ''}
                                     onChange={(e) => {
-                                        const value = e.target.value;
+                                        const value = e.target.valueAsNumber;
                                         setCurrentStore(prev => ({
                                             ...prev,
                                             location: {
                                                 ...(prev?.location as GeoPoint),
-                                                latitude: value === '' ? 0 : parseFloat(value),
+                                                latitude: isNaN(value) ? prev?.location?.latitude ?? 0 : value,
                                             }
                                         }))
                                     }}
@@ -512,12 +511,12 @@ export default function AdminStoresPage() {
                                     placeholder="e.g. 44.1910"
                                     value={currentStore?.location?.longitude ?? ''}
                                     onChange={(e) => {
-                                        const value = e.target.value;
+                                        const value = e.target.valueAsNumber;
                                         setCurrentStore(prev => ({
                                             ...prev,
                                             location: {
                                                 ...(prev?.location as GeoPoint),
-                                                longitude: value === '' ? 0 : parseFloat(value),
+                                                longitude: isNaN(value) ? prev?.location?.longitude ?? 0 : value,
                                             }
                                         }))
                                     }}
