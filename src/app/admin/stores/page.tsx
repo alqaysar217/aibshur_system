@@ -280,9 +280,9 @@ export default function AdminStoresPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
-                <TableHead className="px-6 py-4 text-right">اسم المتجر</TableHead>
-                <TableHead className="px-6 py-4">المدينة</TableHead>
-                <TableHead className="px-6 py-4">الحالة</TableHead>
+                <TableHead className="px-6 py-4 text-center">اسم المتجر</TableHead>
+                <TableHead className="px-6 py-4 text-center">المدينة</TableHead>
+                <TableHead className="px-6 py-4 text-center">الحالة</TableHead>
                 <TableHead className="px-6 py-4 text-center">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
@@ -292,12 +292,12 @@ export default function AdminStoresPage() {
               ) : stores && stores.length > 0 ? (
                 stores.map((store) => (
                   <TableRow key={store.id} className="hover:bg-gray-50/50">
-                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-700 flex items-center gap-4">
+                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-700 flex items-center justify-center gap-4">
                         <Image src={store.logo_url} alt={store.name_ar} width={40} height={40} className="w-10 h-10 rounded-md object-cover bg-gray-100"/>
                         {store.name_ar}
                     </TableCell>
-                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-400">{getCityName(store.city_id)}</TableCell>
-                    <TableCell className="px-6 py-4">
+                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-400 text-center">{getCityName(store.city_id)}</TableCell>
+                    <TableCell className="px-6 py-4 text-center">
                       <Badge className={cn(
                         "rounded-xl border-none font-black px-3 py-1 text-[9px]",
                         store.is_active ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
