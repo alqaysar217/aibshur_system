@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useCallback } from 'react';
 import { useCollection, useFirestore } from '@/firebase';
@@ -170,7 +169,7 @@ export default function AdminCategoriesPage() {
   // Generic Delete Handler
   const openDeleteDialog = (id: string, name: string, type: 'store' | 'product') => {
     setItemToDelete({ id, name, type });
-    setIsDeleteDialogOpen(true);
+    setDeleteDialogOpen(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -186,7 +185,7 @@ export default function AdminCategoriesPage() {
         console.error("Error deleting item:", error);
         toast({ variant: 'destructive', title: "خطأ في الحذف" });
     } finally {
-        setIsDeleteDialogOpen(false);
+        setDeleteDialogOpen(false);
         setItemToDelete(null);
     }
   };
@@ -340,7 +339,7 @@ export default function AdminCategoriesPage() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader><AlertDialogTitle>هل أنت متأكد تماماً؟</AlertDialogTitle>
             <AlertDialogDescription>سيتم حذف "{itemToDelete?.name}" بشكل نهائي.</AlertDialogDescription>
