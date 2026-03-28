@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
 import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc, getDocs } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,11 +88,50 @@ export default function AdminStoresPage() {
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
   const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, 'stores');
   
-  const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
-  const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(citiesQuery, 'cities');
+  const [cities, setCities] = useState<City[]>([]);
+  const [citiesLoading, setCitiesLoading] = useState(true);
+  const [citiesError, setCitiesError] = useState<Error | null>(null);
+  const [storeCategories, setStoreCategories] = useState<StoreCategory[]>([]);
+  const [storeCategoriesLoading, setStoreCategoriesLoading] = useState(true);
+  const [storeCategoriesError, setStoreCategoriesError] = useState<Error | null>(null);
 
-  const storeCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]);
-  const { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError } = useCollection<StoreCategory>(storeCategoriesQuery, 'store_categories');
+  useEffect(() => {
+    if (!firestore) {
+      setCitiesLoading(false);
+      setStoreCategoriesLoading(false);
+      return;
+    }
+
+    const fetchDataForDropdowns = async () => {
+      setCitiesLoading(true);
+      setStoreCategoriesLoading(true);
+      try {
+        const citiesPromise = getDocs(collection(firestore, 'cities'));
+        const categoriesPromise = getDocs(collection(firestore, 'store_categories'));
+
+        const [citiesSnapshot, categoriesSnapshot] = await Promise.all([citiesPromise, categoriesPromise]);
+
+        const citiesData = citiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
+        setCities(citiesData);
+        setCitiesError(null);
+
+        const categoriesData = categoriesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as StoreCategory));
+        setStoreCategories(categoriesData);
+        setStoreCategoriesError(null);
+
+      } catch (error: any) {
+        console.error("Error fetching data for dropdowns:", error);
+        setCitiesError(error);
+        setStoreCategoriesError(error);
+      } finally {
+        setCitiesLoading(false);
+        setStoreCategoriesLoading(false);
+      }
+    };
+
+    fetchDataForDropdowns();
+  }, [firestore]);
+
 
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
     if (store) {
@@ -383,7 +422,7 @@ export default function AdminStoresPage() {
                                 <SelectContent className="rounded-lg">
                                     {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
                                     : cities && cities.length > 0 ? (
-                                        cities.map(city => <SelectItem key={city.cityId} value={city.cityId}>{city.name_ar}</SelectItem>)
+                                        cities.map(city => <SelectItem key={city.id} value={city.cityId}>{city.name_ar}</SelectItem>)
                                     ) : (
                                         <div className="text-center text-sm text-muted-foreground p-4">لا توجد مدن. أضف مدينة أولاً.</div>
                                     )}
@@ -397,7 +436,7 @@ export default function AdminStoresPage() {
                                 <SelectContent className="rounded-lg">
                                     {storeCategoriesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
                                     : storeCategories && storeCategories.length > 0 ? (
-                                        storeCategories.map(cat => <SelectItem key={cat.categoryId} value={cat.categoryId}>{cat.name_ar}</SelectItem>)
+                                        storeCategories.map(cat => <SelectItem key={cat.id} value={cat.categoryId}>{cat.name_ar}</SelectItem>)
                                     ) : (
                                         <div className="text-center text-sm text-muted-foreground p-4">لا توجد فئات. أضف فئة أولاً.</div>
                                     )}
