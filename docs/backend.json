@@ -118,24 +118,28 @@
         "description_ar": { "type": "string" },
         "description_en": { "type": "string" },
         "main_image_url": { "type": "string", "format": "uri" },
-        "base_price": { "type": "number" },
-        "discount_price": { "type": "number", "description": "Optional discounted price." },
-        "is_available": { "type": "boolean" },
+        "base_price": { "type": "number", "description": "Price for the product if it has no variants." },
+        "rating": { "type": "number" },
+        "is_active": { "type": "boolean" },
+        "variants": { 
+            "type": "array", 
+            "items": { "$ref": "#/entities/ProductVariant" },
+            "description": "List of different types or sizes for the product."
+        },
         "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." }
       },
-      "required": ["productId", "storeId", "productCategoryId", "name_ar", "base_price", "is_available", "storeOwnerUid"]
+      "required": ["productId", "storeId", "productCategoryId", "name_ar", "is_active", "storeOwnerUid"]
     },
     "ProductVariant": {
       "title": "Product Variant",
-      "description": "Represents a variant of a product.",
+      "description": "Represents a variant of a product (e.g., size, color).",
       "type": "object",
       "properties": {
         "variantId": { "type": "string" },
         "name_ar": { "type": "string" },
         "name_en": { "type": "string" },
         "price": { "type": "number" },
-        "stock_count": { "type": "number" },
-        "image_url": { "type": "string", "format": "uri" }
+        "image_url": { "type": "string", "format": "uri", "description": "Optional image for this specific variant." }
       },
       "required": ["variantId", "name_ar", "price"]
     },

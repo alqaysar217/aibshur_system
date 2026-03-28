@@ -1,6 +1,7 @@
 
 
 
+
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
@@ -108,9 +109,8 @@ export interface Store {
 export interface ProductVariant {
   variantId: string;
   name_ar: string;
-  name_en: string;
+  name_en?: string;
   price: number;
-  stock_count?: number;
   image_url?: string;
 }
 
@@ -124,9 +124,10 @@ export interface Product {
   description_ar: string;
   description_en: string;
   main_image_url: string;
-  base_price: number;
-  discount_price?: number;
-  is_available: boolean;
+  base_price?: number;
+  is_active: boolean;
+  rating?: number;
+  variants?: ProductVariant[];
   // Denormalized for security rules
   storeOwnerUid: string;
 }
