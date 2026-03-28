@@ -1,7 +1,9 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
 import { onSnapshot, DocumentReference, DocumentData } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface UseDocResponse<T> {
   data: T | null;
@@ -36,8 +38,17 @@ export function useDoc<T extends DocumentData>(
         setError(null);
       },
       (err) => {
-        console.error("Error fetching document: ", err);
-        setError(err);
+        console.error("Error in useDoc:", err);
+        if (err.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path, // docRef always has a path
+                operation: 'get'
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            setError(permissionError);
+        } else {
+            setError(err);
+        }
         setLoading(false);
       }
     );

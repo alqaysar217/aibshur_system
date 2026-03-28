@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo } from 'react';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, writeBatch, setDoc } from 'firebase/firestore';
 import type { City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ export default function AdminCitiesPage() {
   const firestore = useFirestore();
 
   const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
-  const { data: cities, loading: citiesLoading, error } = useCollection<City>(citiesQuery);
+  const { data: cities, loading: citiesLoading, error } = useCollection<City>(citiesQuery, 'cities');
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,9 +98,21 @@ export default function AdminCitiesPage() {
       }
       setDialogOpen(false);
       setCurrentCity(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving city: ", error);
-      toast({ variant: 'destructive', title: "حدث خطأ", description: "لم يتم حفظ البيانات، يرجى المحاولة مرة أخرى." });
+      const isUpdate = !!currentCity?.id;
+      const path = isUpdate ? `cities/${currentCity.id}` : `cities/${cityId}`;
+      
+      if (error.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
+          path: path,
+          operation: isUpdate ? 'update' : 'create',
+          requestResourceData: cityData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      } else {
+        toast({ variant: 'destructive', title: "حدث خطأ", description: "لم يتم حفظ البيانات، يرجى المحاولة مرة أخرى." });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -110,11 +122,20 @@ export default function AdminCitiesPage() {
     if (!firestore) return;
     if (confirm('هل أنت متأكد من رغبتك في حذف هذه المدينة؟ لا يمكن التراجع عن هذا الإجراء.')) {
         try {
-            await deleteDoc(doc(firestore, 'cities', cityDocId));
+            const docRef = doc(firestore, 'cities', cityDocId);
+            await deleteDoc(docRef);
             toast({ title: "تم الحذف", description: "تم حذف المدينة بنجاح." });
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error deleting city: ", error);
-            toast({ variant: 'destructive', title: "خطأ في الحذف", description: "لم يتم حذف المدينة." });
+            if (error.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: `cities/${cityDocId}`,
+                    operation: 'delete',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            } else {
+                toast({ variant: 'destructive', title: "خطأ في الحذف", description: "لم يتم حذف المدينة." });
+            }
         }
     }
   }
@@ -133,7 +154,7 @@ export default function AdminCitiesPage() {
 
         await batch.commit();
         toast({ title: "نجاح", description: "تمت إضافة المدن الأساسية إلى قاعدة البيانات." });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error seeding cities:", error);
         toast({ variant: 'destructive', title: "خطأ", description: "فشلت عملية إضافة المدن." });
     } finally {

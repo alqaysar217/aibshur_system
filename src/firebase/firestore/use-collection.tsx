@@ -1,7 +1,9 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
-import { onSnapshot, Query, DocumentData, collection, getDocs, getCountFromServer } from 'firebase/firestore';
+import { onSnapshot, Query, DocumentData } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface UseCollectionResponse<T> {
   data: T[] | null;
@@ -10,7 +12,8 @@ interface UseCollectionResponse<T> {
 }
 
 export function useCollection<T extends DocumentData>(
-  query: Query | null
+  query: Query | null,
+  collectionPath?: string // New parameter
 ): UseCollectionResponse<T> {
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -34,14 +37,24 @@ export function useCollection<T extends DocumentData>(
         setError(null);
       },
       (err) => {
-        console.error("Error fetching collection: ", err);
-        setError(err);
+        console.error("Error in useCollection:", err); // Keep for general debugging
+        if (err.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                // Use the provided path, or a placeholder if not provided
+                path: collectionPath || `(Unknown collection)`,
+                operation: 'list'
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            setError(permissionError); // Also set it in local state for the component
+        } else {
+            setError(err);
+        }
         setLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [query]);
+  }, [query, collectionPath]); // Add collectionPath to dependencies
 
   return { data, loading, error };
 }

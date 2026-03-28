@@ -1,30 +1,50 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isAdmin() {
+      // Check if the user is authenticated and their user document has the 'admin' role.
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
     
-    // Allow public read access for essential setup collections
+    // Publicly readable collections
     match /cities/{cityId} {
       allow read: if true;
-      allow write: if request.auth != null; // To be refined later
+      allow write: if isAdmin(); // Only admins can create, update, delete cities
     }
 
     match /store_categories/{categoryId} {
       allow read: if true;
-      allow write: if request.auth != null; // To be refined later
+      allow write: if isAdmin(); // Only admins can manage store categories
     }
 
     match /stores/{storeId} {
       allow read: if true;
-      allow write: if request.auth != null; // To be refined later
+      // For now, only admins can manage stores to simplify debugging.
+      // We can add store-owner permissions later.
+      allow write: if isAdmin();
     }
 
     match /product_categories/{prodCatId} {
       allow read: if true;
-      allow write: if request.auth != null; // To be refined later
+      allow write: if isAdmin(); // Only admins can manage product categories
     }
 
-    // Default deny for all other collections until specified
+    match /products/{productId} {
+        allow read: if true;
+        allow write: if isAdmin(); // Only admins can manage products
+    }
+
+    // User profiles
+    match /users/{userId} {
+      // A user can create their own profile, and read/update it.
+      allow create: if request.auth.uid == userId;
+      allow read, update: if request.auth.uid == userId;
+      // Admins can read any user profile.
+      allow get, list: if isAdmin();
+    }
+
+    // Deny all other access by default
   }
 }

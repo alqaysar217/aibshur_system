@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -86,22 +86,13 @@ export default function AdminStoresPage() {
   const [logoPreview, setLogoPreview] = useState('');
 
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery);
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, 'stores');
   
   const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
-  const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(citiesQuery);
+  const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(citiesQuery, 'cities');
 
   const storeCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]);
-  const { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError } = useCollection<StoreCategory>(storeCategoriesQuery);
-
-  // CONSOLE DEBUGGING as requested
-  useEffect(() => {
-    console.groupCollapsed('--- STORES PAGE: DATA AUDIT ---');
-    console.log('Final Check Cities:', { data: cities, loading: citiesLoading, error: citiesError });
-    console.log('Final Check Store Categories:', { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError });
-    console.log('Collection: stores', { data: stores, loading: storesLoading, error: storesError });
-    console.groupEnd();
-  }, [stores, cities, storeCategories, storesLoading, citiesLoading, storeCategoriesLoading, storesError, citiesError, storeCategoriesError]);
+  const { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError } = useCollection<StoreCategory>(storeCategoriesQuery, 'store_categories');
 
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
     if (store) {
@@ -179,6 +170,8 @@ export default function AdminStoresPage() {
     }
     setIsSubmitting(true);
     
+    let docRef;
+
     try {
         const formData = new FormData(e.currentTarget);
         const latString = formData.get('latitude') as string;
@@ -195,7 +188,7 @@ export default function AdminStoresPage() {
         const selectedCity = cities?.find(c => c.cityId === currentStore.city_id);
         if (!selectedCity) throw new Error("المدينة المختارة غير موجودة.");
 
-        const storeDataObject = {
+        const storeDataObject: Partial<Store> = {
             ...currentStore,
             name_ar: formData.get('name_ar') as string,
             name_en: (formData.get('name_ar') as string).toLowerCase().replace(/ /g, '-'),
@@ -212,26 +205,35 @@ export default function AdminStoresPage() {
         };
 
         if (currentStore?.id) {
-            const storeDocRef = doc(firestore, 'stores', currentStore.id);
-            await updateDoc(storeDocRef, storeDataObject);
+            docRef = doc(firestore, 'stores', currentStore.id);
+            await updateDoc(docRef, storeDataObject);
             toast({ title: "تم تحديث المتجر بنجاح!" });
         } else {
             const storesCollection = collection(firestore, 'stores');
-            const newDocRef = doc(storesCollection);
-            const newStoreData = {
-                ...storeDataObject,
-                storeId: newDocRef.id
+            docRef = doc(storesCollection);
+            const newStoreData: Store = {
+                ...(storeDataObject as Store),
+                storeId: docRef.id
             };
-            await setDoc(newDocRef, newStoreData);
+            await setDoc(docRef, newStoreData);
             toast({ title: "تمت إضافة المتجر بنجاح!" });
         }
 
         setIsFormDialogOpen(false);
         setCurrentStore(null);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error saving store: ", error);
-        toast({ variant: 'destructive', title: "حدث خطأ فادح", description: (error as Error).message || "لم يتم حفظ المتجر. يرجى مراجعة الكونسول." });
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+              path: docRef!.path,
+              operation: currentStore?.id ? 'update' : 'create',
+              requestResourceData: currentStore
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            toast({ variant: 'destructive', title: "حدث خطأ فادح", description: (error as Error).message || "لم يتم حفظ المتجر. يرجى مراجعة الكونسول." });
+        }
     } finally {
         setIsSubmitting(false);
     }
@@ -239,13 +241,22 @@ export default function AdminStoresPage() {
 
   const handleConfirmDelete = async () => {
     if (!storeToDelete || !firestore) return;
+    const docRef = doc(firestore, 'stores', storeToDelete.id!);
 
     try {
-        await deleteDoc(doc(firestore, 'stores', storeToDelete.id!));
+        await deleteDoc(docRef);
         toast({ title: "تم الحذف", description: `تم حذف متجر "${storeToDelete.name_ar}" بنجاح.` });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error deleting store: ", error);
-        toast({ variant: 'destructive', title: "خطأ في الحذف", description: "حدث خطأ أثناء محاولة الحذف." });
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            toast({ variant: 'destructive', title: "خطأ في الحذف", description: "حدث خطأ أثناء محاولة الحذف." });
+        }
     } finally {
         setIsDeleteDialogOpen(false);
         setStoreToDelete(null);
@@ -260,7 +271,6 @@ export default function AdminStoresPage() {
   const dbError = storesError || citiesError || storeCategoriesError;
   if (dbError) {
     console.error("Error fetching data for stores page:", dbError);
-    // This allows the page to render and the SetupFirestoreMessage to potentially show if the error is config-related
     if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('Could not reach Firestore backend') || dbError.message.includes('permission-denied') || dbError.message.includes('Missing or insufficient permissions')) {
         return <SetupFirestoreMessage />;
     }

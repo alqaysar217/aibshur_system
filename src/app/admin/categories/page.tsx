@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc, getDocs } from 'firebase/firestore';
 import type { StoreCategory, ProductCategory, Store } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -74,58 +74,17 @@ export default function AdminCategoriesPage() {
   
   // Data fetching
   const storeCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]);
-  const { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError } = useCollection<StoreCategory>(storeCategoriesQuery);
+  const { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError } = useCollection<StoreCategory>(storeCategoriesQuery, 'store_categories');
 
   const productCategoriesQuery = useMemo(() => firestore ? collection(firestore, 'product_categories') : null, [firestore]);
-  const { data: productCategories, loading: productCategoriesLoading, error: productCategoriesError } = useCollection<ProductCategory>(productCategoriesQuery);
+  const { data: productCategories, loading: productCategoriesLoading, error: productCategoriesError } = useCollection<ProductCategory>(productCategoriesQuery, 'product_categories');
   
-  // NEW: Direct fetch for stores to populate dropdown
-  const [stores, setStores] = useState<Store[]>([]);
-  const [storesLoading, setStoresLoading] = useState(true);
-  const [storesError, setStoresError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    if (!firestore) {
-        setStoresLoading(false);
-        return;
-    };
-
-    const fetchStores = async () => {
-        setStoresLoading(true);
-        try {
-            const storesCol = collection(firestore, 'stores');
-            const snapshot = await getDocs(storesCol);
-            const storesData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Store));
-            setStores(storesData);
-            setStoresError(null);
-        } catch (err: any) {
-            console.error("Error fetching stores directly:", err);
-            setStoresError(err);
-        } finally {
-            setStoresLoading(false);
-        }
-    };
-
-    fetchStores();
-  }, [firestore]);
-
-
-  // CONSOLE DEBUGGING as requested
-  useEffect(() => {
-    console.groupCollapsed('--- CATEGORIES PAGE: DATA AUDIT ---');
-    console.log('Collection: store_categories', { data: storeCategories, loading: storeCategoriesLoading, error: storeCategoriesError });
-    console.log('Collection: product_categories', { data: productCategories, loading: productCategoriesLoading, error: productCategoriesError });
-    console.log('Collection: stores (Direct Fetch)', { data: stores, loading: storesLoading, error: storesError });
-    if(stores) {
-        console.log('Total Stores Found:', stores?.length);
-    }
-    console.groupEnd();
-  }, [storeCategories, productCategories, stores, storeCategoriesLoading, productCategoriesLoading, storesLoading, storeCategoriesError, productCategoriesError, storesError]);
-
+  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, 'stores');
 
   const getStoreName = useCallback((storeId: string) => {
     if (storesLoading) return 'جاري التحميل...';
-    return stores.find(s => s.id === storeId || s.storeId === storeId)?.name_ar || 'متجر غير معروف';
+    return stores?.find(s => s.id === storeId || s.storeId === storeId)?.name_ar || 'متجر غير معروف';
   }, [stores, storesLoading]);
   
   // Handlers for Store Categories
@@ -149,22 +108,33 @@ export default function AdminCategoriesPage() {
         image_url: formData.get('image_url') as string,
         is_active: currentStoreCategory.is_active ?? true,
     };
+    
+    let docRef;
 
     try {
         if (currentStoreCategory.id) {
-            const docRef = doc(firestore, 'store_categories', currentStoreCategory.id);
+            docRef = doc(firestore, 'store_categories', currentStoreCategory.id);
             await updateDoc(docRef, categoryData);
             toast({ title: "تم التحديث بنجاح" });
         } else {
-            const newDocRef = doc(collection(firestore, 'store_categories'));
-            const fullData = { ...categoryData, categoryId: newDocRef.id };
-            await setDoc(newDocRef, fullData);
+            docRef = doc(collection(firestore, 'store_categories'));
+            const fullData = { ...categoryData, categoryId: docRef.id };
+            await setDoc(docRef, fullData);
             toast({ title: "تمت الإضافة بنجاح" });
         }
         setStoreCatDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error saving store category: ", error);
-        toast({ variant: 'destructive', title: "حدث خطأ" });
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+              path: docRef!.path,
+              operation: currentStoreCategory.id ? 'update' : 'create',
+              requestResourceData: categoryData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          } else {
+            toast({ variant: 'destructive', title: "حدث خطأ" });
+          }
     } finally {
         setIsSubmitting(false);
     }
@@ -195,22 +165,33 @@ export default function AdminCategoriesPage() {
         setIsSubmitting(false);
         return;
     }
+    
+    let docRef;
 
     try {
         if (currentProdCategory?.id) {
-            const docRef = doc(firestore, 'product_categories', currentProdCategory.id);
+            docRef = doc(firestore, 'product_categories', currentProdCategory.id);
             await updateDoc(docRef, categoryData);
             toast({ title: "تم التحديث بنجاح" });
         } else {
-            const newDocRef = doc(collection(firestore, 'product_categories'));
-            const fullData = { ...categoryData, productCategoryId: newDocRef.id };
-            await setDoc(newDocRef, fullData);
+            docRef = doc(collection(firestore, 'product_categories'));
+            const fullData = { ...categoryData, productCategoryId: docRef.id };
+            await setDoc(docRef, fullData);
             toast({ title: "تمت الإضافة بنجاح" });
         }
         setProdCatDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error saving product category: ", error);
-        toast({ variant: 'destructive', title: "حدث خطأ" });
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+              path: docRef!.path,
+              operation: currentProdCategory.id ? 'update' : 'create',
+              requestResourceData: categoryData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          } else {
+            toast({ variant: 'destructive', title: "حدث خطأ" });
+          }
     } finally {
         setIsSubmitting(false);
     }
@@ -227,13 +208,22 @@ export default function AdminCategoriesPage() {
     
     const { id, type } = itemToDelete;
     const collectionName = type === 'store' ? 'store_categories' : 'product_categories';
+    const docRef = doc(firestore, collectionName, id);
 
     try {
-        await deleteDoc(doc(firestore, collectionName, id));
+        await deleteDoc(docRef);
         toast({ title: "تم الحذف بنجاح" });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error deleting item:", error);
-        toast({ variant: 'destructive', title: "خطأ في الحذف" });
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: docRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            toast({ variant: 'destructive', title: "خطأ في الحذف" });
+        }
     } finally {
         setDeleteDialogOpen(false);
         setItemToDelete(null);
