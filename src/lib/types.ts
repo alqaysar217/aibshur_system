@@ -5,6 +5,7 @@
 
 
 
+
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
@@ -40,6 +41,7 @@ export interface User {
   email?: string;
   profile_image?: string;
   city_id?: string; // ref to City
+  store_id?: string; // For store owners
   created_at: string; // ISO 8601
   last_login_at: string; // ISO 8601
   order_history?: string[]; // Array of orderIds

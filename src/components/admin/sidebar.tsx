@@ -2,10 +2,10 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard, Store, Users, ShoppingBag, Truck, CreditCard, AreaChart,
+  LayoutDashboard, Store, ShoppingBag, Truck, CreditCard, AreaChart,
   BadgePercent, Settings, LifeBuoy, ShieldCheck, BarChart2,
   ChevronDown, LogOut, Package, ChevronsRight, CircleDot, UserPlus, Building2,
-  Ticket, GalleryHorizontal
+  Ticket, GalleryHorizontal, Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -15,6 +15,7 @@ import { useAuth } from '@/firebase'; // Using firebase hook
 const mainNav = [
   { name: 'لوحة التحكم', href: '/admin', icon: LayoutDashboard },
   { name: 'الطلبات', href: '/admin/orders', icon: ShoppingBag },
+  { name: 'المستخدمون', href: '/admin/users', icon: Users },
   { name: 'المتاجر', href: '/admin/stores', icon: Store },
   { name: 'المنتجات', href: '/admin/products', icon: Package },
   { name: 'الفئات', href: '/admin/categories', icon: BarChart2 },
@@ -146,7 +147,6 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
             </Link>
           ))}
           
-          <NavGroup {...userManagementNav} />
           <NavGroup {...financeNav} />
           <NavGroup {...marketingNav} />
           <NavGroup {...reportsNav} />
