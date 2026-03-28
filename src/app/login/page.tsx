@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { useAuth, useUser } from '@/firebase';
@@ -28,6 +28,24 @@ export default function LoginPage() {
     const [otp, setOtp] = useState('');
     const [loading, setLoading] = useState(false);
     const [otpSent, setOtpSent] = useState(false);
+
+    // Development mode guard: If in development, bypass this page entirely.
+    if (process.env.NODE_ENV === 'development') {
+        useEffect(() => {
+            router.replace('/admin');
+        }, [router]);
+
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-background p-4 text-center">
+                 <Card className="w-full max-w-sm">
+                    <CardHeader>
+                        <CardTitle>Auth Bypassed</CardTitle>
+                        <CardDescription>Authentication is bypassed in development mode. You are being redirected to the admin dashboard.</CardDescription>
+                    </CardHeader>
+                </Card>
+            </div>
+        );
+    }
 
     const setupRecaptcha = () => {
         if (!auth) return;
