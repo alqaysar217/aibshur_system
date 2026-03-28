@@ -61,10 +61,10 @@
         "categoryId": { "type": "string", "description": "Unique identifier for the category." },
         "name_ar": { "type": "string" },
         "name_en": { "type": "string" },
-        "icon": { "type": "string", "description": "Name of the Lucide icon." },
+        "image_url": { "type": "string", "format": "uri", "description": "URL for the category image." },
         "is_active": { "type": "boolean" }
       },
-      "required": ["categoryId", "name_ar", "is_active"]
+      "required": ["categoryId", "name_ar", "image_url", "is_active"]
     },
     "ProductCategory": {
         "title": "Product Category",
@@ -74,9 +74,10 @@
             "productCategoryId": { "type": "string", "description": "Unique identifier for the product category." },
             "name_ar": { "type": "string" },
             "storeId": { "type": "string", "description": "Reference to the Store." },
-            "sortOrder": { "type": "number", "description": "Order for displaying categories." }
+            "sortOrder": { "type": "number", "description": "Order for displaying categories." },
+            "image_url": { "type": "string", "format": "uri", "description": "URL for the product category image." }
         },
-        "required": ["productCategoryId", "name_ar", "storeId"]
+        "required": ["productCategoryId", "name_ar", "storeId", "image_url"]
     },
     "Store": {
       "title": "Store",

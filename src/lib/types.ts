@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
@@ -57,7 +58,7 @@ export interface StoreCategory {
   categoryId: string;
   name_ar: string;
   name_en?: string;
-  icon: string; // Lucide icon name
+  image_url: string;
   is_active: boolean;
 }
 
@@ -67,6 +68,7 @@ export interface ProductCategory {
   name_ar: string;
   storeId: string; // ref to Store
   sortOrder: number;
+  image_url: string;
 }
 
 export interface WorkingHoursSlot {

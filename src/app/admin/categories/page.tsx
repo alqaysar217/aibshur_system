@@ -5,6 +5,7 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/
 import type { StoreCategory, ProductCategory, Store } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import Image from 'next/image';
 import {
   Table,
   TableBody,
@@ -16,7 +17,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -33,7 +33,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, AppWindow, Pizza, BarChart2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, AppWindow, Pizza } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -67,6 +67,8 @@ export default function AdminCategoriesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStoreCategory, setCurrentStoreCategory] = useState<Partial<StoreCategory> | null>(null);
   const [currentProdCategory, setCurrentProdCategory] = useState<Partial<ProductCategory> | null>(null);
+  const [storeCatImagePreview, setStoreCatImagePreview] = useState('');
+  const [prodCatImagePreview, setProdCatImagePreview] = useState('');
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string, type: 'store' | 'product' } | null>(null);
   
   // Data fetching
@@ -85,7 +87,8 @@ export default function AdminCategoriesPage() {
   
   // Handlers for Store Categories
   const handleOpenStoreCatDialog = (category: Partial<StoreCategory> | null = null) => {
-    setCurrentStoreCategory(category ? { ...category } : { is_active: true });
+    setCurrentStoreCategory(category ? { ...category } : { is_active: true, image_url: '' });
+    setStoreCatImagePreview(category?.image_url || '');
     setStoreCatDialogOpen(true);
   };
   
@@ -100,7 +103,7 @@ export default function AdminCategoriesPage() {
     const categoryData = {
         name_ar: formData.get('name_ar') as string,
         name_en: name_en,
-        icon: formData.get('icon') as string,
+        image_url: formData.get('image_url') as string,
         is_active: currentStoreCategory.is_active,
     };
 
@@ -125,7 +128,8 @@ export default function AdminCategoriesPage() {
 
   // Handlers for Product Categories
   const handleOpenProdCatDialog = (category: Partial<ProductCategory> | null = null) => {
-    setCurrentProdCategory(category ? { ...category } : { sortOrder: 0 });
+    setCurrentProdCategory(category ? { ...category } : { sortOrder: 0, image_url: '' });
+    setProdCatImagePreview(category?.image_url || '');
     setProdCatDialogOpen(true);
   };
 
@@ -139,6 +143,7 @@ export default function AdminCategoriesPage() {
         name_ar: formData.get('name_ar') as string,
         storeId: formData.get('storeId') as string,
         sortOrder: parseInt(formData.get('sortOrder') as string || '0', 10),
+        image_url: formData.get('image_url') as string,
     };
 
     if (!categoryData.storeId) {
@@ -223,8 +228,8 @@ export default function AdminCategoriesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                                <TableHead className="px-6 py-4 text-center">الصورة</TableHead>
                                 <TableHead className="px-6 py-4 text-center">الفئة (العربية)</TableHead>
-                                <TableHead className="px-6 py-4 text-center">الأيقونة (Lucide)</TableHead>
                                 <TableHead className="px-6 py-4 text-center">الحالة</TableHead>
                                 <TableHead className="px-6 py-4 text-center">إجراءات</TableHead>
                             </TableRow>
@@ -233,8 +238,10 @@ export default function AdminCategoriesPage() {
                             {storeCategoriesLoading ? Array.from({length: 3}).map((_, i) => <RowSkeleton key={i}/>)
                             : storeCategories?.map((cat) => (
                                 <TableRow key={cat.id}>
+                                    <TableCell className="px-6 py-4 text-center">
+                                      <Image src={cat.image_url} alt={cat.name_ar} width={40} height={40} className="w-10 h-10 rounded-md object-cover bg-gray-100 mx-auto"/>
+                                    </TableCell>
                                     <TableCell className="px-6 py-4 text-center font-bold text-xs text-gray-700">{cat.name_ar}</TableCell>
-                                    <TableCell className="px-6 py-4 text-center font-bold text-xs text-gray-500 font-mono">{cat.icon}</TableCell>
                                     <TableCell className="px-6 py-4 text-center">
                                         <Badge className={cn("rounded-xl border-none font-black px-3 py-1 text-[9px]", cat.is_active ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600")}>
                                             {cat.is_active ? 'نشطة' : 'غير نشطة'}
@@ -260,6 +267,7 @@ export default function AdminCategoriesPage() {
                 <Table>
                         <TableHeader>
                             <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                                <TableHead className="px-6 py-4 text-center">الصورة</TableHead>
                                 <TableHead className="px-6 py-4 text-center">اسم القسم</TableHead>
                                 <TableHead className="px-6 py-4 text-center">المتجر</TableHead>
                                 <TableHead className="px-6 py-4 text-center">الترتيب</TableHead>
@@ -270,6 +278,9 @@ export default function AdminCategoriesPage() {
                         {productCategoriesLoading || storesLoading ? Array.from({length: 4}).map((_, i) => <RowSkeleton key={i}/>)
                             : productCategories?.map((cat) => (
                                 <TableRow key={cat.id}>
+                                     <TableCell className="px-6 py-4 text-center">
+                                      <Image src={cat.image_url} alt={cat.name_ar} width={40} height={40} className="w-10 h-10 rounded-md object-cover bg-gray-100 mx-auto"/>
+                                    </TableCell>
                                     <TableCell className="px-6 py-4 text-center font-bold text-xs text-gray-700">{cat.name_ar}</TableCell>
                                     <TableCell className="px-6 py-4 text-center font-bold text-xs text-gray-500">{getStoreName(cat.storeId)}</TableCell>
                                     <TableCell className="px-6 py-4 text-center font-bold text-xs text-gray-500">{cat.sortOrder}</TableCell>
@@ -295,7 +306,12 @@ export default function AdminCategoriesPage() {
             </DialogHeader>
             <div className="grid gap-4 py-6">
                 <div className="space-y-2"><Label>اسم الفئة</Label><Input name="name_ar" defaultValue={currentStoreCategory?.name_ar} required className="rounded-lg bg-gray-50" /></div>
-                <div className="space-y-2"><Label>اسم أيقونة Lucide</Label><Input name="icon" defaultValue={currentStoreCategory?.icon} placeholder="e.g. ShoppingCart" required className="rounded-lg bg-gray-50" dir="ltr" /></div>
+                <div className="space-y-2"><Label>رابط الصورة</Label><Input name="image_url" defaultValue={currentStoreCategory?.image_url} placeholder="https://example.com/image.png" required className="rounded-lg bg-gray-50" dir="ltr" onChange={(e) => setStoreCatImagePreview(e.target.value)} /></div>
+                {storeCatImagePreview && (
+                    <div className="flex justify-center p-2 border rounded-xl bg-gray-50/50">
+                        <Image src={storeCatImagePreview} alt="معاينة الصورة" width={100} height={100} className="rounded-lg object-cover"/>
+                    </div>
+                )}
                 <div className="flex items-center justify-end gap-3 pt-2">
                     <Label htmlFor="store-cat-active" className="font-bold text-gray-700 w-32 text-right">{currentStoreCategory?.is_active ? 'الفئة نشطة' : 'الفئة غير نشطة'}</Label>
                     <Switch id="store-cat-active" checked={currentStoreCategory?.is_active} onCheckedChange={(checked) => setCurrentStoreCategory(prev => ({...prev, is_active: checked}))} dir="ltr"/>
@@ -318,6 +334,12 @@ export default function AdminCategoriesPage() {
             </DialogHeader>
             <div className="grid gap-4 py-6">
                 <div className="space-y-2"><Label>اسم القسم (مثال: مشويات)</Label><Input name="name_ar" defaultValue={currentProdCategory?.name_ar} required className="rounded-lg bg-gray-50" /></div>
+                 <div className="space-y-2"><Label>رابط الصورة</Label><Input name="image_url" defaultValue={currentProdCategory?.image_url} placeholder="https://example.com/image.png" required className="rounded-lg bg-gray-50" dir="ltr" onChange={(e) => setProdCatImagePreview(e.target.value)} /></div>
+                {prodCatImagePreview && (
+                    <div className="flex justify-center p-2 border rounded-xl bg-gray-50/50">
+                        <Image src={prodCatImagePreview} alt="معاينة الصورة" width={100} height={100} className="rounded-lg object-cover"/>
+                    </div>
+                )}
                 <div className="space-y-2">
                     <Label>المتجر التابع له</Label>
                     <Select name="storeId" dir="rtl" required defaultValue={currentProdCategory?.storeId}>
