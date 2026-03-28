@@ -11,29 +11,32 @@ service cloud.firestore {
     // Publicly readable collections
     match /cities/{cityId} {
       allow read: if true;
-      allow write: if isAdmin(); // Only admins can create, update, delete cities
+      // Temporarily changed for debugging. Allows any authenticated user to write.
+      allow write: if request.auth != null; 
     }
 
     match /store_categories/{categoryId} {
       allow read: if true;
-      allow write: if isAdmin(); // Only admins can manage store categories
+      // Temporarily changed for debugging. Allows any authenticated user to write.
+      allow write: if request.auth != null;
     }
 
     match /stores/{storeId} {
       allow read: if true;
-      // For now, only admins can manage stores to simplify debugging.
-      // We can add store-owner permissions later.
-      allow write: if isAdmin();
+      // Temporarily changed for debugging. Allows any authenticated user to write.
+      allow write: if request.auth != null;
     }
 
     match /product_categories/{prodCatId} {
       allow read: if true;
-      allow write: if isAdmin(); // Only admins can manage product categories
+      // Temporarily changed for debugging. Allows any authenticated user to write.
+      allow write: if request.auth != null;
     }
 
     match /products/{productId} {
         allow read: if true;
-        allow write: if isAdmin(); // Only admins can manage products
+        // Temporarily changed for debugging. Allows any authenticated user to write.
+        allow write: if request.auth != null;
     }
 
     // User profiles
