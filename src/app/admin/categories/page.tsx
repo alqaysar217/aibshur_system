@@ -96,7 +96,7 @@ export default function AdminCategoriesPage() {
         const querySnapshot = await getDocs(storesCollection);
         const storesData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Store));
         setStores(storesData);
-        console.log('Stores fetched for dropdown:', storesData);
+        console.log('Total Stores Found:', storesData.length);
         setStoresError(null);
       } catch (error) {
         console.error("Error fetching stores directly:", error);
@@ -395,7 +395,7 @@ export default function AdminCategoriesPage() {
       </Dialog>
       
       {/* Product Category Dialog */}
-      <Dialog open={isProdCatDialogOpen} onOpenChange={setProdCatDialogOpen}>
+      <Dialog open={isProdCatDialogOpen} onOpenChange={setProdCatDialogOpen} modal={false}>
         <DialogContent className="sm:max-w-md rounded-2xl">
            <form onSubmit={handleProdCategorySubmit}>
             <DialogHeader>
