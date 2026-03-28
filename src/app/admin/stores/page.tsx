@@ -81,7 +81,7 @@ export default function AdminStoresPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [storeToDelete, setStoreToDelete] = useState<Store | null>(null);
-  const [currentStore, setCurrentStore] = useState<Store | null>(null);
+  const [currentStore, setCurrentStore] = useState<Partial<Store> | null>(null);
   const [schedule, setSchedule] = useState<Record<string, DailyHours>>(initialSchedule);
 
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
@@ -90,7 +90,7 @@ export default function AdminStoresPage() {
   const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
   const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(citiesQuery);
 
-  const handleOpenFormDialog = (store: Store | null = null) => {
+  const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
     if (store) {
       // Editing existing store
       setCurrentStore(store);
@@ -170,7 +170,8 @@ export default function AdminStoresPage() {
         const logoUrl = formData.get('logo_url') as string || 'https://picsum.photos/seed/default-logo/200/200';
         const lat = parseFloat(latString);
         const lon = parseFloat(lonString);
-        const selectedCity = cities?.find(c => c.id === formData.get('city_id') as string);
+        const selectedCityDocId = formData.get('city_id') as string;
+        const selectedCity = cities?.find(c => c.id === selectedCityDocId);
         
         if (!selectedCity) throw new Error("الرجاء اختيار مدينة صحيحة.");
         if (isNaN(lat) || isNaN(lon)) throw new Error("إحداثيات الموقع غير صحيحة.");
@@ -179,10 +180,14 @@ export default function AdminStoresPage() {
 
         const storeDataObject = {
             name_ar: formData.get('name_ar') as string,
+            name_en: (formData.get('name_ar') as string).toLowerCase().replace(/ /g, '-'),
+            description_ar: 'متجر متخصص في كل ما هو جديد',
+            description_en: 'A store specializing in everything new',
             logo_url: logoUrl,
             city_id: selectedCity.cityId,
             filter_ids: [formData.get('filter_id') as string],
             location: new GeoPoint(lat, lon),
+            address_text: `${selectedCity.name_ar} - بالقرب من...`,
             rating: parseFloat(formData.get('rating') as string) || 0,
             preparation_time: formData.get('preparation_time') as string,
             working_hours: schedule,
@@ -199,9 +204,8 @@ export default function AdminStoresPage() {
         } else {
             const storesCollection = collection(firestore, 'stores');
             const newDocRef = doc(storesCollection);
-            const newStoreData: Store = {
+            const newStoreData = {
                 ...storeDataObject,
-                id: newDocRef.id,
                 storeId: newDocRef.id
             };
             await setDoc(newDocRef, newStoreData);
@@ -326,9 +330,9 @@ export default function AdminStoresPage() {
       <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
         <DialogContent className="sm:max-w-4xl rounded-lg">
            <form onSubmit={handleFormSubmit}>
-            <DialogHeader className="text-right">
-                <DialogTitle className="font-black text-gray-900">{currentStore ? 'تعديل بيانات المتجر' : 'إضافة متجر احترافي جديد'}</DialogTitle>
-                <DialogDescription className="font-bold text-gray-400">املأ كافة التفاصيل لمتجرك.</DialogDescription>
+            <DialogHeader>
+                <DialogTitle>{currentStore?.id ? 'تعديل بيانات المتجر' : 'إضافة متجر احترافي جديد'}</DialogTitle>
+                <DialogDescription>املأ كافة التفاصيل لمتجرك.</DialogDescription>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 py-4 text-right max-h-[70vh] overflow-y-auto pr-2 pl-4">
                 
@@ -347,7 +351,7 @@ export default function AdminStoresPage() {
                     <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-2">
                             <Label htmlFor="city_id" className="font-bold text-gray-700">المحافظة</Label>
-                            <Select name="city_id" dir="rtl" required defaultValue={currentStore ? getCityDocId(currentStore.city_id) : undefined}>
+                            <Select name="city_id" dir="rtl" required defaultValue={currentStore?.city_id ? getCityDocId(currentStore.city_id) : undefined}>
                                 <SelectTrigger className="rounded-lg font-bold"><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
                                     {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
@@ -357,7 +361,7 @@ export default function AdminStoresPage() {
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="filter_id" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
-                            <Select name="filter_id" dir="rtl" required defaultValue={currentStore?.filter_ids[0]}>
+                            <Select name="filter_id" dir="rtl" required defaultValue={currentStore?.filter_ids?.[0]}>
                                 <SelectTrigger className="rounded-lg font-bold"><SelectValue placeholder="اختر الفئة" /></SelectTrigger>
                                 <SelectContent className="rounded-lg">
                                     {mockCategories.map(cat => <SelectItem key={cat.filterId} value={cat.filterId}>{cat.name_ar}</SelectItem>)}
@@ -382,11 +386,11 @@ export default function AdminStoresPage() {
                         <div className="grid grid-cols-2 gap-4 pt-2">
                             <div className="space-y-2">
                                 <Label htmlFor="latitude">خط العرض (Latitude)</Label>
-                                <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 15.3694" defaultValue={currentStore?.location.latitude}/>
+                                <Input id="latitude" name="latitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 15.3694" defaultValue={currentStore?.location?.latitude}/>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="longitude">خط الطول (Longitude)</Label>
-                                <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 44.1910" defaultValue={currentStore?.location.longitude}/>
+                                <Input id="longitude" name="longitude" type="number" step="any" required className="rounded-lg" dir="ltr" placeholder="e.g. 44.1910" defaultValue={currentStore?.location?.longitude}/>
                             </div>
                         </div>
                     </div>
@@ -423,9 +427,9 @@ export default function AdminStoresPage() {
                 </div>
 
             </div>
-            <DialogFooter className="flex-row-reverse pt-4 border-t mt-4">
+            <DialogFooter className="pt-4 border-t mt-4">
                 <Button type="submit" disabled={isSubmitting || citiesLoading} className="rounded-lg font-black w-32">
-                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : (currentStore ? 'حفظ التعديلات' : 'حفظ المتجر')}
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : (currentStore?.id ? 'حفظ التعديلات' : 'حفظ المتجر')}
                 </Button>
                  <DialogClose asChild>
                     <Button type="button" variant="secondary" className="rounded-lg font-bold">إلغاء</Button>
@@ -437,17 +441,17 @@ export default function AdminStoresPage() {
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
-            <AlertDialogHeader className="text-right">
+            <AlertDialogHeader>
             <AlertDialogTitle>هل أنت متأكد تماماً؟</AlertDialogTitle>
             <AlertDialogDescription>
                 هذا الإجراء سيقوم بحذف متجر "{storeToDelete?.name_ar}" بشكل نهائي. لا يمكن التراجع عن هذا القرار.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">
                 نعم، قم بالحذف
             </AlertDialogAction>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
