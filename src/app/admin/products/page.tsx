@@ -170,10 +170,16 @@ export default function AdminProductsPage() {
       description_ar: descAr,
       description_en: descAr,
       main_image_url: formData.get('main_image_url') as string,
-      base_price: hasVariants ? undefined : parseFloat(formData.get('base_price') as string),
-      variants: hasVariants ? currentProduct.variants : [],
       rating: parseFloat(formData.get('rating') as string) || 5,
     };
+    
+    if (hasVariants) {
+        productData.variants = currentProduct.variants || [];
+        delete productData.base_price;
+    } else {
+        productData.base_price = parseFloat(formData.get('base_price') as string);
+        productData.variants = [];
+    }
     
     let docRef;
 
@@ -202,7 +208,7 @@ export default function AdminProductsPage() {
         });
         errorEmitter.emit('permission-error', permissionError);
       } else {
-        toast({ variant: 'destructive', title: "حدث خطأ" });
+        toast({ variant: 'destructive', title: "حدث خطأ", description: error.message });
       }
     } finally {
       setIsSubmitting(false);
@@ -464,3 +470,5 @@ export default function AdminProductsPage() {
     </div>
   );
 }
+
+    
