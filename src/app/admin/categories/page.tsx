@@ -87,8 +87,6 @@ import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
 
 const RowSkeleton = () => (
 
@@ -185,8 +183,6 @@ export default function AdminCategoriesPage() {
         const storesData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Store));
 
         setStores(storesData);
-
-        console.log('Stores fetched for dropdown:', storesData);
 
         setStoresError(null);
 
@@ -799,47 +795,24 @@ export default function AdminCategoriesPage() {
                 )}
 
                 <div className="space-y-2">
-
                     <Label>المتجر التابع له</Label>
-
-                    <Select
-
-                        key={currentProdCategory?.id || 'new-prod-cat-store'}
-
-                        dir="rtl"
-
+                    <select
                         required
-
                         disabled={storesLoading}
-
                         value={currentProdCategory?.storeId || ''}
-
-                        onValueChange={(val) => setCurrentProdCategory(prev => ({ ...prev, storeId: val }))}
-
+                        onChange={(e) => setCurrentProdCategory(prev => ({ ...prev, storeId: e.target.value }))}
+                        className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
+                        dir="rtl"
                     >
-
-                        <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر المتجر" /></SelectTrigger>
-
-                        <SelectContent position="popper" className="rounded-lg" onPointerDownOutside={(e) => e.preventDefault()}>
-
-                            {storesLoading ? (
-
-                                <SelectItem value="loading" disabled>جاري جلب قائمة المتاجر...</SelectItem>
-
-                            ) : stores && stores.length > 0 ? (
-
-                                stores.map(store => <SelectItem key={store.id} value={store.id!}>{store.name_ar}</SelectItem>)
-
-                            ) : (
-
-                                <div className="p-2 text-center text-sm text-muted-foreground">لا يوجد متاجر مضافة حالياً.</div>
-
-                            )}
-
-                        </SelectContent>
-
-                    </Select>
-
+                        <option value="" disabled>اختر المتجر</option>
+                        {storesLoading ? (
+                            <option value="loading" disabled>جاري جلب قائمة المتاجر...</option>
+                        ) : stores && stores.length > 0 ? (
+                            stores.map(store => <option key={store.id} value={store.id!}>{store.name_ar}</option>)
+                        ) : (
+                            <option disabled>لا يوجد متاجر مضافة حالياً.</option>
+                        )}
+                    </select>
                 </div>
 
                 <div className="space-y-2"><Label>رقم الترتيب (للظهور)</Label><Input name="sortOrder" type="number" defaultValue={currentProdCategory?.sortOrder || 0} required className="rounded-lg bg-gray-50" dir="ltr" /></div>

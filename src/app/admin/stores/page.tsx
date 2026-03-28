@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useCollection, useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc, getDocs } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -37,14 +37,12 @@ import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Plus, X } from '
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { mockAdminUser } from '@/lib/mock-data';
 import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import Image from 'next/image';
 import { Switch } from '@/components/ui/switch';
-import { useCollection } from '@/firebase';
 
 const StoreRowSkeleton = () => (
     <TableRow>
@@ -418,31 +416,45 @@ export default function AdminStoresPage() {
                     <div className="grid grid-cols-2 gap-4">
                          <div className="space-y-2">
                             <Label htmlFor="city_id" className="font-bold text-gray-700">المحافظة</Label>
-                            <Select dir="rtl" required value={currentStore?.city_id || ''} onValueChange={(value) => setCurrentStore(prev => ({...prev, city_id: value}))} key={currentStore?.id || 'new-store-city'}>
-                                <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر المحافظة" /></SelectTrigger>
-                                <SelectContent position="popper" className="rounded-lg" onPointerDownOutside={(e) => e.preventDefault()}>
-                                    {citiesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
-                                    : cities && cities.length > 0 ? (
-                                        cities.map(city => <SelectItem key={city.id} value={city.id!}>{city.name_ar}</SelectItem>)
-                                    ) : (
-                                        <div className="text-center text-sm text-muted-foreground p-4">لا توجد مدن. أضف مدينة أولاً.</div>
-                                    )}
-                                </SelectContent>
-                            </Select>
+                            <select
+                                id="city_id"
+                                required
+                                value={currentStore?.city_id || ''}
+                                onChange={(e) => setCurrentStore(prev => ({...prev, city_id: e.target.value}))}
+                                disabled={citiesLoading}
+                                className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
+                                dir="rtl"
+                            >
+                                <option value="" disabled>اختر المحافظة</option>
+                                {citiesLoading ? (
+                                    <option disabled>جاري التحميل...</option>
+                                ) : cities && cities.length > 0 ? (
+                                    cities.map(city => <option key={city.id} value={city.id!}>{city.name_ar}</option>)
+                                ) : (
+                                    <option disabled>لا توجد مدن. أضف مدينة أولاً.</option>
+                                )}
+                            </select>
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="filter_id" className="font-bold text-gray-700">نوع المتجر (الفئة)</Label>
-                            <Select dir="rtl" required value={currentStore?.filter_ids?.[0] || ''} onValueChange={(value) => setCurrentStore(prev => ({...prev, filter_ids: [value]}))} key={currentStore?.id || 'new-store-category'}>
-                                <SelectTrigger className="rounded-lg font-bold bg-gray-50"><SelectValue placeholder="اختر الفئة" /></SelectTrigger>
-                                <SelectContent position="popper" className="rounded-lg" onPointerDownOutside={(e) => e.preventDefault()}>
-                                    {storeCategoriesLoading ? <SelectItem value="loading" disabled>جاري التحميل...</SelectItem> 
-                                    : storeCategories && storeCategories.length > 0 ? (
-                                        storeCategories.map(cat => <SelectItem key={cat.id} value={cat.id!}>{cat.name_ar}</SelectItem>)
-                                    ) : (
-                                        <div className="text-center text-sm text-muted-foreground p-4">لا توجد فئات. أضف فئة أولاً.</div>
-                                    )}
-                                </SelectContent>
-                            </Select>
+                            <select
+                                id="filter_id"
+                                required
+                                value={currentStore?.filter_ids?.[0] || ''}
+                                onChange={(e) => setCurrentStore(prev => ({...prev, filter_ids: [e.target.value]}))}
+                                disabled={storeCategoriesLoading}
+                                className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
+                                dir="rtl"
+                            >
+                                <option value="" disabled>اختر الفئة</option>
+                                {storeCategoriesLoading ? (
+                                    <option disabled>جاري التحميل...</option>
+                                ) : storeCategories && storeCategories.length > 0 ? (
+                                    storeCategories.map(cat => <option key={cat.id} value={cat.id!}>{cat.name_ar}</option>)
+                                ) : (
+                                    <option disabled>لا توجد فئات. أضف فئة أولاً.</option>
+                                )}
+                            </select>
                         </div>
                     </div>
                      <div className="grid grid-cols-2 gap-4">
