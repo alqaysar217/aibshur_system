@@ -203,7 +203,13 @@ export default function BankAccountsPage() {
                     <TableRow key={bank.id} className="hover:bg-muted/50">
                       <TableCell className="align-middle">
                         <div className="flex items-center gap-3">
-                           <Image src={bank.bank_logo} alt={bank.bank_name} width={40} height={40} className="w-10 h-10 rounded-md object-contain bg-gray-100 p-1" />
+                           {bank.bank_logo && (bank.bank_logo.startsWith('http') || (bank.bank_logo.startsWith('/') && !bank.bank_logo.startsWith('//'))) ? (
+                             <Image src={bank.bank_logo} alt={bank.bank_name} width={40} height={40} className="w-10 h-10 rounded-md object-contain bg-gray-100 p-1" />
+                           ) : (
+                            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-gray-100 p-1">
+                                <Banknote className="h-6 w-6 text-gray-400" />
+                            </div>
+                           )}
                            <span className="font-bold text-xs text-gray-700">{bank.bank_name}</span>
                         </div>
                       </TableCell>
@@ -238,7 +244,7 @@ export default function BankAccountsPage() {
                 <div className="space-y-2"><Label>رقم الحساب</Label><Input name="account_number" defaultValue={currentBank?.account_number} required className="rounded-lg bg-gray-50" dir="ltr"/></div>
                 <div className="space-y-2"><Label>الآيبان (IBAN) - اختياري</Label><Input name="iban" defaultValue={currentBank?.iban} className="rounded-lg bg-gray-50" dir="ltr"/></div>
                 <div className="space-y-2"><Label>رابط شعار البنك</Label><Input name="bank_logo" defaultValue={currentBank?.bank_logo} required className="rounded-lg bg-gray-50" dir="ltr" onChange={(e) => setLogoPreview(e.target.value)} /></div>
-                {logoPreview && (logoPreview.startsWith('http') || logoPreview.startsWith('/')) && (
+                {logoPreview && (logoPreview.startsWith('http') || (logoPreview.startsWith('/') && !logoPreview.startsWith('//'))) && (
                     <div className="flex justify-center p-2 border rounded-xl bg-gray-50/50">
                         <Image src={logoPreview} alt="معاينة الشعار" width={100} height={100} className="rounded-lg object-contain h-20"/>
                     </div>
@@ -271,5 +277,3 @@ export default function BankAccountsPage() {
     </div>
   );
 }
-
-    
