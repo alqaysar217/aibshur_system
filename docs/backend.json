@@ -232,6 +232,21 @@
       },
       "required": ["couponId", "code", "discount_type", "discount_value", "expiry_date", "scope", "is_active"]
     },
+    "AppBank": {
+      "title": "Application Bank Account",
+      "description": "Represents a bank account owned by the application for receiving payments.",
+      "type": "object",
+      "properties": {
+        "bankId": { "type": "string", "description": "Unique identifier for the bank account entry." },
+        "bank_name": { "type": "string", "description": "The name of the bank (e.g., 'بنك الكريمي')." },
+        "account_number": { "type": "string", "description": "The bank account number." },
+        "account_holder": { "type": "string", "description": "The name of the account holder." },
+        "iban": { "type": "string", "description": "The IBAN for the account (optional)." },
+        "bank_logo": { "type": "string", "format": "uri", "description": "URL for the bank's logo." },
+        "is_active": { "type": "boolean", "description": "Whether this account is currently active for use." }
+      },
+      "required": ["bankId", "bank_name", "account_number", "account_holder", "bank_logo", "is_active"]
+    },
     "AppInfoSetting": {
       "title": "App Info Setting",
       "description": "Publicly accessible application information like 'About Us' or ad banners.",
@@ -324,6 +339,10 @@
     "/coupons/{couponId}": {
       "schema": { "$ref": "#/entities/Coupon" },
       "description": "Discount coupons. Writable by admins."
+    },
+    "/app_banks/{bankId}": {
+      "schema": { "$ref": "#/entities/AppBank" },
+      "description": "Bank accounts for the application, writable by admins."
     }
   }
 }

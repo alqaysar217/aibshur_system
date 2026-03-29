@@ -6,6 +6,7 @@
 
 
 
+
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
@@ -217,5 +218,17 @@ export interface Coupon {
     scope_ids?: string[]; // Store or Product IDs
     is_active: boolean;
 }
+
+export interface AppBank {
+    id?: string; // Firestore doc ID
+    bankId: string;
+    bank_name: string;
+    account_number: string;
+    account_holder: string;
+    iban?: string;
+    bank_logo: string;
+    is_active: boolean;
+}
+    
 
     

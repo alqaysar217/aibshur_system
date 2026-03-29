@@ -45,6 +45,11 @@ service cloud.firestore {
       allow write: if true; // DEV-ONLY: Open write access
     }
 
+    match /app_banks/{bankId} {
+      allow read: if true;
+      allow write: if true; // DEV-ONLY: Open write access
+    }
+
     // DEV-ONLY: Allow full access to users collection for admin panel development
     match /users/{userId} {
       allow read, write: if true;
@@ -68,3 +73,5 @@ service cloud.firestore {
     // Other collections (orders, financeTransactions, etc.) are implicitly denied for now.
   }
 }
+
+    
