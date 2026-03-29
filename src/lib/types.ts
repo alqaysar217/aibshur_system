@@ -7,6 +7,7 @@
 
 
 
+
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
@@ -46,6 +47,7 @@ export interface User {
   created_at: string; // ISO 8601
   last_login_at: string; // ISO 8601
   order_history?: string[]; // Array of orderIds
+  wallet_balance?: number;
   account_status: {
     is_blocked: boolean;
     reason?: string;
@@ -230,5 +232,21 @@ export interface AppBank {
     is_active: boolean;
 }
     
-
+export interface WalletTopupRequest {
+    id: string; // Document ID
+    transactionId: string;
+    userId: string;
+    user_phone: string;
+    user_name: string;
+    amount: number;
+    receipt_number?: string;
+    receipt_image: string;
+    bank_id: string;
+    status: 'pending' | 'approved' | 'rejected';
+    timestamp: string; // ISO 8601
+    rejection_reason?: string;
+    processed_by?: string; // Admin UID
+    processed_at?: string; // ISO 8601
+}
     
+```

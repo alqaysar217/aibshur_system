@@ -30,6 +30,7 @@
         "created_at": { "type": "string", "format": "date-time" },
         "last_login_at": { "type": "string", "format": "date-time" },
         "order_history": { "type": "array", "items": { "type": "string" } },
+        "wallet_balance": { "type": "number", "description": "The user's current wallet balance, managed by admins." },
         "account_status": {
           "type": "object",
           "properties": {
@@ -247,6 +248,27 @@
       },
       "required": ["bankId", "bank_name", "account_number", "account_holder", "bank_logo", "is_active"]
     },
+    "WalletTopupRequest": {
+      "title": "Wallet Top-up Request",
+      "description": "Represents a user's request to add funds to their wallet via bank transfer.",
+      "type": "object",
+      "properties": {
+        "transactionId": { "type": "string", "description": "Unique identifier for the transaction request." },
+        "userId": { "type": "string", "description": "The UID of the user making the request." },
+        "user_phone": { "type": "string", "description": "Denormalized phone number of the user for display." },
+        "user_name": { "type": "string", "description": "Denormalized name of the user for display." },
+        "amount": { "type": "number", "description": "The amount of money transferred." },
+        "receipt_number": { "type": "string", "description": "The transaction/receipt number from the bank." },
+        "receipt_image": { "type": "string", "format": "uri", "description": "URL of the uploaded receipt image." },
+        "bank_id": { "type": "string", "description": "ID of the AppBank entity that received the deposit." },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "The current status of the request." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the request was submitted." },
+        "rejection_reason": { "type": "string", "description": "Reason for rejection, if applicable." },
+        "processed_by": { "type": "string", "description": "UID of the admin who processed the request." },
+        "processed_at": { "type": "string", "format": "date-time", "description": "When the request was processed." }
+      },
+      "required": ["transactionId", "userId", "user_phone", "user_name", "amount", "receipt_image", "bank_id", "status", "timestamp"]
+    },
     "AppInfoSetting": {
       "title": "App Info Setting",
       "description": "Publicly accessible application information like 'About Us' or ad banners.",
@@ -343,8 +365,10 @@
     "/app_banks/{bankId}": {
       "schema": { "$ref": "#/entities/AppBank" },
       "description": "Bank accounts for the application, writable by admins."
+    },
+    "/wallet_transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/WalletTopupRequest" },
+      "description": "User requests to top-up their wallet. Processable by admins."
     }
   }
 }
-
-    
