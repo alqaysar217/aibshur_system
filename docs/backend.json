@@ -27,6 +27,7 @@
         "email": { "type": "string", "format": "email" },
         "profile_image": { "type": "string", "format": "uri" },
         "city_id": { "type": "string", "description": "Reference to the City entity." },
+        "store_id": { "type": "string", "description": "For store owners, reference to the Store entity." },
         "created_at": { "type": "string", "format": "date-time" },
         "last_login_at": { "type": "string", "format": "date-time" },
         "order_history": { "type": "array", "items": { "type": "string" } },
@@ -258,16 +259,17 @@
         "user_phone": { "type": "string", "description": "Denormalized phone number of the user for display." },
         "user_name": { "type": "string", "description": "Denormalized name of the user for display." },
         "amount": { "type": "number", "description": "The amount of money transferred." },
-        "receipt_number": { "type": "string", "description": "The transaction/receipt number from the bank." },
-        "receipt_image": { "type": "string", "format": "uri", "description": "URL of the uploaded receipt image." },
+        "receipt_number": { "type": "string", "description": "The transaction/receipt number from the bank (optional)." },
+        "receipt_image": { "type": "string", "format": "uri", "description": "URL of the uploaded receipt image (optional)." },
         "bank_id": { "type": "string", "description": "ID of the AppBank entity that received the deposit." },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"], "description": "The current status of the request." },
         "timestamp": { "type": "string", "format": "date-time", "description": "When the request was submitted." },
+        "type": { "type": "string", "enum": ["manual_topup", "client_request"], "description": "The type of top-up request." },
         "rejection_reason": { "type": "string", "description": "Reason for rejection, if applicable." },
         "processed_by": { "type": "string", "description": "UID of the admin who processed the request." },
         "processed_at": { "type": "string", "format": "date-time", "description": "When the request was processed." }
       },
-      "required": ["transactionId", "userId", "user_phone", "user_name", "amount", "receipt_image", "bank_id", "status", "timestamp"]
+      "required": ["transactionId", "userId", "user_phone", "user_name", "amount", "bank_id", "status", "timestamp"]
     },
     "AppInfoSetting": {
       "title": "App Info Setting",
@@ -372,3 +374,5 @@
     }
   }
 }
+
+    

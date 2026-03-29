@@ -94,8 +94,8 @@ export default function WalletRequestsPage() {
 
   const handleConfirmDeposit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      if (!firestore || !adminUser || !foundUser || !amount || !selectedBankId || !receiptImage) {
-          toast({ variant: 'destructive', title: 'بيانات ناقصة', description: 'الرجاء ملء جميع الحقول المطلوبة.' });
+      if (!firestore || !adminUser || !foundUser || !amount || !selectedBankId) {
+          toast({ variant: 'destructive', title: 'بيانات ناقصة', description: 'الرجاء البحث عن العميل وإدخال المبلغ والبنك.' });
           return;
       }
       setIsSubmitting(true);
@@ -138,6 +138,7 @@ export default function WalletRequestsPage() {
                 timestamp: new Date().toISOString(),
                 processed_by: adminUser.uid,
                 processed_at: new Date().toISOString(),
+                type: 'manual_topup',
             };
             transaction.set(requestDocRef, newRequest);
         });
@@ -254,9 +255,9 @@ export default function WalletRequestsPage() {
                              <Label className='font-bold'>2. تفاصيل الإيداع</Label>
                              <div className='grid md:grid-cols-2 gap-4'>
                                 <div className='space-y-2'><Label>المبلغ (بالريال اليمني)</Label><Input type="number" value={amount} onChange={e=>setAmount(e.target.value)} required dir='ltr' /></div>
-                                <div className='space-y-2'><Label>رقم السند البنكي</Label><Input value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} required dir='ltr' /></div>
+                                <div className='space-y-2'><Label>رقم السند البنكي (اختياري)</Label><Input value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} dir='ltr' /></div>
                              </div>
-                              <div className='space-y-2'><Label>رابط صورة السند (من الواتساب)</Label><Input type='url' value={receiptImage} onChange={e=>setReceiptImage(e.target.value)} required dir='ltr' placeholder='https://...' /></div>
+                              <div className='space-y-2'><Label>رابط صورة السند (اختياري)</Label><Input type='url' value={receiptImage} onChange={e=>setReceiptImage(e.target.value)} dir='ltr' placeholder='https://...' /></div>
                               <div className='space-y-2'><Label>تم الإيداع في بنك</Label>
                                 <select
                                     required
@@ -360,3 +361,5 @@ export default function WalletRequestsPage() {
     </div>
   );
 }
+
+    

@@ -8,6 +8,7 @@
 
 
 
+
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
@@ -240,13 +241,15 @@ export interface WalletTopupRequest {
     user_name: string;
     amount: number;
     receipt_number?: string;
-    receipt_image: string;
+    receipt_image?: string;
     bank_id: string;
     status: 'pending' | 'approved' | 'rejected';
     timestamp: string; // ISO 8601
+    type?: 'manual_topup' | 'client_request';
     rejection_reason?: string;
     processed_by?: string; // Admin UID
     processed_at?: string; // ISO 8601
 }
     
-```
+
+    
