@@ -216,7 +216,15 @@ export default function BankAccountsPage() {
                       <TableCell className="text-center align-middle font-bold text-xs text-gray-500">{bank.account_holder}</TableCell>
                       <TableCell className="text-center align-middle font-mono text-xs text-gray-700" dir="ltr">{bank.account_number}</TableCell>
                       <TableCell className="text-center align-middle">
-                        <Switch checked={bank.is_active} onCheckedChange={() => handleToggleActive(bank.id!, bank.is_active)} />
+                        <Badge
+                            onClick={() => handleToggleActive(bank.id!, bank.is_active)}
+                            className={cn(
+                                "cursor-pointer rounded-xl border-none font-black px-3 py-1 text-[9px] transition-colors",
+                                bank.is_active ? "bg-green-100 text-green-600 hover:bg-green-200" : "bg-red-100 text-red-600 hover:bg-red-200"
+                            )}
+                        >
+                            {bank.is_active ? 'مفعل' : 'معطل'}
+                        </Badge>
                       </TableCell>
                       <TableCell className="align-middle">
                         <div className="flex items-center justify-center gap-2">
