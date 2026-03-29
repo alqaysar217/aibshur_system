@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useCallback } from 'react';
 import { useFirestore, useUser, useCollection } from '@/firebase';
-import { collection, doc, query, where, runTransaction, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, doc, query, where, runTransaction, updateDoc } from 'firebase/firestore';
 import type { WalletTopupRequest, User, AppBank } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,7 +52,7 @@ export default function WalletRequestsPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [receiptToView, setReceiptToView] = useState<string | null>(null);
 
-  const requestsQuery = useMemo(() => firestore ? query(collection(firestore, 'wallet_transactions'), where('status', '==', 'pending'), orderBy('timestamp', 'asc')) : null, [firestore]);
+  const requestsQuery = useMemo(() => firestore ? query(collection(firestore, 'wallet_transactions'), where('status', '==', 'pending')) : null, [firestore]);
   const { data: requests, loading: requestsLoading, error: requestsError } = useCollection<WalletTopupRequest>(requestsQuery, 'wallet_transactions');
 
   const banksQuery = useMemo(() => firestore ? collection(firestore, 'app_banks') : null, [firestore]);
