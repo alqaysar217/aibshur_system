@@ -5,7 +5,8 @@ import {
   LayoutDashboard, Store, ShoppingBag, Truck, CreditCard, AreaChart,
   BadgePercent, Settings, LifeBuoy, ShieldCheck, BarChart2,
   ChevronDown, LogOut, Package, ChevronsRight, CircleDot, UserPlus, Building2,
-  Ticket, GalleryHorizontal, Users, Banknote, Wallet, Crown, HeartHandshake, Star, FileText
+  Ticket, GalleryHorizontal, Users, Banknote, Wallet, Crown, HeartHandshake, Star, FileText,
+  MessageSquareQuote, ClipboardCheck
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -21,6 +22,17 @@ const mainNav = [
   { name: 'الفئات', href: '/admin/categories', icon: BarChart2 },
   { name: 'المدن', href: '/admin/cities', icon: Building2 },
 ];
+
+const csNav = {
+  title: 'قسم خدمة العملاء',
+  icon: MessageSquareQuote,
+  links: [
+    { name: 'رفع طلبات الشحن', href: '/cs/submit-wallet', icon: Wallet },
+    { name: 'رفع طلبات VIP', href: '/cs/submit-vip', icon: Crown },
+    { name: 'رفع التبرعات', href: '/cs/submit-donation', icon: HeartHandshake },
+    { name: 'تأكيد الطلبات', href: '/cs/confirm-orders', icon: ClipboardCheck },
+  ]
+};
 
 const financeNav = {
   title: 'الشؤون المالية',
@@ -148,6 +160,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
             </Link>
           ))}
           
+          <NavGroup {...csNav} />
           <NavGroup {...marketingNav} />
           <NavGroup {...financeNav} />
           <NavGroup {...servicesNav} />
