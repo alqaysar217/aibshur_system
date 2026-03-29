@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useCallback } from 'react';
-import { useFirestore, useUser, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useFirestore, useUser, FirestorePermissionError, errorEmitter, useCollection } from '@/firebase';
 import { collection, doc, query, where, getDocs, runTransaction, serverTimestamp, orderBy, writeBatch, Timestamp, limit, addDoc } from 'firebase/firestore';
 import type { WalletTopupRequest, User, AppBank } from '@/lib/types';
 import { Button } from '@/components/ui/button';
