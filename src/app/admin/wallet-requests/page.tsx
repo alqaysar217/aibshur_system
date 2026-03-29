@@ -32,6 +32,7 @@ import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import Image from 'next/image';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const RowSkeleton = () => (
     <TableRow>
@@ -231,7 +232,7 @@ export default function WalletRequestsPage() {
             <DialogClose asChild><Button variant="secondary">إلغاء</Button></DialogClose>
             </DialogFooter>
         </DialogContent>
-      </AlertDialog>
+      </Dialog>
 
       <Dialog open={!!receiptToView} onOpenChange={(open) => !open && setReceiptToView(null)}>
         <DialogContent className="max-w-3xl">
