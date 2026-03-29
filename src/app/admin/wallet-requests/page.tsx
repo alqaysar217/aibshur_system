@@ -34,6 +34,7 @@ import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 
 const RowSkeleton = () => (
     <TableRow>
@@ -212,70 +213,85 @@ export default function WalletRequestsPage() {
     <div className="space-y-8">
       <Card>
         <CardHeader>
-            <CardTitle>إيداع رصيد يدوي لعميل</CardTitle>
-            <CardDescription>هذه الواجهة مخصصة لخدمة العملاء لإضافة رصيد بعد التحقق من سند التحويل المستلم عبر واتساب.</CardDescription>
+            <CardTitle>إيداع رصيد يدوي لمستخدم</CardTitle>
+            <CardDescription>ابحث عن المستخدم برقم الهاتف ثم أدخل تفاصيل الإيداع لإضافة الرصيد إلى محفظته مباشرة.</CardDescription>
         </CardHeader>
         <CardContent>
             <form onSubmit={handleConfirmDeposit} className='space-y-6'>
-                <div className='p-4 border rounded-xl space-y-4'>
-                    <Label className='font-bold'>1. البحث عن العميل</Label>
-                    <div className="flex items-center gap-2">
-                        <Input
-                            type="tel"
-                            placeholder="ابحث برقم هاتف العميل..."
-                            value={searchPhone}
-                            onChange={(e) => setSearchPhone(e.target.value)}
-                            className='max-w-xs'
-                            dir='ltr'
-                        />
-                        <Button type="button" onClick={handleSearchUser} disabled={isSearching || !searchPhone}>
-                            {isSearching ? <Loader2 className="animate-spin w-4 h-4"/> : <Search className='w-4 h-4'/>}
-                            بحث
-                        </Button>
-                    </div>
-                     {foundUser && (
-                        <div className="p-3 border rounded-lg bg-green-50 flex items-center justify-between animate-in fade-in duration-300">
-                             <div className="flex items-center gap-3">
-                                <UserCheck className='w-8 h-8 text-green-600'/>
-                                <div>
-                                    <p className="font-bold text-sm text-green-800">{foundUser.full_name}</p>
-                                    <p className="text-xs text-green-600 font-mono" dir='ltr'>{foundUser.phone}</p>
-                                </div>
-                            </div>
-                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => {setFoundUser(null); setSearchPhone('')}}>
-                                <UserX className="w-4 h-4"/>
-                            </Button>
-                        </div>
+                {/* --- User Search Section --- */}
+                <div className='space-y-2'>
+                  <Label htmlFor='search-phone' className='font-bold'>1. البحث عن المستخدم</Label>
+                  <div className="flex items-stretch gap-2">
+                    <Input
+                        id="search-phone"
+                        type="tel"
+                        placeholder="ابحث برقم هاتف المستخدم..."
+                        value={searchPhone}
+                        onChange={(e) => setSearchPhone(e.target.value)}
+                        className='max-w-xs'
+                        dir='ltr'
+                    />
+                    <Button type="button" onClick={handleSearchUser} disabled={isSearching || !searchPhone}>
+                        {isSearching ? <Loader2 className="animate-spin w-4 h-4"/> : <Search className='w-4 h-4'/>}
+                        بحث
+                    </Button>
+                    {foundUser && (
+                      <div className="flex-1 p-2 border rounded-lg bg-green-50 flex items-center justify-between animate-in fade-in duration-300">
+                          <div className="flex items-center gap-3">
+                              <UserCheck className='w-5 h-5 text-green-600'/>
+                              <div>
+                                  <p className="font-bold text-sm text-green-800">{foundUser.full_name}</p>
+                                  <p className="text-xs text-green-600 font-mono" dir='ltr'>{foundUser.phone}</p>
+                              </div>
+                          </div>
+                          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 shrink-0" onClick={() => {setFoundUser(null); setSearchPhone('')}}>
+                              <UserX className="w-4 h-4"/>
+                          </Button>
+                      </div>
                     )}
+                  </div>
                 </div>
                 
-                {foundUser && (
-                    <div className='animate-in fade-in duration-500 space-y-6'>
-                        <div className='p-4 border rounded-xl space-y-4'>
-                             <Label className='font-bold'>2. تفاصيل الإيداع</Label>
-                             <div className='grid md:grid-cols-2 gap-4'>
-                                <div className='space-y-2'><Label>المبلغ (بالريال اليمني)</Label><Input type="number" value={amount} onChange={e=>setAmount(e.target.value)} required dir='ltr' /></div>
-                                <div className='space-y-2'><Label>رقم السند البنكي (اختياري)</Label><Input value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} dir='ltr' /></div>
-                             </div>
-                              <div className='space-y-2'><Label>رابط صورة السند (اختياري)</Label><Input type='url' value={receiptImage} onChange={e=>setReceiptImage(e.target.value)} dir='ltr' placeholder='https://...' /></div>
-                              <div className='space-y-2'><Label>تم الإيداع في بنك</Label>
-                                <select
-                                    required
-                                    value={selectedBankId}
-                                    onChange={(e) => setSelectedBankId(e.target.value)}
-                                    disabled={banksLoading}
-                                    className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
-                                >
-                                    <option value="" disabled>اختر حساب البنك...</option>
-                                    {banks?.map(bank => <option key={bank.id} value={bank.id!}>{bank.bank_name} ({bank.account_number})</option>)}
-                                </select>
-                              </div>
+                <Separator />
+                
+                {/* --- Deposit Details Section --- */}
+                <fieldset disabled={!foundUser || isSubmitting} className="space-y-4 disabled:opacity-50 transition-opacity">
+                    <Label className='font-bold'>2. تفاصيل الإيداع</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className='space-y-2'>
+                          <Label htmlFor='amount'>المبلغ (بالريال اليمني)</Label>
+                          <Input id="amount" type="number" value={amount} onChange={e=>setAmount(e.target.value)} required dir='ltr' />
                         </div>
-                        <Button type="submit" className='w-full h-12 text-lg font-black' disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className='animate-spin w-6 h-6'/> : 'تأكيد الإيداع وإضافة الرصيد'}
-                        </Button>
+                        <div className='space-y-2'>
+                          <Label htmlFor='bank_id'>تم الإيداع في بنك</Label>
+                          <select
+                              id="bank_id"
+                              required
+                              value={selectedBankId}
+                              onChange={(e) => setSelectedBankId(e.target.value)}
+                              disabled={banksLoading}
+                              className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
+                          >
+                              <option value="" disabled>اختر حساب البنك...</option>
+                              {banks?.map(bank => <option key={bank.id} value={bank.id!}>{bank.bank_name} ({bank.account_number})</option>)}
+                          </select>
+                        </div>
                     </div>
-                )}
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className='space-y-2'>
+                          <Label htmlFor='receipt_number'>رقم السند البنكي (اختياري)</Label>
+                          <Input id="receipt_number" value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} dir='ltr' />
+                        </div>
+                        <div className='space-y-2'>
+                          <Label htmlFor='receipt_image'>رابط صورة السند (اختياري)</Label>
+                          <Input id='receipt_image' type='url' value={receiptImage} onChange={e=>setReceiptImage(e.target.value)} dir='ltr' placeholder='https://...' />
+                        </div>
+                     </div>
+                </fieldset>
+
+                <Button type="submit" className='w-full h-12 text-lg font-black' disabled={!foundUser || isSubmitting}>
+                    {isSubmitting ? <Loader2 className='animate-spin w-6 h-6'/> : 'تأكيد الإيداع وإضافة الرصيد'}
+                </Button>
             </form>
         </CardContent>
       </Card>
@@ -361,5 +377,3 @@ export default function WalletRequestsPage() {
     </div>
   );
 }
-
-    
