@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Store, ShoppingBag, Truck, CreditCard, AreaChart,
   BadgePercent, Settings, LifeBuoy, ShieldCheck, BarChart2,
   ChevronDown, LogOut, Package, ChevronsRight, CircleDot, UserPlus, Building2,
-  Ticket, GalleryHorizontal, Users
+  Ticket, GalleryHorizontal, Users, Banknote, Wallet, Crown, HeartHandshake, Star, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -22,23 +22,13 @@ const mainNav = [
   { name: 'المدن', href: '/admin/cities', icon: Building2 },
 ];
 
-const userManagementNav = {
-  title: 'إدارة المستخدمين',
-  icon: Users,
-  links: [
-    { name: 'المدراء', href: '/admin/users/admins', icon: ShieldCheck },
-    { name: 'العملاء', href: '/admin/users/clients', icon: Users },
-    { name: 'المناديب', href: '/admin/users/drivers', icon: Truck },
-    { name: 'ملاك المتاجر', href: '/admin/users/owners', icon: UserPlus },
-  ]
-};
-
 const financeNav = {
   title: 'الشؤون المالية',
   icon: CreditCard,
   links: [
-    { name: 'المعاملات', href: '/admin/finances/transactions', icon: CircleDot },
-    { name: 'سحب الأرصدة', href: '/admin/finances/withdrawals', icon: CircleDot },
+    { name: 'طلبات شحن المحفظة', href: '/admin/wallet-requests', icon: Wallet },
+    { name: 'إدارة الحسابات', href: '/admin/bank-accounts', icon: Banknote },
+    { name: 'سجل العمليات', href: '/admin/financial-logs', icon: FileText },
   ]
 };
 
@@ -50,6 +40,17 @@ const marketingNav = {
     { name: 'الإعلانات', href: '/admin/marketing/banners', icon: GalleryHorizontal },
   ]
 };
+
+const servicesNav = {
+    title: 'الخدمات والنقاط',
+    icon: Settings,
+    links: [
+      { name: 'باقات عضوية VIP', href: '/admin/vip-plans', icon: Crown },
+      { name: 'نظام النقاط', href: '/admin/points-system', icon: Star },
+      { name: 'إدارة التبرعات', href: '/admin/donations', icon: HeartHandshake },
+    ]
+};
+
 
 const reportsNav = {
   title: 'التقارير',
@@ -147,8 +148,9 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
             </Link>
           ))}
           
-          <NavGroup {...financeNav} />
           <NavGroup {...marketingNav} />
+          <NavGroup {...financeNav} />
+          <NavGroup {...servicesNav} />
           <NavGroup {...reportsNav} />
 
           <div className="pt-4 mt-4 border-t border-gray-100 space-y-1">
