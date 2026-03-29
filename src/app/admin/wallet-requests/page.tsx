@@ -33,6 +33,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
+import { Label } from '@/components/ui/label';
 
 const RowSkeleton = () => (
     <TableRow>
