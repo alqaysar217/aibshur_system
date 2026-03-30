@@ -11,46 +11,62 @@ service cloud.firestore {
     // --- DEVELOPMENT ONLY: Temporarily open rules for admin panel ---
     // These rules are insecure and should be locked down before production.
     match /cities/{cityId} {
-      allow read: if true;
-      allow write: if true; // DEV-ONLY: Open write access
+      allow read, write: if true; // DEV-ONLY: Open write access
     }
 
     match /store_categories/{categoryId} {
-      allow read: if true;
-      allow write: if true; // DEV-ONLY: Open write access
+      allow read, write: if true; // DEV-ONLY: Open write access
     }
 
     match /stores/{storeId} {
-      allow read: if true;
-      allow write: if true; // DEV-ONLY: Open write access
+      allow read, write: if true; // DEV-ONLY: Open write access
     }
 
     match /product_categories/{prodCatId} {
-      allow read: if true;
-      allow write: if true; // DEV-ONLY: Open write access
+      allow read, write: if true; // DEV-ONLY: Open write access
     }
 
     match /products/{productId} {
-        allow read: if true;
-        allow write: if true; // DEV-ONLY: Open write access
+        allow read, write: if true; // DEV-ONLY: Open write access
+    }
+
+    match /products/{productId}/variants/{variantId} {
+      allow read, write: if true; // DEV-ONLY: Open write access
+    }
+
+    match /orders/{orderId} {
+      allow read, write: if true; // DEV-ONLY: Open write access
     }
 
     match /ad_banners/{bannerId} {
-      allow read: if true;
-      allow write: if true; // DEV-ONLY: Open write access
+      allow read, write: if true; // DEV-ONLY: Open write access
     }
 
     match /coupons/{couponId} {
-      allow read: if true;
-      allow write: if true; // DEV-ONLY: Open write access
+      allow read, write: if true; // DEV-ONLY: Open write access
     }
 
     match /app_banks/{bankId} {
-      allow read: if true;
-      allow write: if true; // DEV-ONLY: Open write access
+      allow read, write: if true; // DEV-ONLY: Open write access
     }
 
     match /wallet_transactions/{transactionId} {
+      allow read, write: if true; // DEV-ONLY: Open write access
+    }
+    
+    match /donations/{donationId} {
+      allow read, write: if true; // DEV-ONLY: Open write access
+    }
+
+    match /financeTransactions/{transactionId} {
+      allow read, write: if true; // DEV-ONLY: Open write access
+    }
+    
+    match /app_info_settings/{settingId} {
+      allow read, write: if true; // DEV-ONLY: Open write access
+    }
+
+    match /admin_config_settings/{settingId} {
       allow read, write: if true; // DEV-ONLY: Open write access
     }
 
@@ -74,6 +90,6 @@ service cloud.firestore {
     }
     */
 
-    // Other collections (orders, financeTransactions, etc.) are implicitly denied for now.
+    // Other collections are now open for development.
   }
 }
