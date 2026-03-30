@@ -6,7 +6,7 @@ import type { User, VipPlan, FinanceTransaction, AppBank } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus, X, ExternalLink } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
@@ -223,6 +223,7 @@ export default function VipPlansPage() {
             const financialLog: Omit<FinanceTransaction, 'id'> = {
                 transactionId: financialLogRef.id,
                 userUid: foundUser.uid,
+                orderId: plan.id, // Reference to the plan
                 amount: paidAmount,
                 type: 'vip_subscription',
                 status: 'completed',
@@ -380,7 +381,7 @@ export default function VipPlansPage() {
                     </div>
                      <div className='space-y-2'>
                         <Label>رابط صورة السند*</Label>
-                        <Input type="url" required value={receiptImage} onChange={e => setReceiptImage(e.target.value)} dir="ltr" placeholder="https://..." />
+                        <Input type="text" required value={receiptImage} onChange={e => setReceiptImage(e.target.value)} dir="ltr" placeholder="https://..." />
                          {receiptImage && (receiptImage.startsWith('http') || receiptImage.startsWith('/')) && (
                                 <div className="flex justify-center p-2 mt-2 border rounded-xl bg-gray-50/50 shadow-inner">
                                     <Image src={receiptImage} alt="معاينة السند" width={200} height={200} className="rounded-lg object-contain max-h-48 shadow-md"/>

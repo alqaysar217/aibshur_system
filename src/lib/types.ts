@@ -173,7 +173,15 @@ export interface OrderItem {
   variantName_ar?: string;
 }
 
+export interface OrderHistoryItem {
+    status: OrderStatus;
+    timestamp: string; // ISO 8601
+    updatedBy?: string; // Admin or System UID
+    reason?: string; // For cancellations
+}
+
 export interface Order {
+  id?: string;
   orderId: string;
   clientUid: string; // ref to User
   driverUid?: string; // ref to User
@@ -188,6 +196,7 @@ export interface Order {
   delivery_address_text: string;
   created_at: string; // ISO 8601
   updated_at: string; // ISO 8601
+  order_history?: OrderHistoryItem[];
   // Denormalized for security rules
   storeOwnerUid: string;
 }

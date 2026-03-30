@@ -179,7 +179,20 @@
         "delivery_address_text": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" },
-        "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." }
+        "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." },
+        "order_history": {
+            "type": "array",
+            "description": "Log of status changes for the order.",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "status": { "type": "string" },
+                    "timestamp": { "type": "string", "format": "date-time" },
+                    "updatedBy": { "type": "string", "description": "UID of the user who made the change." },
+                    "reason": { "type": "string", "description": "Reason for status change, e.g., cancellation." }
+                }
+            }
+        }
       },
       "required": ["orderId", "clientUid", "storeId", "items", "total_price", "status", "payment_method", "delivery_location", "created_at", "updated_at", "storeOwnerUid"]
     },

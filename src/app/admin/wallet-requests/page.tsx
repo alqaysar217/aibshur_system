@@ -238,7 +238,7 @@ export default function DirectCreditPage() {
                         </div>
                         <div className='space-y-2'>
                           <Label htmlFor='receipt_image'>رابط صورة السند (اختياري)</Label>
-                          <Input id='receipt_image' type='url' value={receiptImage} onChange={e=>setReceiptImage(e.target.value)} dir='ltr' placeholder='https://...' />
+                          <Input id='receipt_image' type='text' value={receiptImage} onChange={e=>setReceiptImage(e.target.value)} dir='ltr' placeholder='https://...' />
                            {receiptImage && (receiptImage.startsWith('http') || receiptImage.startsWith('/')) && (
                                 <div className="flex justify-center p-2 mt-2 border rounded-xl bg-gray-50/50 shadow-inner">
                                     <Image src={receiptImage} alt="معاينة السند" width={200} height={200} className="rounded-lg object-contain max-h-48 shadow-md"/>
