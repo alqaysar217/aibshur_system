@@ -6,7 +6,7 @@ import type { User, VipPlan, FinanceTransaction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
@@ -364,15 +364,15 @@ export default function VipPlansPage() {
 
       {/* --- Plan Creation/Edit Dialog --- */}
       <Dialog open={isPlanDialogOpen} onOpenChange={setPlanDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl rounded-2xl">
             <DialogHeader><DialogTitle>{currentPlan?.id ? 'تعديل باقة' : 'إنشاء باقة VIP جديدة'}</DialogTitle></DialogHeader>
             <form onSubmit={handlePlanSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1">
                     <div className="space-y-2"><Label>اسم الباقة (مثال: الباقة الذهبية)</Label><Input required value={currentPlan?.name || ''} onChange={e => setCurrentPlan(p => ({...p, name: e.target.value}))} /></div>
                     <div className="space-y-2"><Label>وصف مختصر للباقة (اختياري)</Label><Textarea value={currentPlan?.description || ''} onChange={e => setCurrentPlan(p => ({...p, description: e.target.value ?? ''}))} /></div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 p-1">
                     <div className="space-y-2"><Label>السعر (ر.ي)</Label><Input type="number" required value={currentPlan?.price || 0} onChange={e => setCurrentPlan(p => ({...p, price: e.target.valueAsNumber}))} /></div>
                     <div className="space-y-2"><Label>المدة (بالأيام)</Label><Input type="number" required value={currentPlan?.durationInDays || 30} onChange={e => setCurrentPlan(p => ({...p, durationInDays: e.target.valueAsNumber}))} /></div>
                 </div>
