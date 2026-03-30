@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function VipPlansPage() {
   const { toast } = useToast();
@@ -50,6 +51,7 @@ export default function VipPlansPage() {
   const handleOpenPlanDialog = (plan: Partial<VipPlan> | null = null) => {
     setCurrentPlan(plan ? { ...plan } : {
         name: '',
+        description: '',
         price: 0,
         durationInDays: 30,
         benefits: { hasFreeDelivery: false, discountPercentage: 0, pointsMultiplier: 1 },
@@ -68,6 +70,7 @@ export default function VipPlansPage() {
     try {
         const planData: Omit<VipPlan, 'id' | 'planId'> = {
             name: currentPlan.name!,
+            description: currentPlan.description,
             price: currentPlan.price!,
             durationInDays: currentPlan.durationInDays!,
             benefits: currentPlan.benefits!,
@@ -308,6 +311,16 @@ export default function VipPlansPage() {
             <DialogHeader><DialogTitle>{currentPlan?.id ? 'تعديل باقة' : 'إنشاء باقة VIP جديدة'}</DialogTitle></DialogHeader>
             <form onSubmit={handlePlanSubmit} className="space-y-4">
                 <div className="space-y-2"><Label>اسم الباقة (مثال: الباقة الذهبية)</Label><Input required value={currentPlan?.name || ''} onChange={e => setCurrentPlan(p => ({...p, name: e.target.value}))} /></div>
+                <div className="space-y-2">
+                    <Label>وصف مختصر للباقة (اختياري)</Label>
+                    <Textarea 
+                        placeholder="مثال: توصيل مجاني على كل الطلبات، خصم 10%، نقاط مضاعفة..."
+                        value={currentPlan?.description || ''} 
+                        onChange={e => setCurrentPlan(p => ({...p, description: e.target.value}))}
+                        className="rounded-lg bg-gray-50"
+                        rows={3}
+                    />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>السعر (ر.ي)</Label><Input type="number" required value={currentPlan?.price || 0} onChange={e => setCurrentPlan(p => ({...p, price: e.target.valueAsNumber}))} /></div>
                     <div className="space-y-2"><Label>المدة (بالأيام)</Label><Input type="number" required value={currentPlan?.durationInDays || 30} onChange={e => setCurrentPlan(p => ({...p, durationInDays: e.target.valueAsNumber}))} /></div>
@@ -322,7 +335,7 @@ export default function VipPlansPage() {
                 </div>
                  <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50">
                     <Label className="font-bold text-gray-700">تفعيل الباقة للبيع</Label>
-                    <Switch checked={currentPlan?.isActive} onCheckedChange={c => setCurrentPlan(p => ({...p, isActive: c}))} />
+                    <Switch checked={currentPlan?.isActive} onCheckedChange={c => setCurrentPlan(p => ({...p, isActive: c}))} dir="ltr" />
                 </div>
                 <DialogFooter>
                     <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin" /> : 'حفظ'}</Button>
@@ -334,3 +347,5 @@ export default function VipPlansPage() {
     </div>
   );
 }
+
+    

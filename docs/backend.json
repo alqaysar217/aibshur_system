@@ -348,6 +348,7 @@
         "properties": {
           "planId": { "type": "string" },
           "name": { "type": "string" },
+          "description": { "type": "string", "description": "A short description of the plan and its main features." },
           "price": { "type": "number" },
           "durationInDays": { "type": "number" },
           "benefits": {
@@ -451,3 +452,5 @@
     }
   }
 }
+
+    

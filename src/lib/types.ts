@@ -38,6 +38,7 @@ export interface VipPlan {
     id?: string;
     planId: string;
     name: string;
+    description?: string;
     price: number;
     durationInDays: number;
     benefits: VipPlanBenefits;
@@ -296,3 +297,5 @@ export interface LoyaltyTransaction {
     description: string;
     timestamp: any;
 }
+
+    
