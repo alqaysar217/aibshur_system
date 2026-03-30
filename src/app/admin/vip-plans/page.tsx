@@ -70,7 +70,7 @@ export default function VipPlansPage() {
     try {
         const planData: Omit<VipPlan, 'id' | 'planId'> = {
             name: currentPlan.name!,
-            description: currentPlan.description,
+            description: currentPlan.description || '',
             price: currentPlan.price!,
             durationInDays: currentPlan.durationInDays!,
             benefits: currentPlan.benefits!,
@@ -84,7 +84,7 @@ export default function VipPlansPage() {
         } else {
             docRef = doc(collection(firestore, 'vip_plans'));
             await setDoc(docRef, { ...planData, planId: docRef.id });
-            toast({ title: 'تم إنشاء الباقة بنجاح' });
+            toast({ title: 'تم إنشاء باقة بنجاح' });
         }
         setPlanDialogOpen(false);
     } catch(err: any) {
@@ -347,5 +347,3 @@ export default function VipPlansPage() {
     </div>
   );
 }
-
-    
