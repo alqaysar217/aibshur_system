@@ -1,8 +1,10 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, query, where, getDocs, limit, updateDoc, setDoc, runTransaction, deleteDoc } from 'firebase/firestore';
-import type { User, VipPlan, FinanceTransaction } from '@/lib/types';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { firebaseApp } from '@/firebase/config';
+import type { User, VipPlan, FinanceTransaction, AppBank } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,6 +21,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+
+const storage = getStorage(firebaseApp);
 
 export default function VipPlansPage() {
   const { toast } = useToast();
@@ -42,12 +46,26 @@ export default function VipPlansPage() {
   const [foundUser, setFoundUser] = useState<User | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [amountPaid, setAmountPaid] = useState('');
+  const [activationBankId, setActivationBankId] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
+  const [receiptImage, setReceiptImage] = useState<File | null>(null);
+
+  // Data for dropdowns
+  const { data: banks, loading: banksLoading } = useCollection<AppBank>(useMemo(() => firestore ? collection(firestore, 'app_banks') : null, [firestore]), 'app_banks');
 
   // Audit Table
   const vipUsersQuery = useMemo(() => firestore ? query(collection(firestore, 'users'), where('vip_details.isActive', '==', true)) : null, [firestore]);
   const { data: vipUsers, loading: vipUsersLoading, error: vipUsersError } = useCollection<User>(vipUsersQuery, 'users');
   
+  useEffect(() => {
+    if (selectedPlanId && vipPlans) {
+        const plan = vipPlans.find(p => p.id === selectedPlanId);
+        if (plan) {
+            setAmountPaid(String(plan.price));
+        }
+    }
+  }, [selectedPlanId, vipPlans]);
 
   // --- Plan Management Functions ---
   const handleOpenPlanDialog = (plan: Partial<VipPlan> | null = null) => {
@@ -160,13 +178,25 @@ export default function VipPlansPage() {
   }
 
   const handleActivateSubscription = async () => {
-      if (!firestore || !foundUser || !selectedPlanId || !adminUser) {
-        toast({ variant: 'destructive', title: "بيانات ناقصة" });
+      if (!firestore || !foundUser || !selectedPlanId || !amountPaid || !activationBankId || !receiptNumber || !receiptImage || !adminUser) {
+        toast({ variant: 'destructive', title: "بيانات ناقصة", description: "الرجاء تعبئة جميع حقول التفعيل الإلزامية." });
         return;
       }
       setIsSubmitting(true);
       
       try {
+        const paidAmount = parseFloat(amountPaid);
+        if (isNaN(paidAmount) || paidAmount <= 0) {
+            throw new Error("المبلغ المدفوع غير صالح.");
+        }
+
+        // 1. Upload receipt image
+        const imagePath = `vip_subscriptions_receipts/${foundUser.uid}/${Date.now()}_${receiptImage.name}`;
+        const imageRef = ref(storage, imagePath);
+        await uploadBytes(imageRef, receiptImage);
+        const receiptImageUrl = await getDownloadURL(imageRef);
+
+        // 2. Run Firestore transaction
         await runTransaction(firestore, async (transaction) => {
             const userDocRef = doc(firestore, 'users', foundUser.uid);
             const planDocRef = doc(firestore, 'vip_plans', selectedPlanId);
@@ -190,6 +220,10 @@ export default function VipPlansPage() {
                 planName: plan.name,
                 startDate: startDate.toISOString(),
                 expiryDate: expiryDate.toISOString(),
+                amountPaid: paidAmount,
+                receiptNumber: receiptNumber,
+                receiptImageUrl: receiptImageUrl,
+                activatedBy: adminUser.uid,
             };
 
             transaction.update(userDocRef, { vip_details: vipDetails });
@@ -197,14 +231,13 @@ export default function VipPlansPage() {
             const financialLog: Omit<FinanceTransaction, 'id'> = {
                 transactionId: financialLogRef.id,
                 userUid: foundUser.uid,
-                amount: plan.price,
+                amount: paidAmount,
                 type: 'vip_subscription',
                 status: 'completed',
-                description: `اشتراك في ${plan.name}`,
+                description: `اشتراك في ${plan.name} (سند: ${receiptNumber})`,
                 created_at: new Date().toISOString()
             };
             transaction.set(financialLogRef, financialLog);
-
         });
 
         toast({ 
@@ -212,10 +245,14 @@ export default function VipPlansPage() {
             description: `تم تفعيل باقة ${vipPlans?.find(p=>p.id === selectedPlanId)?.name} للعميل ${foundUser.full_name}.`
         });
         
+        // Reset form
         setFoundUser(null);
         setSearchPhone('');
-        setReceiptNumber('');
         setSelectedPlanId('');
+        setAmountPaid('');
+        setActivationBankId('');
+        setReceiptNumber('');
+        setReceiptImage(null);
 
       } catch (error: any) {
         console.error("VIP activation failed:", error);
@@ -244,8 +281,8 @@ export default function VipPlansPage() {
     <div className="space-y-8">
       {/* --- Plan Management Section --- */}
       <Card>
-        <CardHeader className="flex-row justify-between items-center">
-            <div className="space-y-1">
+        <CardHeader className="flex-row justify-between items-start">
+            <div className="space-y-1.5">
                 <CardTitle className="flex items-center gap-2"><Settings className="text-primary"/> إدارة أنواع الباقات</CardTitle>
                 <CardDescription>إنشاء وتعديل باقات VIP المتاحة للبيع.</CardDescription>
             </div>
@@ -318,22 +355,46 @@ export default function VipPlansPage() {
             
             <fieldset disabled={!foundUser || isSubmitting} className="p-4 border rounded-xl space-y-4 disabled:opacity-50 transition-opacity">
                 <legend className="text-sm font-bold px-2">2. اختيار الباقة وتفاصيل الدفع</legend>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className='space-y-2'>
-                        <Label>اختر الباقة</Label>
+                        <Label>اختر الباقة*</Label>
                         <select required value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background">
                             <option value="" disabled>اختر باقة...</option>
                             {vipPlans?.filter(p=>p.isActive).map(p => <option key={p.id} value={p.id!}>{p.name} ({p.price} ر.ي)</option>)}
                         </select>
                     </div>
+                     <div className='space-y-2'>
+                        <Label htmlFor='amountPaid'>المبلغ المدفوع*</Label>
+                        <Input id="amountPaid" type="number" value={amountPaid} onChange={e=>setAmountPaid(e.target.value)} required dir='ltr' />
+                      </div>
+                      <div className='space-y-2'>
+                          <Label htmlFor='activationBankId'>البنك الوسيط*</Label>
+                          <select
+                              id="activationBankId"
+                              required
+                              value={activationBankId}
+                              onChange={(e) => setActivationBankId(e.target.value)}
+                              disabled={banksLoading}
+                              className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                          >
+                              <option value="" disabled>اختر حساب البنك...</option>
+                              {banks?.map(bank => <option key={bank.id} value={bank.id!}>{bank.bank_name}</option>)}
+                          </select>
+                        </div>
+                </div>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className='space-y-2'>
-                        <Label>رقم السند المرجعي</Label>
+                        <Label>رقم السند/الحوالة*</Label>
                         <Input value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} required dir='ltr' />
+                    </div>
+                     <div className='space-y-2'>
+                        <Label>صورة السند*</Label>
+                        <Input type="file" required onChange={e => setReceiptImage(e.target.files ? e.target.files[0] : null)} accept="image/*" />
                     </div>
                 </div>
             </fieldset>
 
-            <Button onClick={handleActivateSubscription} className='w-full h-12 text-lg font-black' disabled={!foundUser || isSubmitting || !selectedPlanId}>
+            <Button onClick={handleActivateSubscription} className='w-full h-12 text-lg font-black' disabled={!foundUser || isSubmitting || !selectedPlanId || !receiptImage}>
                 {isSubmitting ? <Loader2 className='animate-spin w-6 h-6'/> : 'تفعيل الاشتراك الآن'}
             </Button>
         </CardContent>

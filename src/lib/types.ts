@@ -80,6 +80,10 @@ export interface User {
     planName: string;
     startDate: string; // ISO 8601
     expiryDate: string; // ISO 8601
+    amountPaid?: number;
+    receiptNumber?: string;
+    receiptImageUrl?: string;
+    activatedBy?: string; // Admin UID
   };
 }
 
@@ -298,5 +302,3 @@ export interface LoyaltyTransaction {
     description: string;
     timestamp: any;
 }
-
-    

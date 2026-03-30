@@ -60,7 +60,11 @@
                 "planId": { "type": "string", "description": "Reference to the VipPlan entity." },
                 "planName": { "type": "string", "description": "Denormalized name of the plan." },
                 "startDate": { "type": "string", "format": "date-time" },
-                "expiryDate": { "type": "string", "format": "date-time" }
+                "expiryDate": { "type": "string", "format": "date-time" },
+                "amountPaid": { "type": "number" },
+                "receiptNumber": { "type": "string" },
+                "receiptImageUrl": { "type": "string", "format": "uri" },
+                "activatedBy": { "type": "string", "description": "Admin UID who activated the subscription." }
             }
         }
       },
