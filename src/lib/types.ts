@@ -298,8 +298,9 @@ export interface Donation {
 }
 
 export interface LoyaltyPointsConfig {
-    rials_per_point: number;
-    points_per_rial_credit: number;
+    points_per_yer: number;
+    cash_per_1000_points: number;
+    vip_multiplier: number;
 }
 
 export interface LoyaltyTransaction {

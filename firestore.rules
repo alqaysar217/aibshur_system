@@ -69,6 +69,10 @@ service cloud.firestore {
     match /admin_config_settings/{settingId} {
       allow read, write: if true; // DEV-ONLY: Open write access
     }
+    
+    match /settings/{settingId} {
+      allow read, write: if true; // DEV-ONLY: Open write access
+    }
 
     match /loyalty_transactions/{transactionId} {
         allow read, write: if true; // DEV-ONLY: Open write access
