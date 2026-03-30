@@ -1,7 +1,7 @@
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
-export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee' | 'points_conversion';
+export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee' | 'points_conversion' | 'vip_subscription';
 export type TransactionStatus = 'pending' | 'completed' | 'failed';
 export type AppInfoSettingType = 'about_us' | 'privacy_policy' | 'terms_of_service' | 'ad_banner';
 export type AdminConfigSettingType = 'coupon' | 'vip_package' | 'loyalty_points_config' | 'system_fee_config';
@@ -26,6 +26,22 @@ export interface City {
   country_code: string; // e.g. 'YE'
   is_active: boolean;
   support_number: string;
+}
+
+export interface VipPlanBenefits {
+    hasFreeDelivery: boolean;
+    discountPercentage: number;
+    pointsMultiplier: number;
+}
+
+export interface VipPlan {
+    id?: string;
+    planId: string;
+    name: string;
+    price: number;
+    durationInDays: number;
+    benefits: VipPlanBenefits;
+    isActive: boolean;
 }
 
 export interface User {
@@ -57,10 +73,11 @@ export interface User {
     current_location?: GeoPoint;
   };
   vip_details?: {
-    is_active: boolean;
-    plan_type: 'silver' | 'gold';
-    start_date: string; // ISO 8601
-    expiry_date: string; // ISO 8601
+    isActive: boolean;
+    planId: string;
+    planName: string;
+    startDate: string; // ISO 8601
+    expiryDate: string; // ISO 8601
   };
 }
 
@@ -170,6 +187,7 @@ export interface Order {
 }
 
 export interface FinanceTransaction {
+  id?: string;
   transactionId: string;
   userUid: string; // ref to User
   orderId?: string; // ref to Order

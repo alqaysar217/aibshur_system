@@ -56,10 +56,11 @@
         "vip_details": {
             "type": "object",
             "properties": {
-                "is_active": { "type": "boolean" },
-                "plan_type": { "type": "string", "enum": ["silver", "gold"] },
-                "start_date": { "type": "string", "format": "date-time" },
-                "expiry_date": { "type": "string", "format": "date-time" }
+                "isActive": { "type": "boolean" },
+                "planId": { "type": "string", "description": "Reference to the VipPlan entity." },
+                "planName": { "type": "string", "description": "Denormalized name of the plan." },
+                "startDate": { "type": "string", "format": "date-time" },
+                "expiryDate": { "type": "string", "format": "date-time" }
             }
         }
       },
@@ -201,7 +202,7 @@
         "userUid": { "type": "string" },
         "orderId": { "type": "string" },
         "amount": { "type": "number" },
-        "type": { "type": "string", "enum": ["top-up", "withdrawal", "order_payment", "refund", "system_fee", "points_conversion"] },
+        "type": { "type": "string", "enum": ["top-up", "withdrawal", "order_payment", "refund", "system_fee", "points_conversion", "vip_subscription"] },
         "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
         "description": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
@@ -340,6 +341,27 @@
       },
       "required": ["transactionId", "userId", "type", "points", "timestamp"]
     },
+    "VipPlan": {
+        "title": "VIP Plan",
+        "description": "Defines a VIP subscription plan with its benefits.",
+        "type": "object",
+        "properties": {
+          "planId": { "type": "string" },
+          "name": { "type": "string" },
+          "price": { "type": "number" },
+          "durationInDays": { "type": "number" },
+          "benefits": {
+            "type": "object",
+            "properties": {
+              "hasFreeDelivery": { "type": "boolean" },
+              "discountPercentage": { "type": "number" },
+              "pointsMultiplier": { "type": "number" }
+            }
+          },
+          "isActive": { "type": "boolean" }
+        },
+        "required": ["planId", "name", "price", "durationInDays", "benefits", "isActive"]
+    },
     "GeoPoint": {
         "title": "GeoPoint",
         "description": "Represents a geographical point.",
@@ -422,6 +444,10 @@
     "/loyalty_transactions/{transactionId}": {
         "schema": { "$ref": "#/entities/LoyaltyTransaction" },
         "description": "Log of all loyalty point activities."
+    },
+    "/vip_plans/{planId}": {
+        "schema": { "$ref": "#/entities/VipPlan" },
+        "description": "Defines available VIP subscription plans. Writable by admins."
     }
   }
 }

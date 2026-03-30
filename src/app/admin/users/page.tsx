@@ -260,7 +260,7 @@ export default function AdminUsersPage() {
                     <TableRow key={user.uid} className="hover:bg-muted/50">
                         <TableCell className="font-bold text-xs text-gray-700">
                           <div className="flex items-center gap-2">
-                           {user.vip_details?.is_active && <Crown className="w-4 h-4 text-yellow-500" />}
+                           {user.vip_details?.isActive && <Crown className="w-4 h-4 text-yellow-500 fill-yellow-400" />}
                            <span>{user.full_name}</span>
                           </div>
                         </TableCell>
