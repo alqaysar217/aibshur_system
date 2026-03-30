@@ -2,13 +2,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, query, where, getDocs, limit, updateDoc, setDoc, runTransaction, deleteDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { firebaseApp } from '@/firebase/config';
 import type { User, VipPlan, FinanceTransaction, AppBank } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus, X } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus, X, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
@@ -21,8 +19,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-
-const storage = getStorage(firebaseApp);
+import Link from 'next/link';
+import Image from 'next/image';
 
 export default function VipPlansPage() {
   const { toast } = useToast();
@@ -49,7 +47,7 @@ export default function VipPlansPage() {
   const [amountPaid, setAmountPaid] = useState('');
   const [activationBankId, setActivationBankId] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
-  const [receiptImage, setReceiptImage] = useState<File | null>(null);
+  const [receiptImage, setReceiptImage] = useState('');
 
   // Data for dropdowns
   const { data: banks, loading: banksLoading } = useCollection<AppBank>(useMemo(() => firestore ? collection(firestore, 'app_banks') : null, [firestore]), 'app_banks');
@@ -190,13 +188,7 @@ export default function VipPlansPage() {
             throw new Error("المبلغ المدفوع غير صالح.");
         }
 
-        // 1. Upload receipt image
-        const imagePath = `vip_subscriptions_receipts/${foundUser.uid}/${Date.now()}_${receiptImage.name}`;
-        const imageRef = ref(storage, imagePath);
-        await uploadBytes(imageRef, receiptImage);
-        const receiptImageUrl = await getDownloadURL(imageRef);
-
-        // 2. Run Firestore transaction
+        // Transaction to update user and log financials
         await runTransaction(firestore, async (transaction) => {
             const userDocRef = doc(firestore, 'users', foundUser.uid);
             const planDocRef = doc(firestore, 'vip_plans', selectedPlanId);
@@ -222,7 +214,7 @@ export default function VipPlansPage() {
                 expiryDate: expiryDate.toISOString(),
                 amountPaid: paidAmount,
                 receiptNumber: receiptNumber,
-                receiptImageUrl: receiptImageUrl,
+                receiptImageUrl: receiptImage, // Use the URL directly
                 activatedBy: adminUser.uid,
             };
 
@@ -252,7 +244,7 @@ export default function VipPlansPage() {
         setAmountPaid('');
         setActivationBankId('');
         setReceiptNumber('');
-        setReceiptImage(null);
+        setReceiptImage('');
 
       } catch (error: any) {
         console.error("VIP activation failed:", error);
@@ -279,7 +271,6 @@ export default function VipPlansPage() {
 
   return (
     <div className="space-y-8">
-      {/* --- Plan Management Section --- */}
       <Card>
         <CardHeader className="flex-row justify-between items-start">
             <div className="space-y-1.5">
@@ -388,8 +379,13 @@ export default function VipPlansPage() {
                         <Input value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} required dir='ltr' />
                     </div>
                      <div className='space-y-2'>
-                        <Label>صورة السند*</Label>
-                        <Input type="file" required onChange={e => setReceiptImage(e.target.files ? e.target.files[0] : null)} accept="image/*" />
+                        <Label>رابط صورة السند*</Label>
+                        <Input type="url" required value={receiptImage} onChange={e => setReceiptImage(e.target.value)} dir="ltr" placeholder="https://..." />
+                         {receiptImage && (receiptImage.startsWith('http') || receiptImage.startsWith('/')) && (
+                                <div className="flex justify-center p-2 mt-2 border rounded-xl bg-gray-50/50 shadow-inner">
+                                    <Image src={receiptImage} alt="معاينة السند" width={200} height={200} className="rounded-lg object-contain max-h-48 shadow-md"/>
+                                </div>
+                            )}
                     </div>
                 </div>
             </fieldset>
@@ -406,15 +402,24 @@ export default function VipPlansPage() {
         </CardHeader>
         <CardContent className="p-0">
              <Table>
-                <TableHeader><TableRow><TableHead>العميل</TableHead><TableHead>الباقة</TableHead><TableHead>تاريخ الانتهاء</TableHead><TableHead>الأيام المتبقية</TableHead><TableHead>إجراء</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>العميل</TableHead><TableHead>الباقة</TableHead><TableHead>تاريخ الانتهاء</TableHead><TableHead>الأيام المتبقية</TableHead><TableHead>السند</TableHead><TableHead>إجراء</TableHead></TableRow></TableHeader>
                 <TableBody>
-                    {vipUsersLoading ? Array.from({ length: 3 }).map((_, i) => <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-10 w-full"/></TableCell></TableRow>)
+                    {vipUsersLoading ? Array.from({ length: 3 }).map((_, i) => <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-10 w-full"/></TableCell></TableRow>)
                     : vipUsers?.map(user => (
                         <TableRow key={user.uid}>
                             <TableCell className="font-bold text-xs">{user.full_name}<br/><span className="font-mono text-gray-500" dir="ltr">{user.phone}</span></TableCell>
                             <TableCell><Badge className="font-bold bg-yellow-400 text-yellow-900 hover:bg-yellow-400/80"><Crown className="w-3 h-3 ml-1" />{user.vip_details?.planName}</Badge></TableCell>
                             <TableCell className="text-xs font-mono text-gray-500">{user.vip_details?.expiryDate ? format(new Date(user.vip_details.expiryDate), 'dd/MM/yyyy') : '-'}</TableCell>
                             <TableCell className="font-bold">{user.vip_details?.expiryDate ? `${Math.max(0, differenceInDays(new Date(user.vip_details.expiryDate), new Date()))} يوم` : '-'}</TableCell>
+                            <TableCell>
+                                 {user.vip_details?.receiptImageUrl ? (
+                                    <Button asChild variant="ghost" size="icon">
+                                        <Link href={user.vip_details.receiptImageUrl} target="_blank" rel="noopener noreferrer">
+                                            <ExternalLink className="h-4 w-4" />
+                                        </Link>
+                                    </Button>
+                                ) : '-'}
+                            </TableCell>
                             <TableCell><Button variant="destructive" size="sm" onClick={() => handleCancelSubscription(user.uid)}>إلغاء</Button></TableCell>
                         </TableRow>
                     ))}
@@ -426,10 +431,10 @@ export default function VipPlansPage() {
       {/* --- Plan Creation/Edit Dialog --- */}
       <Dialog open={isPlanDialogOpen} onOpenChange={setPlanDialogOpen}>
         <DialogContent className="sm:max-w-2xl rounded-2xl">
-            <DialogHeader><DialogTitle>{currentPlan?.id ? 'تعديل باقة' : 'إنشاء باقة VIP جديدة'}</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle className="font-black">{currentPlan?.id ? 'تعديل باقة' : 'إنشاء باقة VIP جديدة'}</DialogTitle></DialogHeader>
             <form onSubmit={handlePlanSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1">
-                    <div className="space-y-2"><Label>اسم الباقة (مثال: الباقة الذهبية)</Label><Input required value={currentPlan?.name || ''} onChange={e => setCurrentPlan(p => ({...p, name: e.target.value}))} /></div>
+                    <div className="space-y-2"><Label>اسم الباقة</Label><Input required value={currentPlan?.name || ''} onChange={e => setCurrentPlan(p => ({...p, name: e.target.value}))} /></div>
                     <div className="space-y-2"><Label>وصف مختصر للباقة (اختياري)</Label><Textarea value={currentPlan?.description || ''} onChange={e => setCurrentPlan(p => ({...p, description: e.target.value ?? ''}))} /></div>
                 </div>
 

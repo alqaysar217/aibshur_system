@@ -6,7 +6,7 @@ import type { WalletTopupRequest, User, AppBank } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, UserCheck, UserX, Wallet, ListChecks } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, Wallet, ListChecks, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
@@ -14,10 +14,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
+import Image from 'next/image';
 
 const LogRowSkeleton = () => (
     <TableRow>
-        <TableCell colSpan={6} className="p-0">
+        <TableCell colSpan={7} className="p-0">
             <Skeleton className="w-full h-[60px]"/>
         </TableCell>
     </TableRow>
@@ -237,6 +239,11 @@ export default function DirectCreditPage() {
                         <div className='space-y-2'>
                           <Label htmlFor='receipt_image'>رابط صورة السند (اختياري)</Label>
                           <Input id='receipt_image' type='url' value={receiptImage} onChange={e=>setReceiptImage(e.target.value)} dir='ltr' placeholder='https://...' />
+                           {receiptImage && (receiptImage.startsWith('http') || receiptImage.startsWith('/')) && (
+                                <div className="flex justify-center p-2 mt-2 border rounded-xl bg-gray-50/50 shadow-inner">
+                                    <Image src={receiptImage} alt="معاينة السند" width={200} height={200} className="rounded-lg object-contain max-h-48 shadow-md"/>
+                                </div>
+                            )}
                         </div>
                      </div>
                 </fieldset>
@@ -265,12 +272,13 @@ export default function DirectCreditPage() {
                     <TableHead className="text-center">رقم السند</TableHead>
                     <TableHead className="text-center">قام بالإدخال</TableHead>
                     <TableHead className="text-center">التاريخ</TableHead>
+                    <TableHead className="text-center">السند</TableHead>
                 </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-50">
                     {requestsLoading ? Array.from({ length: 4 }).map((_, i) => <LogRowSkeleton key={i} />)
                     : filteredRequests.length === 0 ? (
-                        <TableRow><TableCell colSpan={6} className="text-center h-24">لا توجد سجلات لعرضها.</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={7} className="text-center h-24">لا توجد سجلات لعرضها.</TableCell></TableRow>
                     )
                     : filteredRequests.map(req => (
                         <TableRow key={req.id}>
@@ -280,6 +288,15 @@ export default function DirectCreditPage() {
                             <TableCell className="text-center text-xs font-mono">{req.receipt_number || '-'}</TableCell>
                             <TableCell className="text-center text-xs text-gray-500">{req.processed_by ? 'مدير' : 'غير معروف'}</TableCell>
                             <TableCell className="text-center text-xs font-mono text-gray-500">{format(new Date(req.timestamp), 'dd/MM/yy hh:mm a', { locale: ar })}</TableCell>
+                             <TableCell className="text-center">
+                                {req.receipt_image ? (
+                                    <Button asChild variant="ghost" size="icon">
+                                        <Link href={req.receipt_image} target="_blank" rel="noopener noreferrer">
+                                            <ExternalLink className="h-4 w-4" />
+                                        </Link>
+                                    </Button>
+                                ) : '-'}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

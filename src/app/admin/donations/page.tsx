@@ -1,9 +1,7 @@
 'use client';
 import { useState, useMemo, useCallback } from 'react';
 import { useFirestore, useUser, useCollection } from '@/firebase';
-import { collection, doc, query, where, getDocs, limit, runTransaction, orderBy } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { firebaseApp } from '@/firebase/config';
+import { collection, doc, query, where, getDocs, limit, runTransaction, orderBy, addDoc } from 'firebase/firestore';
 import type { User, Donation, FinanceTransaction, AppBank, DonationType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,8 +15,7 @@ import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
-
-const storage = getStorage(firebaseApp);
+import Image from 'next/image';
 
 const donationTypes: { value: DonationType, label: string }[] = [
     { value: 'siquia', label: 'سقيا ماء' },
@@ -44,7 +41,7 @@ export default function DonationsPage() {
   const [donorName, setDonorName] = useState('');
   const [amount, setAmount] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
-  const [receiptImage, setReceiptImage] = useState<File | null>(null);
+  const [receiptImage, setReceiptImage] = useState('');
   const [donationType, setDonationType] = useState<DonationType>('siquia');
   const [selectedBankId, setSelectedBankId] = useState('');
   
@@ -98,8 +95,8 @@ export default function DonationsPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
-      if (!firestore || !adminUser || !amount || !selectedBankId || !receiptImage) {
-        toast({ variant: 'destructive', title: "بيانات ناقصة", description: "الرجاء تعبئة جميع الحقول الإلزامية ورفع صورة السند." });
+      if (!firestore || !adminUser || !amount || !selectedBankId) {
+        toast({ variant: 'destructive', title: "بيانات ناقصة", description: "الرجاء تعبئة الحقول الإلزامية." });
         return;
       }
       setIsSubmitting(true);
@@ -110,13 +107,7 @@ export default function DonationsPage() {
             throw new Error("المبلغ المدفوع غير صالح.");
         }
 
-        // 1. Upload receipt image
-        const imagePath = `donations_receipts/${Date.now()}_${receiptImage.name}`;
-        const imageRef = ref(storage, imagePath);
-        await uploadBytes(imageRef, receiptImage);
-        const receiptImageUrl = await getDownloadURL(imageRef);
-
-        // 2. Run Firestore transaction
+        // Run Firestore transaction
         await runTransaction(firestore, async (transaction) => {
             const donationDocRef = doc(collection(firestore, 'donations'));
             const financeDocRef = doc(collection(firestore, 'financeTransactions'));
@@ -130,7 +121,7 @@ export default function DonationsPage() {
                 amount: donationAmount,
                 bankId: selectedBankId,
                 receiptNumber: receiptNumber,
-                receiptImage: receiptImageUrl,
+                receiptImage: receiptImage, // use URL string
                 timestamp: new Date().toISOString(),
             };
             transaction.set(donationDocRef, donationData);
@@ -159,10 +150,9 @@ export default function DonationsPage() {
         setDonorName('');
         setAmount('');
         setReceiptNumber('');
-        setReceiptImage(null);
+        setReceiptImage('');
         setSelectedBankId('');
-        (e.target as HTMLFormElement).reset(); // Reset file input
-
+        
       } catch (error: any) {
         console.error("Donation submission failed:", error);
         toast({ variant: 'destructive', title: 'فشلت العملية', description: error.message });
@@ -242,8 +232,13 @@ export default function DonationsPage() {
                           <Input id="receipt_number" value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} dir='ltr' />
                         </div>
                         <div className='space-y-2'>
-                          <Label htmlFor='receipt_image'>صورة السند*</Label>
-                          <Input id='receipt_image' type='file' required onChange={e => setReceiptImage(e.target.files ? e.target.files[0] : null)} accept="image/*" />
+                          <Label htmlFor='receipt_image'>رابط صورة السند*</Label>
+                          <Input id='receipt_image' type='url' required value={receiptImage} onChange={e => setReceiptImage(e.target.value)} placeholder="https://..." dir="ltr" />
+                          {receiptImage && (receiptImage.startsWith('http') || receiptImage.startsWith('/')) && (
+                                <div className="flex justify-center p-2 mt-2 border rounded-xl bg-gray-50/50 shadow-inner">
+                                    <Image src={receiptImage} alt="معاينة السند" width={200} height={200} className="rounded-lg object-contain max-h-48 shadow-md"/>
+                                </div>
+                            )}
                         </div>
                      </div>
                 </fieldset>
