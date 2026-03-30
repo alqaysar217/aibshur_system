@@ -1,33 +1,68 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useFirestore, useUser, useCollection } from '@/firebase';
-import { collection, doc, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, runTransaction, orderBy, limit } from 'firebase/firestore';
 import type { WalletTopupRequest, User, AppBank } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, UserCheck, UserX } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, Wallet, ListChecks } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { ar } from 'date-fns/locale';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const LogRowSkeleton = () => (
+    <TableRow>
+        <TableCell colSpan={6} className="p-0">
+            <Skeleton className="w-full h-[60px]"/>
+        </TableCell>
+    </TableRow>
+);
+
 
 export default function SubmitWalletPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { userData: csUser } = useUser();
 
+  // Form State
   const [searchPhone, setSearchPhone] = useState('');
   const [foundUser, setFoundUser] = useState<User | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  
   const [amount, setAmount] = useState('');
   const [receiptNumber, setReceiptNumber] = useState('');
   const [receiptImage, setReceiptImage] = useState('');
   const [selectedBankId, setSelectedBankId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Log Table State
+  const [logSearch, setLogSearch] = useState('');
 
+  // Data Fetching
   const banksQuery = useMemo(() => firestore ? collection(firestore, 'app_banks') : null, [firestore]);
   const { data: banks, loading: banksLoading, error: banksError } = useCollection<AppBank>(banksQuery, 'app_banks');
+
+  const requestsQuery = useMemo(() => firestore ? query(collection(firestore, 'wallet_transactions'), orderBy('timestamp', 'desc'), limit(50)) : null, [firestore]);
+  const { data: requests, loading: requestsLoading, error: requestsError } = useCollection<WalletTopupRequest>(requestsQuery, 'wallet_transactions');
+
+  const filteredRequests = useMemo(() => {
+    if (!requests) return [];
+    if (!logSearch) return requests;
+    return requests.filter(req => 
+      req.user_phone.includes(logSearch) || 
+      req.receipt_number?.includes(logSearch)
+    );
+  }, [requests, logSearch]);
+
+  const getBankName = useCallback((bankId: string) => {
+    if (banksLoading || !banks) return '...';
+    return banks.find(b => b.id === bankId)?.bank_name || 'غير معروف';
+  }, [banks, banksLoading]);
+
 
   const handleSearchUser = async () => {
     if (!firestore || !searchPhone) {
@@ -41,10 +76,11 @@ export default function SubmitWalletPage() {
         const userSnapshot = await getDocs(userQuery);
 
         if (userSnapshot.empty) {
-            toast({ variant: 'destructive', title: 'غير موجود', description: 'لا يوجد مستخدم بهذا الرقم.' });
+            toast({ variant: 'destructive', title: 'عميل غير موجود', description: 'لا يوجد مستخدم مسجل بهذا الرقم.' });
         } else {
-            const user = userSnapshot.docs[0].data() as User;
+            const user = { uid: userSnapshot.docs[0].id, ...userSnapshot.docs[0].data()} as User;
             setFoundUser(user);
+            toast({ title: 'تم العثور على العميل', description: user.full_name });
         }
     } catch (error) {
         console.error(error);
@@ -57,7 +93,7 @@ export default function SubmitWalletPage() {
   const handleSubmitRequest = async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault();
       if (!firestore || !csUser || !foundUser || !amount || !selectedBankId) {
-          toast({ variant: 'destructive', title: 'بيانات ناقصة', description: 'الرجاء البحث عن العميل وإدخال المبلغ والبنك.' });
+          toast({ variant: 'destructive', title: 'بيانات ناقصة', description: 'الرجاء التأكد من البحث عن العميل وإدخال المبلغ والبنك.' });
           return;
       }
       setIsSubmitting(true);
@@ -69,26 +105,41 @@ export default function SubmitWalletPage() {
           return;
       }
       
-      const transactionId = `req_${Date.now()}`;
-      
       try {
-        const requestsCollection = collection(firestore, 'wallet_transactions');
-        const newRequest: Omit<WalletTopupRequest, 'id'> = {
-            transactionId: transactionId,
-            userId: foundUser.uid,
-            user_name: foundUser.full_name || 'N/A',
-            user_phone: foundUser.phone,
-            amount: submissionAmount,
-            receipt_number: receiptNumber,
-            receipt_image: receiptImage,
-            bank_id: selectedBankId,
-            status: 'pending',
-            timestamp: new Date().toISOString(),
-            type: 'client_request', // This is a request from a client (via CS)
-            // processed_by will be set on approval
-        };
-        await addDoc(requestsCollection, newRequest);
-        toast({ title: 'تم رفع الطلب بنجاح', description: 'سيقوم المدير بمراجعته واعتماده.' });
+        await runTransaction(firestore, async (transaction) => {
+            const userDocRef = doc(firestore, 'users', foundUser.uid);
+            const requestDocRef = doc(collection(firestore, 'wallet_transactions'));
+
+            const userDoc = await transaction.get(userDocRef);
+            if (!userDoc.exists()) throw new Error("لم يتم العثور على حساب العميل.");
+
+            const currentBalance = userDoc.data().wallet_balance || 0;
+            const newBalance = currentBalance + submissionAmount;
+            
+            transaction.update(userDocRef, { wallet_balance: newBalance });
+
+            const newRequest: Omit<WalletTopupRequest, 'id'> = {
+                transactionId: requestDocRef.id,
+                userId: foundUser.uid,
+                user_name: foundUser.full_name || 'N/A',
+                user_phone: foundUser.phone,
+                amount: submissionAmount,
+                receipt_number: receiptNumber,
+                receipt_image: receiptImage,
+                status: 'approved', // Directly approved
+                timestamp: new Date().toISOString(),
+                type: 'manual_topup',
+                processed_by: csUser.uid,
+                processed_at: new Date().toISOString(),
+            };
+            transaction.set(requestDocRef, newRequest);
+        });
+
+        toast({ 
+            title: 'تم شحن الرصيد بنجاح', 
+            description: `تمت إضافة ${submissionAmount.toLocaleString()} ر.ي إلى رصيد ${foundUser.full_name}.`
+        });
+        
         // Reset form
         setFoundUser(null);
         setSearchPhone('');
@@ -98,35 +149,35 @@ export default function SubmitWalletPage() {
         setSelectedBankId('');
 
       } catch (error: any) {
-        console.error("Submission failed:", error);
+        console.error("Submission transaction failed:", error);
         toast({ variant: 'destructive', title: 'فشلت العملية', description: error.message });
       } finally {
         setIsSubmitting(false);
       }
   }
   
-  if (banksError) {
-    if (banksError.message.includes('database (default) does not exist') || banksError.message.includes('permission-denied')) {
+  const dbError = banksError || requestsError;
+  if (dbError) {
+    if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('permission-denied')) {
       return <SetupFirestoreMessage />;
     }
-    return <p className="text-destructive text-center p-8">خطأ: {banksError.message}</p>;
+    return <p className="text-destructive text-center p-8">خطأ في جلب البيانات: {dbError.message}</p>;
   }
   if (!firestore) return <SetupFirestoreMessage />;
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
+    <div className="space-y-8 max-w-6xl mx-auto">
       <Card>
         <CardHeader>
-            <CardTitle>رفع طلب شحن محفظة</CardTitle>
-            <CardDescription>هذه الواجهة مخصصة لموظفي خدمة العملاء لرفع طلبات الشحن لمراجعتها من قبل الإدارة.</CardDescription>
+            <CardTitle className="flex items-center gap-2"><Wallet className="text-primary"/> شحن رصيد عميل</CardTitle>
+            <CardDescription>واجهة مخصصة لموظفي خدمة العملاء لإضافة رصيد للعملاء بناءً على الحوالات المستلمة عبر واتساب.</CardDescription>
         </CardHeader>
         <CardContent>
             <form onSubmit={handleSubmitRequest} className='space-y-6'>
                 <fieldset className='p-4 border rounded-xl space-y-4'>
-                    <Label className='font-bold'>1. البحث عن العميل</Label>
+                    <legend className="text-sm font-bold px-2">الخطوة ١: البحث عن العميل</legend>
                     <div className="flex items-stretch gap-2">
                         <Input
-                            id="search-phone"
                             type="tel"
                             placeholder="ابحث برقم هاتف العميل..."
                             value={searchPhone}
@@ -156,7 +207,7 @@ export default function SubmitWalletPage() {
                 </fieldset>
                 
                 <fieldset disabled={!foundUser || isSubmitting} className="p-4 border rounded-xl space-y-4 disabled:opacity-50 transition-opacity">
-                    <Label className='font-bold'>2. تفاصيل الإيداع</Label>
+                    <legend className="text-sm font-bold px-2">الخطوة ٢: تفاصيل الإيداع</legend>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className='space-y-2'>
                           <Label htmlFor='amount'>المبلغ (بالريال اليمني)</Label>
@@ -189,10 +240,49 @@ export default function SubmitWalletPage() {
                      </div>
                 </fieldset>
 
-                <Button type="submit" className='w-full h-12 text-lg font-black' disabled={!foundUser || isSubmitting}>
-                    {isSubmitting ? <Loader2 className='animate-spin w-6 h-6'/> : 'رفع الطلب للمراجعة'}
+                <Button type="submit" className='w-full h-12 text-lg font-black' disabled={!foundUser || isSubmitting || banksLoading}>
+                    {isSubmitting ? <Loader2 className='animate-spin w-6 h-6'/> : 'تأكيد الشحن الفوري'}
                 </Button>
             </form>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
+            <CardTitle className="flex items-center gap-2"><ListChecks className="text-primary"/> سجل عمليات الشحن اليدوي</CardTitle>
+            <div className="pt-2">
+                <Input placeholder="ابحث برقم الهاتف أو رقم السند..." value={logSearch} onChange={e => setLogSearch(e.target.value)} className="max-w-sm" />
+            </div>
+        </CardHeader>
+        <CardContent className="p-0">
+             <Table>
+                <TableHeader>
+                <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                    <TableHead className="text-right">العميل</TableHead>
+                    <TableHead className="text-center">المبلغ</TableHead>
+                    <TableHead className="text-center">البنك</TableHead>
+                    <TableHead className="text-center">رقم السند</TableHead>
+                    <TableHead className="text-center">قام بالإدخال</TableHead>
+                    <TableHead className="text-center">التاريخ</TableHead>
+                </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-gray-50">
+                    {requestsLoading ? Array.from({ length: 4 }).map((_, i) => <LogRowSkeleton key={i} />)
+                    : filteredRequests.length === 0 ? (
+                        <TableRow><TableCell colSpan={6} className="text-center h-24">لا توجد سجلات لعرضها.</TableCell></TableRow>
+                    )
+                    : filteredRequests.map(req => (
+                        <TableRow key={req.id}>
+                            <TableCell className="font-bold text-xs">{req.user_name}<br/><span className="font-mono text-gray-500" dir="ltr">{req.user_phone}</span></TableCell>
+                            <TableCell className="text-center font-bold text-green-600">{req.amount.toLocaleString()} ر.ي</TableCell>
+                            <TableCell className="text-center text-xs font-bold text-gray-500">{getBankName(req.bank_id)}</TableCell>
+                            <TableCell className="text-center text-xs font-mono">{req.receipt_number || '-'}</TableCell>
+                            <TableCell className="text-center text-xs text-gray-500">{req.processed_by ? 'موظف' : 'غير معروف'}</TableCell>
+                            <TableCell className="text-center text-xs font-mono text-gray-500">{format(new Date(req.timestamp), 'dd/MM/yy hh:mm a', { locale: ar })}</TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+             </Table>
         </CardContent>
       </Card>
     </div>
