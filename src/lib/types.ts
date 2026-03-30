@@ -1,14 +1,14 @@
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
-export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee' | 'points_conversion' | 'vip_subscription';
+export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee' | 'points_conversion' | 'vip_subscription' | 'donation';
 export type TransactionStatus = 'pending' | 'completed' | 'failed';
 export type AppInfoSettingType = 'about_us' | 'privacy_policy' | 'terms_of_service' | 'ad_banner';
 export type AdminConfigSettingType = 'coupon' | 'vip_package' | 'loyalty_points_config' | 'system_fee_config';
 export type TargetType = 'general' | 'store' | 'product';
 export type DiscountType = 'percentage' | 'fixed_amount';
 export type CouponScope = 'global' | 'store' | 'product';
-export type DonationType = 'siquia' | 'itiam';
+export type DonationType = 'siquia' | 'itiam' | 'jariyah' | 'general';
 export type LoyaltyTransactionType = 'earn' | 'redeem' | 'manual_adjustment';
 
 
@@ -276,11 +276,13 @@ export interface WalletTopupRequest {
 
 export interface Donation {
     id?: string;
+    donationId: string;
     userId?: string; 
     userName?: string;
     userPhone?: string;
     donationType: DonationType;
     amount: number;
+    bankId: string;
     receiptNumber?: string;
     receiptImage?: string;
     timestamp: any;

@@ -206,7 +206,7 @@
         "userUid": { "type": "string" },
         "orderId": { "type": "string" },
         "amount": { "type": "number" },
-        "type": { "type": "string", "enum": ["top-up", "withdrawal", "order_payment", "refund", "system_fee", "points_conversion", "vip_subscription"] },
+        "type": { "type": "string", "enum": ["top-up", "withdrawal", "order_payment", "refund", "system_fee", "points_conversion", "vip_subscription", "donation"] },
         "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
         "description": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
@@ -321,13 +321,14 @@
         "userId": { "type": "string", "description": "UID of the user who donated, if known." },
         "userName": { "type": "string" },
         "userPhone": { "type": "string" },
-        "donationType": { "type": "string", "enum": ["siquia", "itiam"], "description": "Type of donation." },
+        "donationType": { "type": "string", "enum": ["siquia", "itiam", "jariyah", "general"], "description": "Type of donation." },
         "amount": { "type": "number" },
+        "bankId": { "type": "string", "description": "ID of the AppBank entity that received the deposit." },
         "receiptNumber": { "type": "string" },
         "receiptImage": { "type": "string", "format": "uri" },
         "timestamp": { "type": "string", "format": "date-time" }
       },
-      "required": ["donationId", "donationType", "amount", "timestamp"]
+      "required": ["donationId", "donationType", "amount", "timestamp", "bankId"]
     },
     "LoyaltyTransaction": {
       "title": "Loyalty Transaction",
