@@ -129,7 +129,7 @@ export default function VipPlansPage() {
         }
         setPlanDialogOpen(false);
     } catch(err: any) {
-        toast({ variant: "destructive", title: "خطأ في حفظ الباقة" });
+        toast({ variant: "destructive", title: "خطأ في حفظ الباقة", description: err.message });
         console.error(err);
     } finally {
         setIsSubmitting(false);
@@ -245,7 +245,7 @@ export default function VipPlansPage() {
       {/* --- Plan Management Section --- */}
       <Card>
         <CardHeader className="flex-row justify-between items-center">
-            <div>
+            <div className="space-y-1">
                 <CardTitle className="flex items-center gap-2"><Settings className="text-primary"/> إدارة أنواع الباقات</CardTitle>
                 <CardDescription>إنشاء وتعديل باقات VIP المتاحة للبيع.</CardDescription>
             </div>
@@ -403,7 +403,7 @@ export default function VipPlansPage() {
                 </div>
                  <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50">
                     <Label className="font-bold text-gray-700">تفعيل الباقة للبيع</Label>
-                    <Switch checked={currentPlan?.isActive} onCheckedChange={c => setCurrentPlan(p => ({...p, isActive: c}))} dir="ltr" />
+                    <Switch dir="ltr" checked={currentPlan?.isActive} onCheckedChange={c => setCurrentPlan(p => ({...p, isActive: !!c}))} />
                 </div>
                 <DialogFooter>
                     <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin" /> : 'حفظ'}</Button>
