@@ -23,14 +23,12 @@ const mainNav = [
   { name: 'المدن', href: '/admin/cities', icon: Building2 },
 ];
 
-const csNav = {
-  title: 'قسم خدمة العملاء',
-  icon: MessageSquareQuote,
+const marketingNav = {
+  title: 'التسويق والإعلانات',
+  icon: BadgePercent,
   links: [
-    { name: 'رفع طلبات الشحن', href: '/cs/submit-wallet', icon: Wallet },
-    { name: 'رفع طلبات VIP', href: '/cs/submit-vip', icon: Crown },
-    { name: 'رفع التبرعات', href: '/cs/submit-donation', icon: HeartHandshake },
-    { name: 'تأكيد الطلبات', href: '/cs/confirm-orders', icon: ClipboardCheck },
+    { name: 'كوبونات الخصم', href: '/admin/marketing/coupons', icon: Ticket },
+    { name: 'الإعلانات المتحركة', href: '/admin/marketing/banners', icon: GalleryHorizontal },
   ]
 };
 
@@ -38,31 +36,29 @@ const financeNav = {
   title: 'الشؤون المالية',
   icon: CreditCard,
   links: [
-    { name: 'طلبات شحن المحفظة', href: '/admin/wallet-requests', icon: Wallet },
-    { name: 'إدارة الحسابات', href: '/admin/bank-accounts', icon: Banknote },
-    { name: 'سجل العمليات', href: '/admin/financial-logs', icon: FileText },
-  ]
-};
-
-const marketingNav = {
-  title: 'التسويق',
-  icon: BadgePercent,
-  links: [
-    { name: 'كوبونات الخصم', href: '/admin/marketing/coupons', icon: Ticket },
-    { name: 'الإعلانات', href: '/admin/marketing/banners', icon: GalleryHorizontal },
+    { name: 'شحن المحفظة (إيداع)', href: '/admin/wallet-requests', icon: Wallet },
+    { name: 'إدارة الحسابات البنكية', href: '/admin/bank-accounts', icon: Banknote },
+    { name: 'السجل المالي المرجعي', href: '/admin/financial-logs', icon: FileText },
   ]
 };
 
 const servicesNav = {
-    title: 'الخدمات والنقاط',
+    title: 'الخدمات والاشتراكات',
     icon: Settings,
     links: [
-      { name: 'باقات عضوية VIP', href: '/admin/vip-plans', icon: Crown },
-      { name: 'نظام النقاط', href: '/admin/points-system', icon: Star },
+      { name: 'باقات أبشر VIP', href: '/admin/vip-plans', icon: Crown },
+      { name: 'نظام النقاط والولاء', href: '/admin/points-system', icon: Star },
       { name: 'إدارة التبرعات', href: '/admin/donations', icon: HeartHandshake },
     ]
 };
 
+const csNav = {
+  title: 'قسم خدمة العملاء',
+  icon: MessageSquareQuote,
+  links: [
+    { name: 'تأكيد وتوثيق الطلبات', href: '/admin/confirm-orders', icon: ClipboardCheck },
+  ]
+};
 
 const reportsNav = {
   title: 'التقارير',
@@ -72,6 +68,7 @@ const reportsNav = {
     { name: 'أداء المناديب', href: '/admin/reports/drivers', icon: CircleDot },
   ]
 };
+
 
 const settingsNav = [
   { name: 'إعدادات النظام', href: '/admin/settings', icon: Settings },
@@ -160,10 +157,10 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
             </Link>
           ))}
           
-          <NavGroup {...csNav} />
-          <NavGroup {...marketingNav} />
           <NavGroup {...financeNav} />
+          <NavGroup {...marketingNav} />
           <NavGroup {...servicesNav} />
+          <NavGroup {...csNav} />
           <NavGroup {...reportsNav} />
 
           <div className="pt-4 mt-4 border-t border-gray-100 space-y-1">

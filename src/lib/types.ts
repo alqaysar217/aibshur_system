@@ -1,14 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
@@ -19,6 +8,7 @@ export type AdminConfigSettingType = 'coupon' | 'vip_package' | 'loyalty_points_
 export type TargetType = 'general' | 'store' | 'product';
 export type DiscountType = 'percentage' | 'fixed_amount';
 export type CouponScope = 'global' | 'store' | 'product';
+export type DonationType = 'siquia' | 'itiam';
 
 // Using a generic GeoPoint type as Firestore GeoPoint is a class instance.
 export interface GeoPoint {
@@ -63,7 +53,12 @@ export interface User {
     wallet_balance: number;
     current_location?: GeoPoint;
   };
-  // Custom claims on the auth token will reflect the user's role
+  vip_details?: {
+    is_active: boolean;
+    plan_type: 'silver' | 'gold';
+    start_date: string; // ISO 8601
+    expiry_date: string; // ISO 8601
+  };
 }
 
 export interface StoreCategory {
@@ -234,7 +229,7 @@ export interface AppBank {
 }
     
 export interface WalletTopupRequest {
-    id: string; // Document ID
+    id?: string; // Document ID
     transactionId: string;
     userId: string;
     user_phone: string;
@@ -250,6 +245,15 @@ export interface WalletTopupRequest {
     processed_by?: string; // Admin UID
     processed_at?: string; // ISO 8601
 }
-    
 
-    
+export interface Donation {
+    id?: string;
+    userId?: string; 
+    userName?: string;
+    userPhone?: string;
+    donationType: DonationType;
+    amount: number;
+    receiptNumber?: string;
+    receiptImage?: string;
+    timestamp: any;
+}

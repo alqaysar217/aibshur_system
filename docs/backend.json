@@ -51,6 +51,15 @@
             "wallet_balance": { "type": "number" },
             "current_location": { "$ref": "#/entities/GeoPoint" }
           }
+        },
+        "vip_details": {
+            "type": "object",
+            "properties": {
+                "is_active": { "type": "boolean" },
+                "plan_type": { "type": "string", "enum": ["silver", "gold"] },
+                "start_date": { "type": "string", "format": "date-time" },
+                "expiry_date": { "type": "string", "format": "date-time" }
+            }
         }
       },
       "required": ["uid", "phone", "role", "created_at", "last_login_at", "account_status"]
@@ -297,6 +306,23 @@
       },
       "required": ["settingId", "type", "config_data", "is_active"]
     },
+    "Donation": {
+      "title": "Donation",
+      "description": "Represents a donation made through the system.",
+      "type": "object",
+      "properties": {
+        "donationId": { "type": "string" },
+        "userId": { "type": "string", "description": "UID of the user who donated, if known." },
+        "userName": { "type": "string" },
+        "userPhone": { "type": "string" },
+        "donationType": { "type": "string", "enum": ["siquia", "itiam"], "description": "Type of donation." },
+        "amount": { "type": "number" },
+        "receiptNumber": { "type": "string" },
+        "receiptImage": { "type": "string", "format": "uri" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["donationId", "donationType", "amount", "timestamp"]
+    },
     "GeoPoint": {
         "title": "GeoPoint",
         "description": "Represents a geographical point.",
@@ -371,8 +397,10 @@
     "/wallet_transactions/{transactionId}": {
       "schema": { "$ref": "#/entities/WalletTopupRequest" },
       "description": "User requests to top-up their wallet. Processable by admins."
+    },
+    "/donations/{donationId}": {
+        "schema": { "$ref": "#/entities/Donation" },
+        "description": "Records of donations made."
     }
   }
 }
-
-    
