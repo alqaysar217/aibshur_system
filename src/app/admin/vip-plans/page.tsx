@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { useFirestore, useUser, useCollection } from '@/firebase';
-import { collection, doc, query, where, getDocs, limit, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, limit, updateDoc } from 'firebase/firestore';
 import type { User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
+import { format, differenceInDays } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,11 +25,13 @@ export default function VipPlansPage() {
   const [foundUser, setFoundUser] = useState<User | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'silver' | 'gold'>('silver');
+  const [duration, setDuration] = useState<'month' | 'year'>('month');
+  const [receiptNumber, setReceiptNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Data fetching for active VIP users
   const vipUsersQuery = useMemo(() => firestore ? query(collection(firestore, 'users'), where('vip_details.is_active', '==', true)) : null, [firestore]);
-  const { data: vipUsers, loading: vipUsersLoading, error: vipUsersError } = useCollection<User>(vipUsersQuery);
+  const { data: vipUsers, loading: vipUsersLoading, error: vipUsersError } = useCollection<User>(vipUsersQuery, 'users');
 
   const handleSearchUser = async () => {
     if (!firestore || !searchPhone) return;
@@ -62,13 +64,18 @@ export default function VipPlansPage() {
       try {
         const userDocRef = doc(firestore, 'users', foundUser.uid);
         
-        const expiryDate = new Date();
-        expiryDate.setMonth(expiryDate.getMonth() + 1);
+        const startDate = new Date();
+        const expiryDate = new Date(startDate);
+        if (duration === 'month') {
+            expiryDate.setMonth(expiryDate.getMonth() + 1);
+        } else {
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        }
 
         const vipDetails = {
             is_active: true,
             plan_type: selectedPlan,
-            start_date: new Date().toISOString(),
+            start_date: startDate.toISOString(),
             expiry_date: expiryDate.toISOString(),
         };
 
@@ -82,6 +89,7 @@ export default function VipPlansPage() {
         // Reset form
         setFoundUser(null);
         setSearchPhone('');
+        setReceiptNumber('');
 
       } catch (error: any) {
         console.error("VIP activation failed:", error);
@@ -136,10 +144,10 @@ export default function VipPlansPage() {
                 </fieldset>
                 
                 <fieldset disabled={!foundUser || isSubmitting} className="p-4 border rounded-xl space-y-4 disabled:opacity-50 transition-opacity">
-                    <legend className="text-sm font-bold px-2">2. اختيار الباقة (لمدة شهر)</legend>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <legend className="text-sm font-bold px-2">2. اختيار الباقة وتفاصيل الدفع</legend>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className='space-y-2'>
-                          <Label htmlFor='planType'>اختر نوع الباقة</Label>
+                          <Label htmlFor='planType'>نوع الباقة</Label>
                           <select
                               id="planType"
                               required
@@ -150,6 +158,23 @@ export default function VipPlansPage() {
                               <option value="silver">فضية</option>
                               <option value="gold">ذهبية</option>
                           </select>
+                        </div>
+                         <div className='space-y-2'>
+                          <Label htmlFor='duration'>مدة الاشتراك</Label>
+                          <select
+                              id="duration"
+                              required
+                              value={duration}
+                              onChange={(e) => setDuration(e.target.value as any)}
+                              className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                          >
+                              <option value="month">شهر</option>
+                              <option value="year">سنة</option>
+                          </select>
+                        </div>
+                         <div className='space-y-2'>
+                          <Label htmlFor='receipt_number'>رقم السند (اختياري)</Label>
+                          <Input id="receipt_number" value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} dir='ltr' />
                         </div>
                     </div>
                 </fieldset>
@@ -171,8 +196,8 @@ export default function VipPlansPage() {
                 <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
                     <TableHead className="text-right">العميل</TableHead>
                     <TableHead className="text-center">الباقة</TableHead>
-                    <TableHead className="text-center">تاريخ التفعيل</TableHead>
                     <TableHead className="text-center">تاريخ الانتهاء</TableHead>
+                    <TableHead className="text-center">الأيام المتبقية</TableHead>
                 </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-50">
@@ -181,12 +206,15 @@ export default function VipPlansPage() {
                         <TableRow key={user.uid}>
                             <TableCell className="font-bold text-xs">{user.full_name}<br/><span className="font-mono text-gray-500" dir="ltr">{user.phone}</span></TableCell>
                             <TableCell className="text-center">
-                                <Badge className={user.vip_details?.plan_type === 'gold' ? 'bg-yellow-400 text-yellow-900' : 'bg-gray-300 text-gray-800'}>
+                                <Badge className={cn("font-bold", user.vip_details?.plan_type === 'gold' ? 'bg-yellow-400 text-yellow-900 hover:bg-yellow-400/80' : 'bg-gray-300 text-gray-800 hover:bg-gray-300/80')}>
+                                     <Crown className="w-3 h-3 ml-1" />
                                     {user.vip_details?.plan_type === 'gold' ? 'ذهبية' : 'فضية'}
                                 </Badge>
                             </TableCell>
-                            <TableCell className="text-center text-xs font-mono text-gray-500">{user.vip_details?.start_date ? format(new Date(user.vip_details.start_date), 'dd/MM/yyyy', { locale: ar }) : '-'}</TableCell>
                             <TableCell className="text-center text-xs font-mono text-gray-500">{user.vip_details?.expiry_date ? format(new Date(user.vip_details.expiry_date), 'dd/MM/yyyy', { locale: ar }) : '-'}</TableCell>
+                            <TableCell className="text-center font-bold">
+                                {user.vip_details?.expiry_date ? `${Math.max(0, differenceInDays(new Date(user.vip_details.expiry_date), new Date()))} يوم` : '-'}
+                            </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

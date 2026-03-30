@@ -32,6 +32,7 @@
         "last_login_at": { "type": "string", "format": "date-time" },
         "order_history": { "type": "array", "items": { "type": "string" } },
         "wallet_balance": { "type": "number", "description": "The user's current wallet balance, managed by admins." },
+        "loyalty_points": { "type": "number", "description": "Total loyalty points accumulated by the user." },
         "account_status": {
           "type": "object",
           "properties": {
@@ -200,7 +201,7 @@
         "userUid": { "type": "string" },
         "orderId": { "type": "string" },
         "amount": { "type": "number" },
-        "type": { "type": "string", "enum": ["top-up", "withdrawal", "order_payment", "refund", "system_fee"] },
+        "type": { "type": "string", "enum": ["top-up", "withdrawal", "order_payment", "refund", "system_fee", "points_conversion"] },
         "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
         "description": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" }
@@ -323,6 +324,22 @@
       },
       "required": ["donationId", "donationType", "amount", "timestamp"]
     },
+    "LoyaltyTransaction": {
+      "title": "Loyalty Transaction",
+      "description": "Represents a transaction related to loyalty points.",
+      "type": "object",
+      "properties": {
+        "transactionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["earn", "redeem", "manual_adjustment"] },
+        "points": { "type": "number" },
+        "related_order_id": { "type": "string" },
+        "related_finance_tx_id": { "type": "string" },
+        "description": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["transactionId", "userId", "type", "points", "timestamp"]
+    },
     "GeoPoint": {
         "title": "GeoPoint",
         "description": "Represents a geographical point.",
@@ -401,6 +418,10 @@
     "/donations/{donationId}": {
         "schema": { "$ref": "#/entities/Donation" },
         "description": "Records of donations made."
+    },
+    "/loyalty_transactions/{transactionId}": {
+        "schema": { "$ref": "#/entities/LoyaltyTransaction" },
+        "description": "Log of all loyalty point activities."
     }
   }
 }

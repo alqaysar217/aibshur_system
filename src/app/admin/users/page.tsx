@@ -33,7 +33,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Users, Search, X, ShieldCheck, Truck, User as UserIcon, Store as StoreIcon } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Users, Search, X, ShieldCheck, Truck, User as UserIcon, Store as StoreIcon, Crown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -258,7 +258,12 @@ export default function AdminUsersPage() {
               {usersLoading ? Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)
                 : userData.map((user) => (
                     <TableRow key={user.uid} className="hover:bg-muted/50">
-                        <TableCell className="font-bold text-xs text-gray-700">{user.full_name}</TableCell>
+                        <TableCell className="font-bold text-xs text-gray-700">
+                          <div className="flex items-center gap-2">
+                           {user.vip_details?.is_active && <Crown className="w-4 h-4 text-yellow-500" />}
+                           <span>{user.full_name}</span>
+                          </div>
+                        </TableCell>
                         <TableCell className="text-center font-mono text-xs text-gray-500" dir="ltr">{user.phone}</TableCell>
                         {type === 'store_owner' && <TableCell className="text-center font-bold text-xs">{getStoreName(user.store_id)}</TableCell>}
                         {type === 'driver' && (
@@ -416,7 +421,7 @@ export default function AdminUsersPage() {
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader><AlertDialogTitle>هل أنت متأكد تماماً؟</AlertDialogTitle>
             <AlertDialogDescription>سيتم حذف حساب "{userToDelete?.full_name}" بشكل نهائي.</AlertDialogDescription>

@@ -1,7 +1,7 @@
 export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
-export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee';
+export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee' | 'points_conversion';
 export type TransactionStatus = 'pending' | 'completed' | 'failed';
 export type AppInfoSettingType = 'about_us' | 'privacy_policy' | 'terms_of_service' | 'ad_banner';
 export type AdminConfigSettingType = 'coupon' | 'vip_package' | 'loyalty_points_config' | 'system_fee_config';
@@ -9,6 +9,8 @@ export type TargetType = 'general' | 'store' | 'product';
 export type DiscountType = 'percentage' | 'fixed_amount';
 export type CouponScope = 'global' | 'store' | 'product';
 export type DonationType = 'siquia' | 'itiam';
+export type LoyaltyTransactionType = 'earn' | 'redeem' | 'manual_adjustment';
+
 
 // Using a generic GeoPoint type as Firestore GeoPoint is a class instance.
 export interface GeoPoint {
@@ -39,6 +41,7 @@ export interface User {
   last_login_at: string; // ISO 8601
   order_history?: string[]; // Array of orderIds
   wallet_balance?: number;
+  loyalty_points?: number;
   account_status: {
     is_blocked: boolean;
     reason?: string;
@@ -187,6 +190,7 @@ export interface AppInfoSetting {
 }
 
 export interface AdminConfigSetting {
+  id?: string;
   settingId: string;
   type: AdminConfigSettingType;
   config_data: any;
@@ -255,5 +259,22 @@ export interface Donation {
     amount: number;
     receiptNumber?: string;
     receiptImage?: string;
+    timestamp: any;
+}
+
+export interface LoyaltyPointsConfig {
+    rials_per_point: number;
+    points_per_rial_credit: number;
+}
+
+export interface LoyaltyTransaction {
+    id?: string;
+    transactionId: string;
+    userId: string;
+    type: LoyaltyTransactionType;
+    points: number;
+    related_order_id?: string;
+    related_finance_tx_id?: string;
+    description: string;
     timestamp: any;
 }
