@@ -1,24 +1,23 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { collection, doc, query, where, getDocs, limit, updateDoc, setDoc, writeBatch, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, limit, updateDoc, setDoc, runTransaction, deleteDoc } from 'firebase/firestore';
 import type { User, VipPlan, FinanceTransaction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Star, Shield, Package, X } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, differenceInDays, add } from 'date-fns';
-import { ar } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
-import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function VipPlansPage() {
@@ -29,9 +28,12 @@ export default function VipPlansPage() {
   // --- Page State ---
   const [isPlanDialogOpen, setPlanDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   // Plan Management
   const [currentPlan, setCurrentPlan] = useState<Partial<VipPlan> | null>(null);
+  const [planToDelete, setPlanToDelete] = useState<VipPlan | null>(null);
+  const [newFeatureText, setNewFeatureText] = useState('');
   const plansQuery = useMemo(() => firestore ? query(collection(firestore, 'vip_plans')) : null, [firestore]);
   const { data: vipPlans, loading: plansLoading, error: plansError } = useCollection<VipPlan>(plansQuery, 'vip_plans');
 
@@ -55,10 +57,48 @@ export default function VipPlansPage() {
         price: 0,
         durationInDays: 30,
         benefits: { hasFreeDelivery: false, discountPercentage: 0, pointsMultiplier: 1 },
+        features: [],
         isActive: true,
     });
+    setNewFeatureText('');
     setPlanDialogOpen(true);
   };
+  
+  const handleOpenDeleteDialog = (plan: VipPlan) => {
+    setPlanToDelete(plan);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!firestore || !planToDelete) return;
+    setIsSubmitting(true);
+    try {
+        await deleteDoc(doc(firestore, 'vip_plans', planToDelete.id!));
+        toast({ title: 'تم حذف الباقة بنجاح' });
+        setIsDeleteDialogOpen(false);
+    } catch (err: any) {
+        toast({ variant: 'destructive', title: 'خطأ في حذف الباقة' });
+        console.error(err);
+    } finally {
+        setIsSubmitting(false);
+        setPlanToDelete(null);
+    }
+  };
+
+  const addFeature = () => {
+    if (newFeatureText.trim() && currentPlan) {
+        const updatedFeatures = [...(currentPlan.features || []), newFeatureText.trim()];
+        setCurrentPlan(p => ({...p, features: updatedFeatures}));
+        setNewFeatureText('');
+    }
+  }
+
+  const removeFeature = (indexToRemove: number) => {
+      if (currentPlan) {
+          const updatedFeatures = currentPlan.features?.filter((_, index) => index !== indexToRemove);
+          setCurrentPlan(p => ({...p, features: updatedFeatures}));
+      }
+  }
   
   const handlePlanSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -74,6 +114,7 @@ export default function VipPlansPage() {
             price: currentPlan.price!,
             durationInDays: currentPlan.durationInDays!,
             benefits: currentPlan.benefits!,
+            features: currentPlan.features || [],
             isActive: currentPlan.isActive!,
         };
 
@@ -212,19 +253,37 @@ export default function VipPlansPage() {
                 <PlusCircle className="ml-2 h-4 w-4" /> إنشاء باقة جديدة
             </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
             <Table>
-                <TableHeader><TableRow><TableHead>اسم الباقة</TableHead><TableHead>السعر</TableHead><TableHead>المدة</TableHead><TableHead>الحالة</TableHead><TableHead>إجراءات</TableHead></TableRow></TableHeader>
-                <TableBody>
-                    {plansLoading ? <TableRow><TableCell colSpan={5}><Skeleton className="h-10 w-full"/></TableCell></TableRow>
+                <TableHeader>
+                    <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                        <TableHead className="w-[150px]">اسم الباقة</TableHead>
+                        <TableHead className="text-center">السعر</TableHead>
+                        <TableHead className="text-center">المدة</TableHead>
+                        <TableHead>المميزات</TableHead>
+                        <TableHead className="text-center">الحالة</TableHead>
+                        <TableHead className="text-center w-[120px]">إجراءات</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-gray-50">
+                    {plansLoading ? <TableRow><TableCell colSpan={6} className="p-0"><Skeleton className="h-14 w-full"/></TableCell></TableRow>
                     : vipPlans?.map(plan => (
                         <TableRow key={plan.id}>
                             <TableCell className="font-bold">{plan.name}</TableCell>
-                            <TableCell>{plan.price.toLocaleString()} ر.ي</TableCell>
-                            <TableCell>{plan.durationInDays} يوم</TableCell>
-                            <TableCell><Badge variant={plan.isActive ? "secondary" : "destructive"}>{plan.isActive ? 'مفعلة' : 'موقفة'}</Badge></TableCell>
+                            <TableCell className="text-center font-mono">{plan.price.toLocaleString()} ر.ي</TableCell>
+                            <TableCell className="text-center">{plan.durationInDays} يوم</TableCell>
                             <TableCell>
-                                <Button variant="ghost" size="icon" onClick={() => handleOpenPlanDialog(plan)}><Edit className="h-4 w-4"/></Button>
+                                <ul className="list-disc pr-4 space-y-1 text-xs">
+                                    {plan.features?.map((feature, i) => <li key={i}>{feature}</li>)}
+                                    {plan.benefits.hasFreeDelivery && <li className='font-bold text-green-600'>توصيل مجاني</li>}
+                                </ul>
+                            </TableCell>
+                            <TableCell className="text-center"><Badge variant={plan.isActive ? "secondary" : "destructive"}>{plan.isActive ? 'مفعلة' : 'موقفة'}</Badge></TableCell>
+                            <TableCell className="text-center">
+                                <div className='flex justify-center items-center gap-1'>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenPlanDialog(plan)}><Edit className="h-4 w-4 text-gray-400"/></Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-50 hover:text-red-500" onClick={() => handleOpenDeleteDialog(plan)}><Trash2 className="h-4 w-4"/></Button>
+                                </div>
                             </TableCell>
                         </TableRow>
                     ))}
@@ -233,7 +292,6 @@ export default function VipPlansPage() {
         </CardContent>
       </Card>
       
-      {/* --- Subscription Activation Section --- */}
       <Card>
         <CardHeader>
             <CardTitle className="flex items-center gap-2"><Crown className="text-primary"/> تعميد وتفعيل الاشتراكات</CardTitle>
@@ -252,7 +310,7 @@ export default function VipPlansPage() {
                         <div className="flex items-center gap-3"><UserCheck className='w-5 h-5 text-green-600'/>
                             <div><p className="font-bold text-sm text-green-800">{foundUser.full_name}</p><p className="text-xs text-green-600 font-mono" dir='ltr'>{foundUser.phone}</p></div>
                         </div>
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 shrink-0" onClick={() => {setFoundUser(null); setSearchPhone('')}}><UserX className="w-4 h-4"/></Button>
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 shrink-0" onClick={() => {setFoundUser(null); setSearchPhone('')}}><X className="h-4 w-4"/></Button>
                     </div>
                     )}
                 </div>
@@ -281,7 +339,6 @@ export default function VipPlansPage() {
         </CardContent>
       </Card>
       
-      {/* --- Audit Table Section --- */}
       <Card>
         <CardHeader>
             <CardTitle className="flex items-center gap-2"><ListChecks className="text-primary"/> سجل المشتركين الفعالين</CardTitle>
@@ -307,30 +364,41 @@ export default function VipPlansPage() {
 
       {/* --- Plan Creation/Edit Dialog --- */}
       <Dialog open={isPlanDialogOpen} onOpenChange={setPlanDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-2xl">
             <DialogHeader><DialogTitle>{currentPlan?.id ? 'تعديل باقة' : 'إنشاء باقة VIP جديدة'}</DialogTitle></DialogHeader>
             <form onSubmit={handlePlanSubmit} className="space-y-4">
-                <div className="space-y-2"><Label>اسم الباقة (مثال: الباقة الذهبية)</Label><Input required value={currentPlan?.name || ''} onChange={e => setCurrentPlan(p => ({...p, name: e.target.value}))} /></div>
-                <div className="space-y-2">
-                    <Label>وصف مختصر للباقة (اختياري)</Label>
-                    <Textarea 
-                        placeholder="مثال: توصيل مجاني على كل الطلبات، خصم 10%، نقاط مضاعفة..."
-                        value={currentPlan?.description || ''} 
-                        onChange={e => setCurrentPlan(p => ({...p, description: e.target.value}))}
-                        className="rounded-lg bg-gray-50"
-                        rows={3}
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2"><Label>اسم الباقة (مثال: الباقة الذهبية)</Label><Input required value={currentPlan?.name || ''} onChange={e => setCurrentPlan(p => ({...p, name: e.target.value}))} /></div>
+                    <div className="space-y-2"><Label>وصف مختصر للباقة (اختياري)</Label><Textarea value={currentPlan?.description || ''} onChange={e => setCurrentPlan(p => ({...p, description: e.target.value ?? ''}))} /></div>
                 </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>السعر (ر.ي)</Label><Input type="number" required value={currentPlan?.price || 0} onChange={e => setCurrentPlan(p => ({...p, price: e.target.valueAsNumber}))} /></div>
                     <div className="space-y-2"><Label>المدة (بالأيام)</Label><Input type="number" required value={currentPlan?.durationInDays || 30} onChange={e => setCurrentPlan(p => ({...p, durationInDays: e.target.valueAsNumber}))} /></div>
                 </div>
+
                 <div className="space-y-2 pt-2 border-t">
-                    <Label className="font-bold">مميزات الباقة</Label>
+                    <Label className="font-bold">المميزات النصية</Label>
+                    <div className="flex items-center gap-2">
+                        <Input value={newFeatureText} onChange={(e) => setNewFeatureText(e.target.value)} placeholder="اكتب ميزة واضغط إضافة..."/>
+                        <Button type="button" onClick={addFeature}><Plus className="h-4 w-4"/></Button>
+                    </div>
+                     <div className="space-y-2 pt-2">
+                        {currentPlan?.features?.map((feature, index) => (
+                            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md text-sm">
+                                <span>- {feature}</span>
+                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => removeFeature(index)}><X className="h-4 w-4"/></Button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                
+                <div className="space-y-2 pt-2 border-t">
+                    <Label className="font-bold">المميزات البرمجية</Label>
                     <div className="p-3 rounded-lg bg-gray-50 space-y-3">
-                        <div className="flex items-center space-x-2 space-x-reverse"><Checkbox id="freeDelivery" checked={currentPlan?.benefits?.hasFreeDelivery} onCheckedChange={c => setCurrentPlan(p=>({...p, benefits: {...p?.benefits, hasFreeDelivery:!!c}}))} /><Label htmlFor="freeDelivery">توصيل مجاني</Label></div>
-                        <div className="flex items-center gap-4"><Label>نسبة خصم (%)</Label><Input className="w-24" type="number" value={currentPlan?.benefits?.discountPercentage || 0} onChange={e => setCurrentPlan(p=>({...p, benefits: {...p?.benefits, discountPercentage:e.target.valueAsNumber}}))} /></div>
-                        <div className="flex items-center gap-4"><Label>مضاعف النقاط (x)</Label><Input className="w-24" type="number" value={currentPlan?.benefits?.pointsMultiplier || 1} onChange={e => setCurrentPlan(p=>({...p, benefits: {...p?.benefits, pointsMultiplier:e.target.valueAsNumber}}))} /></div>
+                        <div className="flex items-center space-x-2 space-x-reverse"><Checkbox id="freeDelivery" checked={currentPlan?.benefits?.hasFreeDelivery} onCheckedChange={c => setCurrentPlan(p=>({...p, benefits: {...p?.benefits!, hasFreeDelivery:!!c}}))} /><Label htmlFor="freeDelivery">توصيل مجاني</Label></div>
+                        <div className="flex items-center gap-4"><Label>نسبة خصم (%)</Label><Input className="w-24" type="number" value={currentPlan?.benefits?.discountPercentage || 0} onChange={e => setCurrentPlan(p=>({...p, benefits: {...p?.benefits!, discountPercentage:e.target.valueAsNumber}}))} /></div>
+                        <div className="flex items-center gap-4"><Label>مضاعف النقاط (x)</Label><Input className="w-24" type="number" value={currentPlan?.benefits?.pointsMultiplier || 1} onChange={e => setCurrentPlan(p=>({...p, benefits: {...p?.benefits!, pointsMultiplier:e.target.valueAsNumber}}))} /></div>
                     </div>
                 </div>
                  <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50">
@@ -344,6 +412,20 @@ export default function VipPlansPage() {
             </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>هل أنت متأكد تماماً؟</AlertDialogTitle>
+                <AlertDialogDescription>سيتم حذف باقة "{planToDelete?.name}" بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>إلغاء</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">نعم، قم بالحذف</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

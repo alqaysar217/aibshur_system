@@ -359,6 +359,11 @@
               "pointsMultiplier": { "type": "number" }
             }
           },
+          "features": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "A list of text-based features for the plan."
+          },
           "isActive": { "type": "boolean" }
         },
         "required": ["planId", "name", "price", "durationInDays", "benefits", "isActive"]
@@ -452,5 +457,4 @@
     }
   }
 }
-
     

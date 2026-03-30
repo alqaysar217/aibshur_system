@@ -42,6 +42,7 @@ export interface VipPlan {
     price: number;
     durationInDays: number;
     benefits: VipPlanBenefits;
+    features?: string[];
     isActive: boolean;
 }
 
