@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { useFirestore, useUser, useCollection } from '@/firebase';
-import { collection, doc, query, where, getDocs, limit, runTransaction, serverTimestamp, getDoc, setDoc, orderBy, writeBatch, addDoc } from 'firebase/firestore';
+import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { collection, doc, query, where, getDocs, limit, runTransaction, getDoc, setDoc, orderBy, writeBatch, addDoc } from 'firebase/firestore';
 import type { User, LoyaltyPointsConfig, AdminConfigSetting, LoyaltyTransaction, FinanceTransaction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 
 const CONFIG_DOC_ID = "loyalty_points_config";
 
@@ -74,9 +75,13 @@ export default function PointsSystemPage() {
       }
       await setDoc(configDocRef, newConfig, { merge: true });
       toast({ title: 'تم حفظ الإعدادات بنجاح' });
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast({ variant: 'destructive', title: 'فشل حفظ الإعدادات' });
+      if (error.code === 'permission-denied') {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({path: configDocRef.path, operation: 'write', requestResourceData: newConfig}));
+      } else {
+        toast({ variant: 'destructive', title: 'فشل حفظ الإعدادات' });
+      }
     } finally {
       setIsConfigSubmitting(false);
     }
@@ -142,18 +147,17 @@ export default function PointsSystemPage() {
             const loyaltyTxRef = doc(collection(firestore, 'loyalty_transactions'));
             const financeTxRef = doc(collection(firestore, 'financeTransactions'));
 
-            const loyaltyTx: LoyaltyTransaction = {
+            const loyaltyTx: Omit<LoyaltyTransaction, 'id' | 'timestamp'> = {
                 transactionId: loyaltyTxRef.id,
                 userId: foundUser.uid,
                 type: 'redeem',
                 points: -pointsNum,
                 related_finance_tx_id: financeTxRef.id,
-                description: `تحويل ${pointsNum} نقطة إلى ${creditAmount} ر.ي رصيد`,
-                timestamp: serverTimestamp()
+                description: `تحويل ${pointsNum} نقطة إلى ${creditAmount} ر.ي رصيد`
             };
-            transaction.set(loyaltyTxRef, loyaltyTx);
+            transaction.set(loyaltyTxRef, {...loyaltyTx, timestamp: new Date().toISOString() });
             
-            const financeTx: FinanceTransaction = {
+            const financeTx: Omit<FinanceTransaction, 'id'> = {
                  transactionId: financeTxRef.id,
                  userUid: foundUser.uid,
                  amount: creditAmount,
@@ -165,13 +169,17 @@ export default function PointsSystemPage() {
             transaction.set(financeTxRef, financeTx);
         });
 
-        toast({ title: "تم تحويل النقاط بنجاح", description: `تمت إضافة ${creditAmount} ر.ي إلى محفظة العميل.` });
+        toast({ title: "تم تحويل النقاط بنجاح", description: `تمت إضافة ${conversionCredit} ر.ي إلى محفظة العميل.` });
         setFoundUser(null);
         setSearchPhone('');
         setPointsToConvert('');
     } catch(error: any) {
         console.error(error);
-        toast({ variant: 'destructive', title: "فشل تحويل النقاط", description: error.message });
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({path: `users/${foundUser.uid}`, operation: 'write'}));
+        } else {
+            toast({ variant: 'destructive', title: "فشل تحويل النقاط", description: error.message });
+        }
     } finally {
         setIsConverting(false);
     }
@@ -179,11 +187,17 @@ export default function PointsSystemPage() {
 
   const conversionCredit = useMemo(() => {
     const points = parseInt(pointsToConvert, 10);
-    if (isNaN(points) || points <= 0) return 0;
+    if (isNaN(points) || points <= 0 || !config.points_per_rial_credit) return 0;
     return points / config.points_per_rial_credit;
   }, [pointsToConvert, config]);
 
-  if (loyaltyTxError) return <p className="text-destructive text-center p-8">خطأ في جلب البيانات: {loyaltyTxError.message}</p>;
+  const dbError = loyaltyTxError;
+  if (dbError) {
+    if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('permission-denied')) {
+        return <SetupFirestoreMessage />;
+    }
+    return <p className="text-destructive text-center p-8">خطأ في جلب البيانات: {dbError.message}</p>;
+  }
   if (!firestore) return <SetupFirestoreMessage />;
 
   return (
@@ -200,11 +214,11 @@ export default function PointsSystemPage() {
                         <div className="space-y-4">
                             <div className="space-y-2">
                                 <Label>كل كم ريال يمني يساوي 1 نقطة؟</Label>
-                                <Input type="number" value={config.rials_per_point} onChange={e => setConfig(c => ({...c, rials_per_point: e.target.valueAsNumber}))} />
+                                <Input type="number" value={config.rials_per_point} onChange={e => setConfig(c => ({...c, rials_per_point: e.target.valueAsNumber || 0}))} />
                             </div>
                              <div className="space-y-2">
                                 <Label>كل كم نقطة تساوي 1 ريال يمني في المحفظة؟</Label>
-                                <Input type="number" value={config.points_per_rial_credit} onChange={e => setConfig(c => ({...c, points_per_rial_credit: e.target.valueAsNumber}))} />
+                                <Input type="number" value={config.points_per_rial_credit} onChange={e => setConfig(c => ({...c, points_per_rial_credit: e.target.valueAsNumber || 0}))} />
                             </div>
                         </div>
                     )}
@@ -285,7 +299,7 @@ export default function PointsSystemPage() {
                         <TableRow key={tx.id}>
                             <TableCell className="font-bold text-xs">{tx.userId.slice(0,10)}...</TableCell>
                             <TableCell className="text-center">
-                               <Badge variant={tx.type === 'redeem' ? 'destructive' : 'secondary'}>
+                               <Badge variant={tx.type === 'redeem' ? 'destructive' : tx.type === 'earn' ? 'default' : 'secondary'}>
                                  {tx.type === 'redeem' ? 'استبدال' : tx.type === 'earn' ? 'كسب' : 'تعديل'}
                                </Badge>
                             </TableCell>
@@ -293,7 +307,7 @@ export default function PointsSystemPage() {
                                 {tx.points.toLocaleString()}
                             </TableCell>
                             <TableCell className="text-center text-xs text-gray-500">{tx.description}</TableCell>
-                            <TableCell className="text-center text-xs font-mono text-gray-500">{tx.timestamp ? format(tx.timestamp.toDate(), 'dd/MM/yy hh:mm a', { locale: ar }) : '...'}</TableCell>
+                            <TableCell className="text-center text-xs font-mono text-gray-500">{tx.timestamp ? format(new Date(tx.timestamp), 'dd/MM/yy hh:mm a', { locale: ar }) : '...'}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

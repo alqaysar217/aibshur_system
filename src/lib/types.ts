@@ -294,7 +294,7 @@ export interface Donation {
     bankId: string;
     receiptNumber?: string;
     receiptImage?: string;
-    timestamp: any;
+    timestamp: string;
 }
 
 export interface LoyaltyPointsConfig {
@@ -311,5 +311,5 @@ export interface LoyaltyTransaction {
     related_order_id?: string;
     related_finance_tx_id?: string;
     description: string;
-    timestamp: any;
+    timestamp: string;
 }
