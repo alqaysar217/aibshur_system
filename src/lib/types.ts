@@ -78,6 +78,9 @@ export interface User {
     rating: number;
     wallet_balance: number;
     current_location?: GeoPoint;
+    total_orders?: number;
+    outstanding_commission?: number;
+    debt?: number;
   };
   vip_details?: {
     isActive: boolean;

@@ -61,10 +61,15 @@ const navGroups = [
         ]
     },
     {
+        title: 'أداء المناديب',
+        links: [
+            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers', icon: Truck },
+        ]
+    },
+    {
         title: 'التقارير والتحليلات',
         links: [
             { name: 'تقارير المبيعات', href: '/admin/reports/sales', icon: AreaChart },
-            { name: 'أداء المناديب', href: '/admin/reports/drivers', icon: Truck },
             { name: 'أدوات المطورين', href: '/admin/reports/data-seeder', icon: Database },
         ]
     }
@@ -108,7 +113,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
 
         <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
           {navGroups.map((group) => {
-            const isAdminOnlyGroup = ['الإدارة المالية', 'التقارير والتحليلات', 'إدارة المواعيد'].includes(group.title);
+            const isAdminOnlyGroup = ['الإدارة المالية', 'التقارير والتحليلات', 'إدارة المواعيد', 'أداء المناديب'].includes(group.title);
             if (isAdminOnlyGroup && !userData?.roles?.is_admin) {
               return null; // Don't render admin-only groups for non-admins
             }
