@@ -82,6 +82,10 @@ service cloud.firestore {
         allow read, write: if true; // DEV-ONLY: Open write access
     }
 
+    match /complaints/{complaintId} {
+        allow read, write: if true; // DEV-ONLY: Open write access
+    }
+
     // DEV-ONLY: Allow full access to users collection for admin panel development
     match /users/{userId} {
       allow read, write: if true;
