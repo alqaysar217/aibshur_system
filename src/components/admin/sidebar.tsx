@@ -100,32 +100,37 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
-          {navGroups.map((group) => (
-            (group.title !== 'التقارير والتحليلات' || userData?.roles?.is_admin) && // Conditionally render reports
-            <div key={group.title}>
-                {!isCollapsed && <h2 className="px-2 py-1 text-xs font-bold text-muted-foreground uppercase tracking-wider">{group.title}</h2>}
-                <div className="space-y-1">
-                 {group.links.map((item) => (
-                    <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={handleLinkClick}
-                    className={cn(
-                        "flex items-center text-sm font-black p-2 rounded-lg transition-colors",
-                        pathname === item.href
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-foreground/70 hover:bg-muted hover:text-foreground',
-                        isCollapsed && "justify-center"
-                    )}
-                    title={isCollapsed ? item.name : ''}
-                    >
-                    <item.icon className={cn("w-5 h-5", !isCollapsed && 'ml-3')} />
-                    {!isCollapsed && <span>{item.name}</span>}
-                    </Link>
-                ))}
-                </div>
-            </div>
-          ))}
+          {navGroups.map((group) => {
+            const isAdminOnlyGroup = ['الإدارة المالية', 'التقارير والتحليلات'].includes(group.title);
+            if (isAdminOnlyGroup && !userData?.roles?.is_admin) {
+              return null; // Don't render admin-only groups for non-admins
+            }
+            return (
+              <div key={group.title}>
+                  {!isCollapsed && <h2 className="px-2 py-1 text-xs font-bold text-muted-foreground uppercase tracking-wider">{group.title}</h2>}
+                  <div className="space-y-1">
+                  {group.links.map((item) => (
+                      <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={handleLinkClick}
+                      className={cn(
+                          "flex items-center text-sm font-black p-2 rounded-lg transition-colors",
+                          pathname === item.href
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-foreground/70 hover:bg-muted hover:text-foreground',
+                          isCollapsed && "justify-center"
+                      )}
+                      title={isCollapsed ? item.name : ''}
+                      >
+                      <item.icon className={cn("w-5 h-5", !isCollapsed && 'ml-3')} />
+                      {!isCollapsed && <span>{item.name}</span>}
+                      </Link>
+                  ))}
+                  </div>
+              </div>
+            )
+          })}
         </nav>
 
         <div className="p-3 border-t border-border mt-auto">
