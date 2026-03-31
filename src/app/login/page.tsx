@@ -29,24 +29,6 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [otpSent, setOtpSent] = useState(false);
 
-    // Development mode guard: If in development, bypass this page entirely.
-    if (process.env.NODE_ENV === 'development') {
-        useEffect(() => {
-            router.replace('/admin');
-        }, [router]);
-
-        return (
-            <div className="flex h-screen w-full items-center justify-center bg-background p-4 text-center">
-                 <Card className="w-full max-w-sm">
-                    <CardHeader>
-                        <CardTitle>Auth Bypassed</CardTitle>
-                        <CardDescription>Authentication is bypassed in development mode. You are being redirected to the admin dashboard.</CardDescription>
-                    </CardHeader>
-                </Card>
-            </div>
-        );
-    }
-
     const setupRecaptcha = () => {
         if (!auth) return;
         if (!window.recaptchaVerifier) {
@@ -109,7 +91,7 @@ export default function LoginPage() {
             toast({ title: 'أهلاً بك', description: 'تم تسجيل الدخول بنجاح' });
             
             if (userDoc.exists()) {
-                router.push('/'); // Redirect to homepage, AppLayout will handle role-based redirect
+                router.push('/admin'); // Redirect to admin dashboard after login
             } else {
                 router.push('/register'); // New user, redirect to registration
             }
