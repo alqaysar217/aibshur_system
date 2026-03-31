@@ -27,13 +27,7 @@ const navGroups = [
         adminOnly: true,
         links: [
             { name: 'إدارة الطلبات', href: '/admin/confirm-orders', icon: ClipboardCheck },
-        ]
-    },
-     {
-        title: 'إدارة المواعيد',
-        adminOnly: true,
-        links: [
-            { name: 'الطلبات المجدولة', href: '/admin/appointments', icon: Calendar },
+            { name: 'إدارة المواعيد', href: '/admin/appointments', icon: Calendar },
         ]
     },
     {
@@ -70,7 +64,7 @@ const navGroups = [
         title: 'أداء المناديب',
         adminOnly: true,
         links: [
-            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers', icon: Truck },
+            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers-performance', icon: Truck },
         ]
     },
     {
