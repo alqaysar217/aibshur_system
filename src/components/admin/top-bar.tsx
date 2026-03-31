@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, Bell, ChevronDown } from 'lucide-react';
+import { Menu, Bell, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,13 +14,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useUser, useAuth } from '@/firebase';
 import { Skeleton } from '../ui/skeleton';
 import Link from 'next/link';
-import Image from 'next/image';
 
 interface AdminTopBarProps {
   toggleMobile: () => void;
+  toggleCollapse: () => void;
+  isCollapsed: boolean;
 }
 
-export function AdminTopBar({ toggleMobile }: AdminTopBarProps) {
+export function AdminTopBar({ toggleMobile, toggleCollapse, isCollapsed }: AdminTopBarProps) {
   const { userData, loading: userLoading } = useUser();
   const auth = useAuth();
   
@@ -43,9 +44,16 @@ export function AdminTopBar({ toggleMobile }: AdminTopBarProps) {
             <Menu className="w-6 h-6" />
             <span className="sr-only">Toggle Sidebar</span>
         </Button>
-        <div className="hidden lg:block">
-            <Image src="https://i.postimg.cc/L8g1v4w1/absher-logo-2.png" alt="أبشر Logo" width={100} height={34} />
-        </div>
+        {/* Desktop Collapse Toggle */}
+        <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCollapse}
+            className="hidden lg:flex"
+        >
+            {isCollapsed ? <ChevronLeft className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
+            <span className="sr-only">Toggle Sidebar</span>
+        </Button>
       </div>
       
       <div className="flex items-center gap-4">
