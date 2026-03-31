@@ -1,4 +1,5 @@
-import type { City, User, Store, Product, Order, FinanceTransaction, CategoryFilter } from './types';
+import type { City, User, Store, Product, Order, FinanceTransaction, CategoryFilter, AppBank, Donation, LoyaltyTransaction, LoyaltyPointsConfig } from './types';
+import { addDays, set, subDays, nextSaturday } from 'date-fns';
 
 // --- SUPER ADMINS ---
 export const mockMasterUser1: User = {
@@ -12,6 +13,7 @@ export const mockMasterUser1: User = {
   last_login_at: new Date().toISOString(),
   account_status: { is_blocked: false },
   wallet_balance: 150000,
+  loyalty_points: 250,
   store_id: 'store-1',
   isMock: true,
 };
@@ -73,16 +75,11 @@ const mockDriver5: User = { uid: 'mock-driver-uid-5', phone: '777200005', full_n
 
 
 // --- NORMAL USERS ---
-const mockUser1: User = { uid: 'mock-user-uid-1', phone: '777300001', full_name: 'أحمد عبدالله', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 5000, isMock: true, };
-const mockUser2: User = { uid: 'mock-user-uid-2', phone: '777300002', full_name: 'فاطمة محمد', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 12000, isMock: true, };
+const mockUser1: User = { uid: 'mock-user-uid-1', phone: '777300001', full_name: 'أحمد عبدالله', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 5000, loyalty_points: 120, isMock: true, };
+const mockUser2: User = { uid: 'mock-user-uid-2', phone: '777300002', full_name: 'فاطمة محمد', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 12000, loyalty_points: 85, isMock: true, };
 const mockUser3: User = { uid: 'mock-user-uid-3', phone: '777300003', full_name: 'يوسف خالد', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 0, isMock: true, };
 const mockUser4: User = { uid: 'mock-user-uid-4', phone: '777300004', full_name: 'مريم علي', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: true, reason: 'حساب غير نشط' }, wallet_balance: 800, isMock: true, };
 const mockUser5: User = { uid: 'mock-user-uid-5', phone: '777300005', full_name: 'إبراهيم حسن', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 25000, isMock: true, };
-const mockUser6: User = { uid: 'mock-user-uid-6', phone: '777300006', full_name: 'عائشة سعيد', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 100, isMock: true, };
-const mockUser7: User = { uid: 'mock-user-uid-7', phone: '777300007', full_name: 'عبدالرحمن سالم', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 9000, isMock: true, };
-const mockUser8: User = { uid: 'mock-user-uid-8', phone: '777300008', full_name: 'سارة ياسر', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 7500, isMock: true, };
-const mockUser9: User = { uid: 'mock-user-uid-9', phone: '777300009', full_name: 'مصطفى جمال', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 1500, isMock: true, };
-const mockUser10: User = { uid: 'mock-user-uid-10', phone: '777300010', full_name: 'نور حسين', roles: { is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, wallet_balance: 3000, isMock: true, };
 
 // --- AGGREGATED USERS ---
 export const mockAdminUser: User = mockMasterUser1;
@@ -91,10 +88,34 @@ export const mockUsers: User[] = [
   mockAdmin1, mockAdmin2,
   mockVendor1, mockVendor2, mockVendor3, mockVendor4, mockVendor5,
   mockDriver1, mockDriver2, mockDriver3, mockDriver4, mockDriver5,
-  mockUser1, mockUser2, mockUser3, mockUser4, mockUser5, mockUser6, mockUser7, mockUser8, mockUser9, mockUser10
+  mockUser1, mockUser2, mockUser3, mockUser4, mockUser5,
 ];
 
 // --- OTHER MOCKS ---
+export const mockBanks: AppBank[] = [
+    { id: 'bank-kareemi', bankId: 'bank-kareemi', bank_name: 'بنك الكريمي', account_number: '123456789', account_holder: 'شركة أبشر', bank_logo: 'https://i.postimg.cc/rsP4G5j7/karemi.png', is_active: true },
+    { id: 'bank-amalk', bankId: 'bank-amalk', bank_name: 'بنك الأمل', account_number: '987654321', account_holder: 'شركة أبشر', bank_logo: 'https://i.postimg.cc/W34dGj2n/alamal.png', is_active: true },
+];
+
+export const mockDonations: Omit<Donation, 'id' | 'donationId' | 'timestamp'>[] = [
+    { userId: mockUser1.uid, userName: mockUser1.full_name, userPhone: mockUser1.phone, donationType: 'siquia', amount: 5000, bankId: 'bank-kareemi', receiptNumber: 'R-1001', receiptImage: 'https://picsum.photos/seed/receipt1/400' },
+    { userName: 'فاعل خير', donationType: 'itiam', amount: 10000, bankId: 'bank-amalk', receiptNumber: 'R-1002', receiptImage: 'https://picsum.photos/seed/receipt2/400' },
+    { userId: mockUser2.uid, userName: mockUser2.full_name, userPhone: mockUser2.phone, donationType: 'general', amount: 7500, bankId: 'bank-kareemi', receiptNumber: 'R-1003', receiptImage: 'https://picsum.photos/seed/receipt3/400' },
+];
+
+export const mockLoyaltyConfig: LoyaltyPointsConfig = {
+    points_per_yer: 1000,
+    cash_per_1000_points: 1000,
+    vip_multiplier: 1.5,
+};
+
+export const mockLoyaltyTransactions: Omit<LoyaltyTransaction, 'id' | 'transactionId' | 'timestamp'>[] = [
+    { userId: mockUser1.uid, type: 'earn', points: 50, description: 'كسب نقاط من طلب #1234' },
+    { userId: mockUser1.uid, type: 'redeem', points: -20, description: 'استبدال نقاط' },
+    { userId: mockUser2.uid, type: 'earn', points: 85, description: 'كسب نقاط من طلب #5678' },
+    { userId: mockMasterUser1.uid, type: 'manual_adjustment', points: 250, description: 'مكافأة مدير' },
+];
+
 export const mockCities: City[] = [
   { id: 'sanaa', cityId: 'sanaa', name_ar: 'صنعاء', name_en: 'Sana\'a', country_code: 'YE', is_active: true, support_number: '777636008' },
   { id: 'aden', cityId: 'aden', name_ar: 'عدن', name_en: 'Aden', country_code: 'YE', is_active: true, support_number: '777636008' },

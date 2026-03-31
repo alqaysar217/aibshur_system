@@ -17,24 +17,28 @@ import InstallPwaButton from './install-pwa-button';
 const navGroups = [
     {
         title: 'الرئيسية',
+        adminOnly: false,
         links: [
             { name: 'لوحة التحكم', href: '/admin', icon: LayoutDashboard },
         ]
     },
     {
         title: 'العمليات اليومية',
+        adminOnly: true,
         links: [
             { name: 'إدارة الطلبات', href: '/admin/confirm-orders', icon: ClipboardCheck },
         ]
     },
      {
         title: 'إدارة المواعيد',
+        adminOnly: true,
         links: [
             { name: 'الطلبات المجدولة', href: '/admin/appointments', icon: Calendar },
         ]
     },
     {
         title: 'الإدارة الأساسية',
+        adminOnly: true,
         links: [
             { name: 'إدارة المستخدمين', href: '/admin/users', icon: Users },
             { name: 'إدارة المتاجر', href: '/admin/stores', icon: Store },
@@ -45,6 +49,7 @@ const navGroups = [
     },
     {
         title: 'الإدارة المالية',
+        adminOnly: true,
         links: [
             { name: 'شحن المحافظ (إيداع)', href: '/admin/wallet-requests', icon: Wallet },
             { name: 'حسابات البنوك', href: '/admin/bank-accounts', icon: Banknote },
@@ -54,6 +59,7 @@ const navGroups = [
     },
     {
         title: 'التسويق والنمو',
+        adminOnly: true,
         links: [
             { name: 'كوبونات الخصم', href: '/admin/marketing/coupons', icon: Ticket },
             { name: 'الإعلانات المتحركة', href: '/admin/marketing/banners', icon: GalleryHorizontal },
@@ -62,12 +68,14 @@ const navGroups = [
     },
     {
         title: 'أداء المناديب',
+        adminOnly: true,
         links: [
-            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers-performance', icon: Truck },
+            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers', icon: Truck },
         ]
     },
     {
         title: 'التقارير والتحليلات',
+        adminOnly: true,
         links: [
             { name: 'تقارير المبيعات', href: '/admin/reports/sales', icon: AreaChart },
             { name: 'أدوات المطورين', href: '/admin/reports/data-seeder', icon: Database },
@@ -83,7 +91,7 @@ const settingsNav = [
 export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) {
   const pathname = usePathname();
   const auth = useAuth();
-  const { userData } = useUser();
+  const { userData, loading } = useUser();
 
   const handleLinkClick = () => {
     if(isMobileOpen) {
@@ -113,9 +121,8 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
 
         <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
           {navGroups.map((group) => {
-            const isAdminOnlyGroup = ['الإدارة المالية', 'التقارير والتحليلات', 'إدارة المواعيد', 'أداء المناديب'].includes(group.title);
-            if (isAdminOnlyGroup && !userData?.roles?.is_admin) {
-              return null; // Don't render admin-only groups for non-admins
+            if (group.adminOnly && (!userData || !userData.roles?.is_admin)) {
+                return null;
             }
             return (
               <div key={group.title}>
