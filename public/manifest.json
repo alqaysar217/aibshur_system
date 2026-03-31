@@ -1,0 +1,21 @@
+{
+  "name": "أبشر - Absher",
+  "short_name": "أبشر",
+  "description": "لوحة التحكم الخاصة بمنصة أبشر للتوصيل",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#1FAF9A",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

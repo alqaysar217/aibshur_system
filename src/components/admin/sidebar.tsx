@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Button } from '../ui/button';
 import { useAuth, useUser } from '@/firebase';
+import InstallPwaButton from './install-pwa-button';
 
 const navGroups = [
     {
@@ -154,6 +155,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
               </Link>
             ))}
             </div>
+           <InstallPwaButton isCollapsed={isCollapsed} />
            <Button onClick={handleLogout} variant="ghost" className="w-full justify-start font-black text-red-500 hover:bg-red-500/10 hover:text-red-400 mt-2">
              <LogOut className={cn("w-5 h-5", !isCollapsed && 'ml-2')} />
              {!isCollapsed && <span>تسجيل الخروج</span>}
