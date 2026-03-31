@@ -11,9 +11,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    // Optional: Set initial collapsed state based on screen size
     const checkSize = () => {
-      if (window.innerWidth < 1024) { // lg breakpoint
+      if (window.innerWidth < 1024) {
         setIsCollapsed(true);
       }
     };
@@ -32,7 +31,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen w-full bg-background font-body overflow-hidden" dir="rtl">
-      {/* Sidebar Overlay for Mobile */}
       {isMobileOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-[100] lg:hidden backdrop-blur-sm animate-in fade-in duration-300"
@@ -40,14 +38,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         />
       )}
 
-      {/* Sidebar */}
       <AdminSidebar 
+        key={Date.now()}
         isMobileOpen={isMobileOpen}
         setIsMobileOpen={setIsMobileOpen}
         isCollapsed={isCollapsed}
       />
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ease-in-out"
            style={{ marginRight: isCollapsed ? '5rem' : '16rem' }}
       >

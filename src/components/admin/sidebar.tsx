@@ -57,9 +57,8 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
   
   return (
     <aside
-      key={Date.now()} 
       className={cn(
-      "Sidebar_V2_Absher fixed top-0 right-0 h-screen z-[101] bg-white border-l border-border flex flex-col transition-all duration-300 ease-in-out",
+      "absher-sidebar-new fixed top-0 right-0 h-screen z-[101] bg-white border-l border-border flex flex-col transition-all duration-300 ease-in-out",
       "lg:relative lg:translate-x-0",
       isMobileOpen ? 'translate-x-0 shadow-2xl w-64' : 'translate-x-full',
       isCollapsed ? 'lg:w-20' : 'lg:w-64'
