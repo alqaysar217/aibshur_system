@@ -197,6 +197,7 @@ export interface Order {
   created_at: string; // ISO 8601
   updated_at: string; // ISO 8601
   order_history?: OrderHistoryItem[];
+  isMock?: boolean;
   // Denormalized for security rules
   storeOwnerUid: string;
 }
@@ -281,6 +282,7 @@ export interface WalletTopupRequest {
     rejection_reason?: string;
     processed_by?: string; // Admin UID
     processed_at?: string; // ISO 8601
+    isMock?: boolean;
 }
 
 export interface Donation {

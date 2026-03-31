@@ -6,7 +6,7 @@ import {
   BadgePercent, Settings, LifeBuoy, ShieldCheck, BarChart2,
   ChevronDown, LogOut, Package, ChevronsRight, CircleDot, UserPlus, Building2,
   Ticket, GalleryHorizontal, Users, Banknote, Wallet, Crown, HeartHandshake, Star, FileText,
-  MessageSquareQuote, ClipboardCheck
+  MessageSquareQuote, ClipboardCheck, Database
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -66,6 +66,7 @@ const reportsNav = {
   links: [
     { name: 'تقارير المبيعات', href: '/admin/reports/sales', icon: CircleDot },
     { name: 'أداء المناديب', href: '/admin/reports/drivers', icon: CircleDot },
+    { name: 'حقن البيانات', href: '/admin/reports/data-seeder', icon: Database },
   ]
 };
 

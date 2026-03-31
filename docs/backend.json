@@ -179,6 +179,7 @@
         "delivery_address_text": { "type": "string" },
         "created_at": { "type": "string", "format": "date-time" },
         "updated_at": { "type": "string", "format": "date-time" },
+        "isMock": { "type": "boolean", "description": "Flag to identify mock data for testing." },
         "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." },
         "order_history": {
             "type": "array",
@@ -295,7 +296,8 @@
         "type": { "type": "string", "enum": ["manual_topup", "client_request"], "description": "The type of top-up request." },
         "rejection_reason": { "type": "string", "description": "Reason for rejection, if applicable." },
         "processed_by": { "type": "string", "description": "UID of the admin who processed the request." },
-        "processed_at": { "type": "string", "format": "date-time", "description": "When the request was processed." }
+        "processed_at": { "type": "string", "format": "date-time", "description": "When the request was processed." },
+        "isMock": { "type": "boolean", "description": "Flag to identify mock data for testing." }
       },
       "required": ["transactionId", "userId", "user_phone", "user_name", "amount", "bank_id", "status", "timestamp"]
     },
