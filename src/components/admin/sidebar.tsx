@@ -6,7 +6,7 @@ import {
   BadgePercent, Settings, LifeBuoy, ShieldCheck, BarChart2,
   ChevronDown, LogOut, Package, ChevronsRight, CircleDot, UserPlus, Building2,
   Ticket, GalleryHorizontal, Users, Banknote, Wallet, Crown, HeartHandshake, Star, FileText,
-  MessageSquareQuote, ClipboardCheck, Database, SlidersHorizontal, UserCog
+  MessageSquareQuote, ClipboardCheck, Database, SlidersHorizontal, UserCog, Calendar
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -25,6 +25,12 @@ const navGroups = [
         title: 'العمليات اليومية',
         links: [
             { name: 'إدارة الطلبات', href: '/admin/confirm-orders', icon: ClipboardCheck },
+        ]
+    },
+     {
+        title: 'إدارة المواعيد',
+        links: [
+            { name: 'الطلبات المجدولة', href: '/admin/appointments', icon: Calendar },
         ]
     },
     {
@@ -102,7 +108,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
 
         <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
           {navGroups.map((group) => {
-            const isAdminOnlyGroup = ['الإدارة المالية', 'التقارير والتحليلات'].includes(group.title);
+            const isAdminOnlyGroup = ['الإدارة المالية', 'التقارير والتحليلات', 'إدارة المواعيد'].includes(group.title);
             if (isAdminOnlyGroup && !userData?.roles?.is_admin) {
               return null; // Don't render admin-only groups for non-admins
             }

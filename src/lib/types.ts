@@ -9,6 +9,7 @@ export type DiscountType = 'percentage' | 'fixed_amount';
 export type CouponScope = 'global' | 'store' | 'product';
 export type DonationType = 'siquia' | 'itiam' | 'jariyah' | 'general';
 export type LoyaltyTransactionType = 'earn' | 'redeem' | 'manual_adjustment';
+export type AppointmentStatus = 'scheduled' | 'confirmed' | 'dispatched' | 'completed' | 'cancelled';
 
 
 // Using a generic GeoPoint type as Firestore GeoPoint is a class instance.
@@ -206,6 +207,23 @@ export interface Order {
   isMock?: boolean;
   // Denormalized for security rules
   storeOwnerUid: string;
+}
+
+export interface Appointment {
+    id?: string;
+    appointmentId: string;
+    clientUid: string;
+    clientName: string;
+    clientPhone: string;
+    clientAddress: string;
+    storeId: string;
+    storeName: string;
+    items: OrderItem[];
+    totalPrice: number;
+    paymentMethod: PaymentMethod;
+    appointmentDate: string; // ISO 8601
+    status: AppointmentStatus;
+    createdAt: string; // ISO 8601
 }
 
 export interface FinanceTransaction {

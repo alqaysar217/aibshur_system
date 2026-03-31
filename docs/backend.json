@@ -221,6 +221,27 @@
       },
       "required": ["productId", "productName_ar", "quantity", "price"]
     },
+     "Appointment": {
+        "title": "Appointment",
+        "description": "Represents a scheduled order or appointment.",
+        "type": "object",
+        "properties": {
+            "appointmentId": { "type": "string" },
+            "clientUid": { "type": "string", "description": "Reference to the User." },
+            "clientName": { "type": "string", "description": "Denormalized client name." },
+            "clientPhone": { "type": "string", "description": "Denormalized client phone." },
+            "clientAddress": { "type": "string", "description": "Detailed delivery address." },
+            "storeId": { "type": "string", "description": "Reference to the Store." },
+            "storeName": { "type": "string", "description": "Denormalized store name." },
+            "items": { "type": "array", "items": { "$ref": "#/entities/OrderItem" } },
+            "totalPrice": { "type": "number" },
+            "paymentMethod": { "type": "string", "enum": ["cash", "wallet", "card"] },
+            "appointmentDate": { "type": "string", "format": "date-time", "description": "The scheduled date and time for the delivery." },
+            "status": { "type": "string", "enum": ["scheduled", "confirmed", "dispatched", "completed", "cancelled"] },
+            "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["appointmentId", "clientUid", "storeId", "items", "totalPrice", "appointmentDate", "status", "createdAt"]
+    },
     "FinanceTransaction": {
       "title": "Finance Transaction",
       "description": "Represents a financial transaction.",
@@ -496,6 +517,10 @@
     "/orders/{orderId}": {
       "schema": { "$ref": "#/entities/Order" },
       "description": "Customer orders, readable by participants."
+    },
+     "/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Scheduled orders and appointments."
     },
     "/financeTransactions/{transactionId}": {
       "schema": { "$ref": "#/entities/FinanceTransaction" },

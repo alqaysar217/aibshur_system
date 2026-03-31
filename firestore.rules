@@ -37,6 +37,10 @@ service cloud.firestore {
     match /orders/{orderId} {
       allow read, write: if true; // DEV-ONLY: Open write access
     }
+    
+    match /appointments/{appointmentId} {
+      allow read, write: if true; // DEV-ONLY: Open write access
+    }
 
     match /ad_banners/{bannerId} {
       allow read, write: if true; // DEV-ONLY: Open write access
@@ -83,7 +87,7 @@ service cloud.firestore {
     }
 
     match /complaints/{complaintId} {
-        allow read, write: if true; // DEV-ONLY: Open write access
+        allow read, write: if true;
     }
 
     // DEV-ONLY: Allow full access to users collection for admin panel development
