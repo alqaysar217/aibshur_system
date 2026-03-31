@@ -5,10 +5,9 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Calendar, ShoppingCart, Users, Building, Truck, BarChart2, Package, Shapes, MapPin,
   Wallet, Banknote, Crown, Star, TicketPercent, GalleryHorizontal, HeartHandshake, TrendingUp, Settings,
-  MessageSquare, Wrench, LogOut, Component
+  MessageSquare, Wrench, LogOut
 } from 'lucide-react';
 import Image from 'next/image';
-import InstallPwaButton from './install-pwa-button';
 
 const navLinks = [
   { href: '/admin', icon: LayoutDashboard, text: 'الرئيسية' },
@@ -17,9 +16,10 @@ const navLinks = [
   { href: '/admin/users', icon: Users, text: 'إدارة المستخدمين' },
   { href: '/admin/stores', icon: Building, text: 'إدارة المتاجر' },
   { href: '/admin/products', icon: Package, text: 'إدارة المنتجات' },
+  { href: '/admin/reports/drivers', icon: Truck, text: 'أداء المناديب' },
   { href: '/admin/categories', icon: Shapes, text: 'إدارة الفئات' },
-  { href: '/admin/cities', icon: MapPin, text: 'إدارة المدن' },
-  { href: '/admin/wallet-requests', icon: Wallet, text: 'شحن المحافظ (إيداع)' },
+  { href: '/admin/cities', icon: MapPin, text: 'إدارة المدن والمناطق' },
+  { href: '/admin/wallet-requests', icon: Wallet, text: 'شحن المحافظ' },
   { href: '/admin/bank-accounts', icon: Banknote, text: 'حسابات البنوك' },
   { href: '/admin/vip-plans', icon: Crown, text: 'باقات VIP' },
   { href: '/admin/points-system', icon: Star, text: 'نظام الولاء والنقاط' },
@@ -27,7 +27,6 @@ const navLinks = [
   { href: '/admin/marketing/banners', icon: GalleryHorizontal, text: 'الإعلانات المتحركة' },
   { href: '/admin/donations', icon: HeartHandshake, text: 'إدارة التبرعات' },
   { href: '/admin/reports/sales', icon: TrendingUp, text: 'تقارير المبيعات' },
-  { href: '/admin/reports/drivers', icon: BarChart2, text: 'أداء المناديب' },
   { href: '/admin/settings', icon: Settings, text: 'إعدادات النظام' },
   { href: '/admin/support', icon: MessageSquare, text: 'الدعم الفني' },
   { href: '/admin/reports/data-seeder', icon: Wrench, text: 'أدوات المطورين' },
@@ -65,13 +64,12 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
             {navLinks.map((link) => <NavLink key={link.href} {...link} />)}
         </nav>
         
         {/* Footer */}
         <div className="px-4 py-4 border-t shrink-0">
-             <InstallPwaButton isCollapsed={false} />
              <Link href="#">
                 <span
                 className={cn(

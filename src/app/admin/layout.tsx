@@ -40,7 +40,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <AdminTopBar 
           toggleMobile={() => setIsMobileOpen(!isMobileOpen)} 
-          toggleDesktop={() => {}} // Desktop toggle is not needed with the new flat design
         />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 bg-[#F5F7F6]">
