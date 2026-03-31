@@ -1,175 +1,210 @@
 "use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { 
-  TrendingUp, ShoppingBag, Truck, Users, 
-  ArrowUpRight, ArrowDownRight, MoreHorizontal,
-  ChevronLeft,
-  Store,
-  Building2,
-  DollarSign,
-  PackageCheck,
-  User,
-  BadgePercent
-} from "lucide-react"
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, PieChart, Pie, Cell 
-} from "recharts"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { TrendingUp, ShoppingBag, Users, Truck, DollarSign, PackageCheck, BarChartHorizontal, PieChart as PieChartIcon, User, Percent } from "lucide-react"
+import { AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Bar, BarChart as RechartsBarChart, Legend } from "recharts"
 import { useFirestore, useUser } from "@/firebase";
 import { collection, getDocs, query, where, orderBy, limit } from "firebase/firestore";
 import SetupFirestoreMessage from "@/components/admin/setup-firestore-message";
-import type { Order as OrderType, User as UserType } from "@/lib/types";
+import type { Order as OrderType, User as UserType, Store as StoreType } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
-import { format, subDays, differenceInDays } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, isWithinInterval, parseISO } from "date-fns";
 import { ar } from "date-fns/locale";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2 } from "lucide-react";
 
-const StatCardSkeleton = () => (
-    <Card className="border-border shadow-sm rounded-2xl bg-card">
-        <CardContent className="p-6">
-            <Skeleton className="h-12 w-12 rounded-2xl mb-4" />
-            <Skeleton className="h-4 w-24 mb-2" />
-            <Skeleton className="h-8 w-32" />
-        </CardContent>
-    </Card>
-);
 
-const ChartSkeleton = () => <Skeleton className="h-full w-full" />;
+// Skeletons
+const StatCardSkeleton = () => <Skeleton className="h-32 w-full rounded-2xl" />;
+const ChartSkeleton = () => <Skeleton className="h-80 w-full rounded-2xl" />;
+const TableSkeleton = () => <Skeleton className="h-64 w-full rounded-2xl" />;
 
-const TableRowSkeleton = () => (
-    <tr className="border-b border-border">
-        <td className="px-6 py-4"><Skeleton className="h-6 w-20" /></td>
-        <td className="px-6 py-4"><Skeleton className="h-6 w-32" /></td>
-        <td className="px-6 py-4"><Skeleton className="h-6 w-24" /></td>
-        <td className="px-6 py-4"><Skeleton className="h-6 w-20" /></td>
-        <td className="px-6 py-4"><Skeleton className="h-6 w-24" /></td>
-        <td className="px-6 py-4 text-left"><Skeleton className="h-6 w-16" /></td>
-    </tr>
-)
+// Types for aggregated data
+interface DailySales {
+  date: string;
+  sales: number;
+}
+interface StatusDistribution {
+  name: string;
+  value: number;
+}
+interface StorePerformance {
+    name: string;
+    orders: number;
+    sales: number;
+}
+
+// Color mapping for charts
+const statusColors: { [key: string]: string } = {
+    pending: '#FBBF24', // Amber 400
+    preparing: '#60A5FA', // Blue 400
+    out_for_delivery: '#34D399', // Emerald 400
+    delivered: '#1FAF9A', // Primary
+    cancelled: '#F87171', // Red 400
+    rejected: '#EF4444',     // Red 500
+};
 
 const statusLabels: { [key: string]: string } = {
     pending: 'قيد الانتظار',
     preparing: 'قيد التجهيز',
     out_for_delivery: 'في الطريق',
-    delivered: 'تم التوصيل',
+    delivered: 'مكتمل',
     cancelled: 'ملغي',
     rejected: 'مرفوض',
 };
 
-const statusColors: { [key: string]: string } = {
-    pending: '#F59E0B',    // Amber
-    preparing: '#3B82F6',    // Blue
-    out_for_delivery: '#14B8A6', // Teal
-    delivered: '#1FAF9A',    // Green (Primary)
-    cancelled: '#EF4444',    // Red
-    rejected: '#DC2626',     // Red Darker
-};
+const COLORS = ['#1FAF9A', '#34D399', '#60A5FA', '#FBBF24', '#F87171', '#EF4444'];
 
 export default function AdminDashboard() {
   const firestore = useFirestore();
   const { userData } = useUser();
-  const [firestoreError, setFirestoreError] = useState<Error | null>(null);
+  
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  // State for stats and charts
-  const [stats, setStats] = useState({
-      totalSales: 0,
-      totalOrders: 0,
-      totalDrivers: 0,
-      totalUsers: 0
-  });
-  const [weeklySalesData, setWeeklySalesData] = useState<any[]>([]);
-  const [orderStatusData, setOrderStatusData] = useState<any[]>([]);
-  const [recentOrders, setRecentOrders] = useState<OrderType[]>([]);
-  const [userMap, setUserMap] = useState<Map<string, string>>(new Map());
+  // State for all our BI data
+  const [salesData, setSalesData] = useState<DailySales[]>([]);
+  const [totalSales30d, setTotalSales30d] = useState(0);
+  const [salesGrowth, setSalesGrowth] = useState(0);
+  const [statusDistribution, setStatusDistribution] = useState<StatusDistribution[]>([]);
+  const [storePerformance, setStorePerformance] = useState<StorePerformance[]>([]);
+  const [newUserCount, setNewUserCount] = useState(0);
+  const [totalUserWallet, setTotalUserWallet] = useState(0);
+  const [driverStats, setDriverStats] = useState({ mostDeliveries: {name: 'N/A', value: 0}, highestDebt: {name: 'N/A', value: 0} });
+
 
   useEffect(() => {
+    if (!firestore || !userData?.roles?.is_admin) {
+        if (userData && !userData.roles?.is_admin) setLoading(false); // If user is not admin, stop loading
+        return;
+    }
+
     const fetchData = async () => {
-      if (!firestore) return;
       setLoading(true);
-
       try {
-        const [usersSnapshot, ordersSnapshot] = await Promise.all([
+        const [usersSnapshot, ordersSnapshot, storesSnapshot] = await Promise.all([
             getDocs(collection(firestore, 'users')),
-            getDocs(collection(firestore, 'orders'))
+            getDocs(collection(firestore, 'orders')),
+            getDocs(collection(firestore, 'stores')),
         ]);
-        
-        // --- Process Users ---
+
         const users = usersSnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserType));
-        const tempUserMap = new Map(users.map(u => [u.uid, u.full_name || 'مستخدم غير معروف']));
-        setUserMap(tempUserMap);
-        
-        const totalUsers = users.length;
-        const totalDrivers = users.filter(u => u.roles?.is_driver).length;
-
-        // --- Process Orders ---
         const orders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OrderType));
-        const totalOrders = orders.length;
-        
-        // Calculate Total Sales
-        const totalSales = orders
-            .filter(o => o.status === 'delivered')
-            .reduce((sum, o) => sum + o.total_price, 0);
+        const stores = storesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreType));
+        const storeMap = new Map(stores.map(s => [s.id, s.name_ar]));
 
-        // Calculate Weekly Sales
-        const today = new Date();
-        const weeklySales = Array(7).fill(0).map((_, i) => {
-            const d = subDays(today, i);
-            return { date: d, sales: 0, name: format(d, 'eee', { locale: ar }) };
-        }).reverse();
+        const today = startOfDay(new Date());
+        const thirtyDaysAgo = startOfDay(subDays(today, 29));
+        const sixtyDaysAgo = startOfDay(subDays(today, 59));
 
-        orders.filter(o => o.status === 'delivered').forEach(order => {
-            const orderDate = new Date(order.created_at);
-            const diff = differenceInDays(today, orderDate);
-            if (diff >= 0 && diff < 7) {
-                weeklySales[6 - diff].sales += order.total_price;
-            }
+        // --- 1. Financial Growth Sector ---
+        const salesLast30Days = orders.filter(o => {
+            const orderDate = parseISO(o.created_at);
+            return o.status === 'delivered' && isWithinInterval(orderDate, { start: thirtyDaysAgo, end: endOfDay(today) });
         });
-        setWeeklySalesData(weeklySales);
+        
+        const salesPrev30Days = orders.filter(o => {
+             const orderDate = parseISO(o.created_at);
+            return o.status === 'delivered' && isWithinInterval(orderDate, { start: sixtyDaysAgo, end: endOfDay(subDays(thirtyDaysAgo, 1)) });
+        });
 
-        // Calculate Order Status distribution
+        const totalSalesLast30d = salesLast30Days.reduce((acc, o) => acc + o.total_price, 0);
+        const totalSalesPrev30d = salesPrev30Days.reduce((acc, o) => acc + o.total_price, 0);
+        
+        setTotalSales30d(totalSalesLast30d);
+        const growth = totalSalesPrev30d > 0 ? ((totalSalesLast30d - totalSalesPrev30d) / totalSalesPrev30d) * 100 : (totalSalesLast30d > 0 ? 100 : 0);
+        setSalesGrowth(growth);
+        
+        const dailySales: DailySales[] = Array.from({ length: 30 }).map((_, i) => ({
+            date: format(subDays(today, 29 - i), 'MM/dd'),
+            sales: 0,
+        }));
+
+        salesLast30Days.forEach(order => {
+            const dateStr = format(parseISO(order.created_at), 'MM/dd');
+            const day = dailySales.find(d => d.date === dateStr);
+            if (day) day.sales += order.total_price;
+        });
+        setSalesData(dailySales);
+
+        // --- 2. Operational Efficiency Sector ---
         const statusCounts = orders.reduce((acc, order) => {
             const status = order.status || 'pending';
             acc[status] = (acc[status] || 0) + 1;
             return acc;
         }, {} as { [key: string]: number });
-        
+
         const statusChartData = Object.entries(statusCounts).map(([name, value]) => ({
             name: statusLabels[name] || name,
             value,
-            color: statusColors[name] || '#A1A1AA'
         }));
-        setOrderStatusData(statusChartData);
+        setStatusDistribution(statusChartData);
+
+        const storeAggregates = orders.reduce((acc, order) => {
+            if (!acc[order.storeId]) {
+                acc[order.storeId] = { orders: 0, sales: 0 };
+            }
+            acc[order.storeId].orders += 1;
+            if (order.status === 'delivered') {
+                acc[order.storeId].sales += order.total_price;
+            }
+            return acc;
+        }, {} as { [key: string]: { orders: number, sales: number } });
+
+        const storePerfData = Object.entries(storeAggregates)
+            .map(([storeId, data]) => ({
+                name: storeMap.get(storeId) || `متجر غير معروف`,
+                ...data,
+            }))
+            .sort((a, b) => b.sales - a.sales)
+            .slice(0, 5);
+        setStorePerformance(storePerfData);
+
+        // --- 3. Human Resources Analytics ---
+        const sevenDaysAgo = startOfDay(subDays(today, 6));
+        const newUsers = users.filter(u => {
+            const joinDate = parseISO(u.created_at);
+            return isWithinInterval(joinDate, { start: sevenDaysAgo, end: endOfDay(today) });
+        }).length;
+        setNewUserCount(newUsers);
+
+        const drivers = users.filter(u => u.roles?.is_driver);
+        const driverDeliveries = drivers.map(driver => ({
+            uid: driver.uid,
+            name: driver.full_name || 'مندوب غير معروف',
+            deliveries: orders.filter(o => o.driverUid === driver.uid && o.status === 'delivered').length,
+            debt: driver.driver_details?.wallet_balance ? Math.abs(Math.min(0, driver.driver_details.wallet_balance)) : 0,
+        }));
         
-        // Get Recent Orders
-        const recentOrdersQuery = query(collection(firestore, "orders"), orderBy("created_at", "desc"), limit(5));
-        const recentOrdersSnapshot = await getDocs(recentOrdersQuery);
-        setRecentOrders(recentOrdersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data()} as OrderType)));
+        const topDriver = driverDeliveries.reduce((max, d) => d.deliveries > max.deliveries ? d : max, {name: 'N/A', deliveries: 0});
+        const topDebtor = driverDeliveries.reduce((max, d) => d.debt > max.debt ? d : max, {name: 'N/A', debt: 0});
+        
+        setDriverStats({
+            mostDeliveries: { name: topDriver.name, value: topDriver.deliveries },
+            highestDebt: { name: topDebtor.name, value: topDebtor.debt },
+        });
 
+        // --- 4. Cash Flow Control ---
+        const totalWallets = users.reduce((acc, user) => acc + (user.wallet_balance || 0), 0);
+        setTotalUserWallet(totalWallets);
 
-        // --- Update State ---
-        setStats({ totalSales, totalOrders, totalDrivers, totalUsers });
-        setFirestoreError(null);
-      } catch (error: any) {
-        console.error("Critical Error fetching dashboard stats:", error);
-        setFirestoreError(error);
-      } finally {
+        setLoading(false);
+      } catch (e: any) {
+        console.error("Dashboard data fetching failed: ", e);
+        setError(e);
         setLoading(false);
       }
     };
-
     fetchData();
-  }, [firestore]);
-  
-  if (!firestore || firestoreError) {
-    return <SetupFirestoreMessage />;
+  }, [firestore, userData]);
+
+  if (!userData) {
+      // Still waiting for user data to determine role
+      return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
-  
-  if (userData && !userData.roles?.is_admin) {
+
+  if (!userData.roles?.is_admin) {
     return (
         <Card className="m-auto mt-10 max-w-lg text-center">
             <CardHeader><CardTitle className="text-destructive">وصول مرفوض</CardTitle></CardHeader>
@@ -178,147 +213,143 @@ export default function AdminDashboard() {
     );
   }
 
-  const KpiCard = ({ label, value, icon: Icon, color, bg }: { label: string, value: string | number, icon: React.ElementType, color: string, bg: string }) => (
-      <Card className="border-border shadow-sm rounded-2xl overflow-hidden hover:shadow-lg transition-all group bg-card">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", bg)}>
-              <Icon className={cn("h-6 w-6", color)} />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{label}</p>
-            <h3 className="text-2xl font-black text-foreground tabular-nums">
-                {typeof value === 'number' ? value.toLocaleString() : value}
-                {label === 'إجمالي المبيعات' && <small className="text-sm text-muted-foreground ml-1">ر.ي</small>}
-            </h3>
-          </div>
-        </CardContent>
-      </Card>
-  );
-
+  if (error) {
+      return <SetupFirestoreMessage />;
+  }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-black text-foreground">نظرة عامة على النظام</h1>
-          <p className="text-muted-foreground text-sm font-bold mt-1">أهلاً بك مجدداً، {userData?.full_name?.split(' ')[0] || 'أيها المدير'}</p>
+          <h1 className="text-2xl font-black text-foreground">لوحة مؤشرات الأداء (BI)</h1>
+          <p className="text-muted-foreground text-sm font-bold mt-1">نظرة شاملة على أداء منصة أبشر.</p>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {loading ? Array.from({length: 4}).map((_, i) => <StatCardSkeleton key={i} />) : (
-            <>
-                <KpiCard label="إجمالي المبيعات" value={stats.totalSales} icon={DollarSign} color="text-green-500" bg="bg-green-500/10" />
-                <KpiCard label="إجمالي الطلبات" value={stats.totalOrders} icon={PackageCheck} color="text-sky-500" bg="bg-sky-500/10" />
-                <KpiCard label="إجمالي المستخدمين" value={stats.totalUsers} icon={Users} color="text-purple-500" bg="bg-purple-500/10" />
-                <KpiCard label="إجمالي المناديب" value={stats.totalDrivers} icon={Truck} color="text-orange-500" bg="bg-orange-500/10" />
-            </>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-border shadow-sm rounded-2xl bg-card overflow-hidden">
-          <CardHeader className="p-6 border-b border-border flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-black flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> نمو المبيعات الأسبوعي</CardTitle>
-            <Badge variant="outline" className="rounded-xl font-bold">آخر ٧ أيام</Badge>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="h-[300px] w-full">
-              {loading ? <ChartSkeleton/> : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={weeklySalesData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border) / 0.5)" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} tickFormatter={(value) => `${(value / 1000)}k`} />
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '15px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--background))', direction: 'rtl' }}
-                        labelStyle={{ fontWeight: 'black', marginBottom: '5px' }}
-                        formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']}
-                      />
-                      <Line type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={4} dot={{ r: 6, fill: 'hsl(var(--primary))', strokeWidth: 2, stroke: 'hsl(var(--card))' }} activeDot={{ r: 8 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border shadow-sm rounded-2xl bg-card overflow-hidden">
-          <CardHeader className="p-6 border-b border-border">
-            <CardTitle className="text-sm font-black flex items-center gap-2"><ShoppingBag className="h-4 w-4 text-primary" /> توزيع حالات الطلبات</CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="h-[220px] w-full">
-              {loading ? <ChartSkeleton/> : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={orderStatusData} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                        {orderStatusData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} stroke={entry.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--background))' }} formatter={(value, name) => [value, name]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {orderStatusData.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-[10px] font-black text-foreground/80">{item.name}</span>
-                  <span className="text-[10px] font-bold text-muted-foreground mr-auto">{item.value}</span>
+        {/* Section 1: Financial Growth */}
+        <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-black"><TrendingUp className="text-primary"/> النمو المالي</CardTitle>
+                <CardDescription>تحليل إجمالي المبيعات المحققة خلال آخر 30 يوماً.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="md:col-span-3 h-[350px] p-4">
+                    {loading ? <ChartSkeleton/> : (
+                         <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={salesData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))"/>
+                                <XAxis dataKey="date" tick={{fontSize: 10}} tickLine={false} axisLine={false} />
+                                <YAxis tickFormatter={(val) => `${(val/1000)}k`} tick={{fontSize: 10}} tickLine={false} axisLine={false} />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '10px', border: '1px solid hsl(var(--border))' }}
+                                    labelStyle={{ fontWeight: 'bold' }}
+                                    formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']}
+                                />
+                                <defs>
+                                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <Area type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#colorSales)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    )}
                 </div>
-              ))}
-            </div>
-          </CardContent>
+                <div className="md:col-span-1 space-y-4 p-4 bg-gray-50 rounded-lg">
+                    {loading ? <StatCardSkeleton /> : (
+                        <>
+                         <div>
+                            <p className="text-sm text-muted-foreground font-bold">مبيعات آخر 30 يوم</p>
+                            <p className="text-3xl font-black text-primary">{totalSales30d.toLocaleString()} ر.ي</p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground font-bold">النمو عن الشهر السابق</p>
+                            <p className={`text-2xl font-black ${salesGrowth >= 0 ? 'text-green-500' : 'text-red-500'}`}>{salesGrowth.toFixed(1)}%</p>
+                        </div>
+                        </>
+                    )}
+                </div>
+            </CardContent>
         </Card>
-      </div>
 
-      <Card className="border-border shadow-sm rounded-2xl bg-card overflow-hidden">
-        <CardHeader className="p-6 border-b border-border flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-black flex items-center gap-2"><ShoppingBag className="h-4 w-4 text-primary" /> أحدث الطلبات</CardTitle>
-           <Button variant="link" asChild className="text-xs font-black text-primary gap-1">
-             <a href="/admin/confirm-orders">عرض الكل <ChevronLeft className="h-3 w-3" /></a>
-          </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full text-right">
-              <thead>
-                <tr className="bg-muted/30 text-[10px] font-black text-muted-foreground uppercase tracking-widest border-b border-border">
-                  <th className="px-6 py-4">رقم الطلب</th>
-                  <th className="px-6 py-4">العميل</th>
-                  <th className="px-6 py-4">المبلغ</th>
-                  <th className="px-6 py-4">الحالة</th>
-                  <th className="px-6 py-4 text-left">الوقت</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {loading ? Array.from({length: 5}).map((_,i) => <TableRowSkeleton key={i} />) : recentOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-muted/50 transition-colors group">
-                    <td className="px-6 py-4">
-                      <span className="font-black text-xs text-primary bg-primary/10 px-2 py-1 rounded-md">#{order.id?.slice(-6)}</span>
-                    </td>
-                    <td className="px-6 py-4 font-bold text-xs text-foreground/90">{userMap.get(order.clientUid) || '...'}</td>
-                    <td className="px-6 py-4">
-                      <span className="font-black text-xs text-foreground">{order.total_price.toLocaleString()} <small className="text-[10px] text-muted-foreground">ريال</small></span>
-                    </td>
-                    <td className="px-6 py-4">
-                       <Badge style={{ backgroundColor: `${statusColors[order.status]}20`, color: statusColors[order.status] }} className="rounded-xl border-none font-black px-3 py-1 text-[9px]">
-                        {statusLabels[order.status] || order.status}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 text-left">
-                      <span className="text-[10px] font-bold text-muted-foreground">{format(new Date(order.created_at), 'hh:mm a', { locale: ar })}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Section 2: Operational Efficiency */}
+            <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 font-black"><PackageCheck className="text-primary"/> كفاءة العمليات</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                     <div>
+                        <h3 className="font-bold mb-2">توزيع حالات الطلبات</h3>
+                        <div className="h-48 w-full">
+                           {loading ? <ChartSkeleton/> : (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie data={statusDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={70} paddingAngle={2}>
+                                            {statusDistribution.map((entry, index) => <Cell key={`cell-${index}`} fill={statusColors[entry.name.toLowerCase().replace(' ', '_')] || COLORS[index % COLORS.length]} />)}
+                                        </Pie>
+                                        <Tooltip formatter={(value) => [value, 'طلب']}/>
+                                        <Legend iconType="circle" formatter={(value) => <span className="text-xs font-bold">{value}</span>} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                           )}
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Top Stores */}
+            <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 font-black"><BarChartHorizontal className="text-primary"/> المتاجر الأعلى مبيعاً</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="h-64 w-full">
+                       {loading ? <ChartSkeleton/> : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <RechartsBarChart layout="vertical" data={storePerformance} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 10, width: 70 }} tickLine={false} axisLine={false} />
+                                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} contentStyle={{ borderRadius: '10px', border: '1px solid hsl(var(--border))' }}/>
+                                    <Bar dataKey="sales" name="المبيعات" fill="hsl(var(--primary))" radius={[0, 5, 5, 0]} barSize={20} />
+                                </RechartsBarChart>
+                            </ResponsiveContainer>
+                       )}
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Section 3: HR */}
+            <Card className="lg:col-span-2 border-none shadow-sm rounded-2xl bg-white overflow-hidden">
+                 <CardHeader><CardTitle className="flex items-center gap-2 font-black"><Users className="text-primary"/> تحليلات القوى البشرية</CardTitle></CardHeader>
+                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className="p-4 bg-gray-50 rounded-lg text-center">
+                        <p className="text-sm font-bold text-muted-foreground">المستخدمون الجدد (آخر 7 أيام)</p>
+                        {loading ? <Skeleton className="h-10 w-20 mx-auto mt-2" /> : <p className="text-4xl font-black text-primary">{newUserCount}</p>}
+                     </div>
+                     <div className="p-4 bg-gray-50 rounded-lg">
+                        <h4 className="font-bold text-sm mb-2">أبطال التوصيل</h4>
+                        {loading ? <div className="space-y-2"><Skeleton className="h-5 w-full" /><Skeleton className="h-5 w-full" /></div> : (
+                            <div className="text-xs space-y-2">
+                                <p><strong className="ml-1">الأكثر تسليماً:</strong>{driverStats.mostDeliveries.name} ({driverStats.mostDeliveries.value} طلب)</p>
+                                <p><strong className="ml-1">الأعلى مديونية:</strong>{driverStats.highestDebt.name} ({driverStats.highestDebt.value.toLocaleString()} ر.ي)</p>
+                            </div>
+                        )}
+                     </div>
+                 </CardContent>
+            </Card>
+            {/* Section 4: Cash Flow */}
+            <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
+                <CardHeader><CardTitle className="flex items-center gap-2 font-black"><DollarSign className="text-primary"/> التحكم المالي</CardTitle></CardHeader>
+                <CardContent className="text-center">
+                     <p className="text-sm font-bold text-muted-foreground">إجمالي أرصدة محافظ العملاء</p>
+                    {loading ? <Skeleton className="h-10 w-32 mx-auto mt-2" /> : <p className="text-4xl font-black text-amber-500">{totalUserWallet.toLocaleString()} ر.ي</p>}
+                    <p className="text-xs text-muted-foreground mt-1">يمثل هذا المبلغ التزاماً مالياً على المنصة.</p>
+                </CardContent>
+            </Card>
+        </div>
     </div>
-  )
+  );
 }
