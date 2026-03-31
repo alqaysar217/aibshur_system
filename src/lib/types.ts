@@ -224,6 +224,7 @@ export interface Appointment {
     appointmentDate: string; // ISO 8601
     status: AppointmentStatus;
     createdAt: string; // ISO 8601
+    isMock?: boolean;
 }
 
 export interface FinanceTransaction {

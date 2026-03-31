@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { User, Store, Order, WalletTopupRequest, City, OrderStatus } from '@/lib/types';
+import type { User, Store, Order, WalletTopupRequest, City, OrderStatus, Appointment } from '@/lib/types';
 import { mockUsers, mockStores } from '@/lib/mock-data';
+import { addDays, addHours, nextSaturday, set, subDays } from 'date-fns';
 
 function getRandomElement<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -113,6 +114,75 @@ export default function DataSeederPage() {
                  batch.set(walletRef, walletData);
             }
 
+            // --- 5. Add 5 mock appointments ---
+            toast({ title: 'الحقن مستمر', description: 'جاري إضافة مواعيد مجدولة...' });
+            const now = new Date();
+            const todayAt2PM = set(now, { hours: 14, minutes: 0, seconds: 0, milliseconds: 0 });
+            const tomorrowAt8PM = set(addDays(now, 1), { hours: 20, minutes: 0, seconds: 0, milliseconds: 0 });
+            const nextWeekOnSaturday = nextSaturday(now);
+            const inTwoHours = addHours(now, 2);
+            const yesterday = subDays(now, 1);
+
+            const appointmentsToSeed: Omit<Appointment, 'id'>[] = [
+                 // 1. Catering Order (Today)
+                {
+                    appointmentId: '', clientUid: getRandomElement(clients).uid, clientName: 'علي بامطرف', clientPhone: '777555111',
+                    storeId: 'store-1', storeName: 'مطعم حضرموت',
+                    items: [{ productId: 'mandi-lamb', productName_ar: 'مندي لحم (نفر)', quantity: 5, price: 15000 }],
+                    totalPrice: 75000, paymentMethod: 'cash', appointmentDate: todayAt2PM.toISOString(),
+                    clientAddress: 'المكلا', status: 'scheduled', createdAt: now.toISOString(), isMock: true
+                },
+                // 2. Gift Order (Tomorrow)
+                {
+                    appointmentId: '', clientUid: getRandomElement(clients).uid, clientName: 'فاطمة خالد', clientPhone: '777555222',
+                    storeId: 'store-4', storeName: 'كافيه أرابيكا',
+                    items: [
+                        { productId: 'cake-1', productName_ar: 'تورتة عيد ميلاد', quantity: 1, price: 8000 },
+                        { productId: 'flowers-1', productName_ar: 'باقة ورد', quantity: 1, price: 5000 }
+                    ],
+                    totalPrice: 13000, paymentMethod: 'wallet', appointmentDate: tomorrowAt8PM.toISOString(),
+                    clientAddress: 'الشحر', status: 'confirmed', createdAt: now.toISOString(), isMock: true
+                },
+                // 3. Groceries Order (Next Week)
+                {
+                    appointmentId: '', clientUid: getRandomElement(clients).uid, clientName: 'عائلة باوزير', clientPhone: '777555333',
+                    storeId: 'store-3', storeName: 'سوبرماركت المدينة',
+                    items: [
+                        { productId: 'water-box', productName_ar: 'كرتون ماء', quantity: 2, price: 1500 },
+                        { productId: 'rice-10kg', productName_ar: 'أرز 10كغ', quantity: 1, price: 7000 }
+                    ],
+                    totalPrice: 10000, paymentMethod: 'cash', appointmentDate: nextWeekOnSaturday.toISOString(),
+                    clientAddress: 'غيل باوزير', status: 'scheduled', createdAt: now.toISOString(), isMock: true
+                },
+                // 4. Dinner Order (In 2 hours)
+                {
+                    appointmentId: '', clientUid: getRandomElement(clients).uid, clientName: 'شباب الاستراحة', clientPhone: '777555444',
+                    storeId: 'store-1', storeName: 'مطعم حضرموت',
+                    items: [
+                        { productId: 'pizza-1', productName_ar: 'بيتزا حجم كبير', quantity: 2, price: 4000 },
+                        { productId: 'pastry-1', productName_ar: 'معجنات مشكلة', quantity: 1, price: 3000 }
+                    ],
+                    totalPrice: 11000, paymentMethod: 'wallet', appointmentDate: inTwoHours.toISOString(),
+                    clientAddress: 'المكلا', status: 'scheduled', createdAt: now.toISOString(), isMock: true
+                },
+                // 5. Completed Order (Yesterday)
+                {
+                    appointmentId: '', clientUid: getRandomElement(clients).uid, clientName: 'سارة أحمد', clientPhone: '777555666',
+                    storeId: 'store-5', storeName: 'عسل دوعن',
+                    items: [{ productId: 'oud-1', productName_ar: 'بخور وعطور فاخرة', quantity: 1, price: 25000 }],
+                    totalPrice: 25000, paymentMethod: 'cash', appointmentDate: yesterday.toISOString(),
+                    clientAddress: 'غيل باوزير', status: 'completed', createdAt: yesterday.toISOString(), isMock: true
+                }
+            ];
+
+            appointmentsToSeed.forEach(appData => {
+                const appRef = doc(collection(firestore, 'appointments'));
+                // @ts-ignore
+                appData.appointmentId = appRef.id;
+                batch.set(appRef, appData);
+            });
+
+
             await batch.commit();
             toast({ title: 'نجاح', description: 'تم حقن البيانات التجريبية بنجاح!' });
         } catch (error: any) {
@@ -124,14 +194,14 @@ export default function DataSeederPage() {
     };
 
     const handleDeleteData = async () => {
-        if (!firestore || !confirm('هل أنت متأكد؟ سيتم حذف جميع البيانات التي تم إنشاؤها تجريبياً (طلبات، معاملات، مستخدمون، ومتاجر).')) return;
+        if (!firestore || !confirm('هل أنت متأكد؟ سيتم حذف جميع البيانات التي تم إنشاؤها تجريبياً (طلبات، مواعيد، معاملات، مستخدمون، ومتاجر).')) return;
         setIsDeleting(true);
 
         try {
             const batch = writeBatch(firestore);
             
             // Define collections to purge
-            const collectionsToPurge = ['users', 'stores', 'orders', 'wallet_transactions'];
+            const collectionsToPurge = ['users', 'stores', 'orders', 'wallet_transactions', 'appointments'];
 
             for(const col of collectionsToPurge) {
                 const q = query(collection(firestore, col), where('isMock', '==', true));
