@@ -106,7 +106,7 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
            </Button>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
           {navLinks.map((item) => (
               <Link
               key={item.name}
