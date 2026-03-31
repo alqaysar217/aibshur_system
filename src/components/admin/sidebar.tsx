@@ -61,17 +61,11 @@ const navGroups = [
         ]
     },
     {
-        title: 'أداء المناديب',
-        adminOnly: true,
-        links: [
-            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers-performance', icon: Truck },
-        ]
-    },
-    {
         title: 'التقارير والتحليلات',
         adminOnly: true,
         links: [
             { name: 'تقارير المبيعات', href: '/admin/reports/sales', icon: AreaChart },
+            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers', icon: Truck },
             { name: 'أدوات المطورين', href: '/admin/reports/data-seeder', icon: Database },
         ]
     }

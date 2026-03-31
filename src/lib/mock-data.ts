@@ -1,5 +1,5 @@
-import type { City, User, Store, Product, Order, FinanceTransaction, CategoryFilter, AppBank, Donation, LoyaltyTransaction, LoyaltyPointsConfig } from './types';
-import { addDays, set, subDays, nextSaturday } from 'date-fns';
+import type { City, User, Store, Product, Order, FinanceTransaction, CategoryFilter, AppBank, Donation, LoyaltyTransaction, LoyaltyPointsConfig, Appointment } from './types';
+import { addDays, set, subDays, nextSaturday, addHours } from 'date-fns';
 
 // --- SUPER ADMINS ---
 export const mockMasterUser1: User = {
@@ -135,6 +135,19 @@ export const mockStores: Store[] = [
     { id: 'store-3', storeId: 'store-3', name_ar: 'سوبرماركت المدينة', city_id: 'aden', is_active: true, is_open: false, filter_ids: ['market'], logo_url: 'https://picsum.photos/seed/store3/200', rating: 4.5, ownerUid: 'mock-vendor-uid-3', storeOwnerUid: 'mock-vendor-uid-3', location: {latitude: 12.77, longitude: 45.03}, isMock: true, },
     { id: 'store-4', storeId: 'store-4', name_ar: 'كافيه أرابيكا', city_id: 'sanaa', is_active: true, is_open: true, filter_ids: ['restaurant'], logo_url: 'https://picsum.photos/seed/store4/200', rating: 4.7, ownerUid: 'mock-vendor-uid-4', storeOwnerUid: 'mock-vendor-uid-4', location: {latitude: 15.37, longitude: 44.20}, isMock: true, },
     { id: 'store-5', storeId: 'store-5', name_ar: 'عسل دوعن', city_id: 'mukalla', is_active: true, is_open: true, filter_ids: ['other'], logo_url: 'https://picsum.photos/seed/store5/200', rating: 5.0, ownerUid: 'mock-vendor-uid-5', storeOwnerUid: 'mock-vendor-uid-5', location: {latitude: 14.55, longitude: 49.14}, isMock: true, },
+];
+
+export const mockAppointments: Omit<Appointment, 'id' | 'appointmentId' | 'isMock'>[] = [
+    // 1. Feast Request
+    { clientUid: 'mock-user-uid-1', clientName: 'سالم باوزير', clientPhone: '777555111', storeId: 'store-1', storeName: 'مطعم حضرموت', items: [{ productId: 'mandi-lamb', productName_ar: 'مندي لحم (5 نفر)', quantity: 5, price: 9000 }], totalPrice: 45000, paymentMethod: 'cash', appointmentDate: set(addDays(new Date(), 1), { hours: 14, minutes: 0, seconds: 0 }).toISOString(), clientAddress: 'المكلا - الديس', status: 'scheduled', createdAt: new Date().toISOString() },
+    // 2. Gift Request
+    { clientUid: 'mock-user-uid-2', clientName: 'أحمد العمودي', clientPhone: '777555222', storeId: 'store-4', storeName: 'كافيه أرابيكا', items: [ { productId: 'cake-1', productName_ar: 'تورتة عيد ميلاد', quantity: 1, price: 8000 }, { productId: 'flowers-1', productName_ar: 'باقة ورد', quantity: 1, price: 5000 } ], totalPrice: 13000, paymentMethod: 'wallet', appointmentDate: set(new Date(), { hours: 21, minutes: 0, seconds: 0 }).toISOString(), clientAddress: 'الشحر', status: 'confirmed', createdAt: new Date().toISOString() },
+    // 3. Groceries Request
+    { clientUid: 'mock-user-uid-3', clientName: 'عائلة باوزير', clientPhone: '777555333', storeId: 'store-3', storeName: 'سوبرماركت المدينة', items: [ { productId: 'water-box', productName_ar: 'كرتون ماء', quantity: 2, price: 1500 }, { productId: 'rice-10kg', productName_ar: 'أرز 10كغ', quantity: 1, price: 7000 } ], totalPrice: 10000, paymentMethod: 'cash', appointmentDate: nextSaturday(new Date()).toISOString(), clientAddress: 'غيل باوزير', status: 'pending', createdAt: new Date().toISOString() },
+    // 4. Dinner Request
+    { clientUid: 'mock-user-uid-4', clientName: 'فاطمة خالد', clientPhone: '777555444', storeId: 'store-1', storeName: 'مطعم حضرموت', items: [ { productId: 'pizza-1', productName_ar: 'بيتزا', quantity: 2, price: 2500 }, { productId: 'pastries-1', productName_ar: 'معجنات مشكلة', quantity: 1, price: 1500 } ], totalPrice: 6500, paymentMethod: 'wallet', appointmentDate: addHours(new Date(), 2).toISOString(), clientAddress: 'المكلا - فوه', status: 'pending', createdAt: new Date().toISOString() },
+    // 5. Completed Request
+    { clientUid: 'mock-user-uid-5', clientName: 'سارة أحمد', clientPhone: '777555666', storeId: 'store-5', storeName: 'عسل دوعن', items: [{ productId: 'oud-1', productName_ar: 'بخور وعطور فاخرة', quantity: 1, price: 25000 }], totalPrice: 25000, paymentMethod: 'cash', appointmentDate: subDays(new Date(), 1).toISOString(), clientAddress: 'غيل باوزير', status: 'completed', createdAt: subDays(new Date(), 1).toISOString() }
 ];
 
 export const mockProducts: Product[] = [];
