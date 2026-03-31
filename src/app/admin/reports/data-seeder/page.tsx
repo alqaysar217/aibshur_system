@@ -212,20 +212,30 @@ export default function DataSeederPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Database className="text-primary"/>
-                        أداة حقن البيانات التجريبية
+                        أدوات المطورين
                     </CardTitle>
                     <CardDescription>
                         استخدم هذه الأداة لملء قاعدة البيانات ببيانات وهمية (Mock Data) لتسهيل اختبار وتطوير واجهات التقارير.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div className="p-4 border-l-4 border-blue-500 bg-blue-50 text-blue-800 rounded-r-lg">
+                        <h4 className="font-bold">ماذا سيحدث عند حقن البيانات؟</h4>
+                        <ul className="list-disc list-inside text-sm mt-2">
+                           <li>إضافة مستخدمين (عملاء، مناديب، أصحاب متاجر).</li>
+                           <li>إضافة متاجر متنوعة.</li>
+                           <li>إضافة طلبات بحالات مختلفة (جديدة، قيد التجهيز، مكتملة).</li>
+                           <li>إضافة مواعيد مجدولة لتعبئة واجهة المواعيد.</li>
+                           <li>تعبئة بيانات أداء المناديب (عمولات، مديونية).</li>
+                        </ul>
+                    </div>
                      <Button 
                         onClick={handleInjectData}
                         disabled={isInjecting || isDeleting}
                         className="w-full font-black text-base h-12"
                     >
                         {isInjecting ? <Loader2 className="ml-2 h-5 w-5 animate-spin" /> : <Database className="ml-2 h-5 w-5" />}
-                        حقن البيانات التجريبية
+                        حقن البيانات التجريبية الآن
                     </Button>
                 </CardContent>
             </Card>
@@ -236,8 +246,8 @@ export default function DataSeederPage() {
                         <AlertTriangle />
                         منطقة الخطر
                     </CardTitle>
-                    <CardDescription>
-                       سيقوم هذا الإجراء بحذف جميع البيانات التي تم إنشاؤها بواسطة هذه الأداة. لا يمكن التراجع عن هذا الإجراء.
+                    <CardDescription className="font-bold">
+                       سيقوم هذا الإجراء بحذف جميع البيانات التي تم إنشاؤها بواسطة هذه الأداة فقط (التي تحمل علامة `isMock`).
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -63,7 +63,7 @@ const navGroups = [
     {
         title: 'أداء المناديب',
         links: [
-            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers', icon: Truck },
+            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers-performance', icon: Truck },
         ]
     },
     {
