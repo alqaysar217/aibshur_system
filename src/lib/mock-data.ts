@@ -66,11 +66,11 @@ const mockVendor4: User = { uid: 'mock-vendor-uid-4', phone: '777100004', full_n
 const mockVendor5: User = { uid: 'mock-vendor-uid-5', phone: '777100005', full_name: 'بائع عسل', roles: { is_store_owner: true, is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, store_id: 'store-5', isMock: true, };
 
 
-// --- DRIVERS ---
+// --- DRIVERS (WITH PERFORMANCE DATA) ---
 const mockDriver1: User = { uid: 'mock-driver-uid-1', phone: '777200001', full_name: 'سالم اليافعي', roles: { is_driver: true, is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, driver_details: { status: 'approved', is_online: true, rating: 4.8, wallet_balance: 1500, vehicle_type: 'motorcycle', license_plate: '123-AB', total_orders: 150, outstanding_commission: 5000, debt: 20000 }, isMock: true, };
 const mockDriver2: User = { uid: 'mock-driver-uid-2', phone: '777200002', full_name: 'علي الكندي', roles: { is_driver: true, is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, driver_details: { status: 'approved', is_online: false, rating: 4.5, wallet_balance: -500, vehicle_type: 'motorcycle', license_plate: '456-CD', total_orders: 80, outstanding_commission: 2500, debt: 0 }, isMock: true, };
 const mockDriver3: User = { uid: 'mock-driver-uid-3', phone: '777200003', full_name: 'حسن بامطرف', roles: { is_driver: true, is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: true, reason: 'مخالفات متكررة' }, driver_details: { status: 'approved', is_online: false, rating: 3.2, wallet_balance: 0, vehicle_type: 'car', license_plate: '789-EF', total_orders: 35, outstanding_commission: 900, debt: 1500 }, isMock: true, };
-const mockDriver4: User = { uid: 'mock-driver-uid-4', phone: '777200004', full_name: 'خالد العمودي', roles: { is_driver: true, is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, driver_details: { status: 'pending', is_online: false, rating: 0, wallet_balance: 0, vehicle_type: 'motorcycle', license_plate: '101-GH' }, isMock: true, };
+const mockDriver4: User = { uid: 'mock-driver-uid-4', phone: '777200004', full_name: 'خالد العمودي', roles: { is_driver: true, is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, driver_details: { status: 'pending', is_online: false, rating: 0, wallet_balance: 0, vehicle_type: 'motorcycle', license_plate: '101-GH', total_orders: 0, outstanding_commission: 0, debt: 0 }, isMock: true, };
 const mockDriver5: User = { uid: 'mock-driver-uid-5', phone: '777200005', full_name: 'ياسر باعمر', roles: { is_driver: true, is_user: true }, created_at: new Date().toISOString(), last_login_at: new Date().toISOString(), account_status: { is_blocked: false }, driver_details: { status: 'approved', is_online: true, rating: 4.9, wallet_balance: 3200, vehicle_type: 'car', license_plate: '112-IJ', total_orders: 210, outstanding_commission: 8500, debt: 12000 }, isMock: true, };
 
 
@@ -93,8 +93,8 @@ export const mockUsers: User[] = [
 
 // --- OTHER MOCKS ---
 export const mockBanks: AppBank[] = [
-    { id: 'bank-kareemi', bankId: 'bank-kareemi', bank_name: 'بنك الكريمي', account_number: '123456789', account_holder: 'شركة أبشر', bank_logo: 'https://i.postimg.cc/rsP4G5j7/karemi.png', is_active: true },
-    { id: 'bank-amalk', bankId: 'bank-amalk', bank_name: 'بنك الأمل', account_number: '987654321', account_holder: 'شركة أبشر', bank_logo: 'https://i.postimg.cc/W34dGj2n/alamal.png', is_active: true },
+    { id: 'bank-kareemi', bankId: 'bank-kareemi', bank_name: 'بنك الكريمي', account_number: '123456789', account_holder: 'شركة أبشر', bank_logo: 'https://i.postimg.cc/rsP4G5j7/karemi.png', is_active: true, isMock: true },
+    { id: 'bank-amalk', bankId: 'bank-amalk', bank_name: 'بنك الأمل', account_number: '987654321', account_holder: 'شركة أبشر', bank_logo: 'https://i.postimg.cc/W34dGj2n/alamal.png', is_active: true, isMock: true },
 ];
 
 export const mockDonations: Omit<Donation, 'id' | 'donationId' | 'timestamp'>[] = [
@@ -138,15 +138,15 @@ export const mockStores: Store[] = [
 ];
 
 export const mockAppointments: Omit<Appointment, 'id' | 'appointmentId' | 'isMock'>[] = [
-    // 1. Feast Request
-    { clientUid: 'mock-user-uid-1', clientName: 'سالم باوزير', clientPhone: '777555111', storeId: 'store-1', storeName: 'مطعم حضرموت', items: [{ productId: 'mandi-lamb', productName_ar: 'مندي لحم (5 نفر)', quantity: 5, price: 9000 }], totalPrice: 45000, paymentMethod: 'cash', appointmentDate: set(addDays(new Date(), 1), { hours: 14, minutes: 0, seconds: 0 }).toISOString(), clientAddress: 'المكلا - الديس', status: 'scheduled', createdAt: new Date().toISOString() },
-    // 2. Gift Request
-    { clientUid: 'mock-user-uid-2', clientName: 'أحمد العمودي', clientPhone: '777555222', storeId: 'store-4', storeName: 'كافيه أرابيكا', items: [ { productId: 'cake-1', productName_ar: 'تورتة عيد ميلاد', quantity: 1, price: 8000 }, { productId: 'flowers-1', productName_ar: 'باقة ورد', quantity: 1, price: 5000 } ], totalPrice: 13000, paymentMethod: 'wallet', appointmentDate: set(new Date(), { hours: 21, minutes: 0, seconds: 0 }).toISOString(), clientAddress: 'الشحر', status: 'confirmed', createdAt: new Date().toISOString() },
-    // 3. Groceries Request
+    // 1. Feast Request (Tomorrow)
+    { clientUid: 'mock-user-uid-1', clientName: 'سالم باوزير', clientPhone: '777555111', storeId: 'store-1', storeName: 'مطعم الفاروق', items: [{ productId: 'mandi-lamb', productName_ar: 'مندي لحم (5 نفر)', quantity: 5, price: 9000 }], totalPrice: 45000, paymentMethod: 'cash', appointmentDate: set(addDays(new Date(), 1), { hours: 14, minutes: 0, seconds: 0 }).toISOString(), clientAddress: 'المكلا - الديس', status: 'pending', createdAt: new Date().toISOString() },
+    // 2. Gift Request (Tonight)
+    { clientUid: 'mock-user-uid-2', clientName: 'أحمد العمودي', clientPhone: '777555222', storeId: 'store-4', storeName: 'حلويات الرائد', items: [ { productId: 'cake-1', productName_ar: 'تورتة عيد ميلاد', quantity: 1, price: 8000 }, { productId: 'flowers-1', productName_ar: 'باقة ورد', quantity: 1, price: 4000 } ], totalPrice: 12000, paymentMethod: 'wallet', appointmentDate: set(new Date(), { hours: 21, minutes: 0, seconds: 0 }).toISOString(), clientAddress: 'الشحر', status: 'confirmed', createdAt: new Date().toISOString() },
+    // 3. Groceries Request (Next Week)
     { clientUid: 'mock-user-uid-3', clientName: 'عائلة باوزير', clientPhone: '777555333', storeId: 'store-3', storeName: 'سوبرماركت المدينة', items: [ { productId: 'water-box', productName_ar: 'كرتون ماء', quantity: 2, price: 1500 }, { productId: 'rice-10kg', productName_ar: 'أرز 10كغ', quantity: 1, price: 7000 } ], totalPrice: 10000, paymentMethod: 'cash', appointmentDate: nextSaturday(new Date()).toISOString(), clientAddress: 'غيل باوزير', status: 'pending', createdAt: new Date().toISOString() },
-    // 4. Dinner Request
+    // 4. Dinner Request (Soon)
     { clientUid: 'mock-user-uid-4', clientName: 'فاطمة خالد', clientPhone: '777555444', storeId: 'store-1', storeName: 'مطعم حضرموت', items: [ { productId: 'pizza-1', productName_ar: 'بيتزا', quantity: 2, price: 2500 }, { productId: 'pastries-1', productName_ar: 'معجنات مشكلة', quantity: 1, price: 1500 } ], totalPrice: 6500, paymentMethod: 'wallet', appointmentDate: addHours(new Date(), 2).toISOString(), clientAddress: 'المكلا - فوه', status: 'pending', createdAt: new Date().toISOString() },
-    // 5. Completed Request
+    // 5. Completed Request (Past)
     { clientUid: 'mock-user-uid-5', clientName: 'سارة أحمد', clientPhone: '777555666', storeId: 'store-5', storeName: 'عسل دوعن', items: [{ productId: 'oud-1', productName_ar: 'بخور وعطور فاخرة', quantity: 1, price: 25000 }], totalPrice: 25000, paymentMethod: 'cash', appointmentDate: subDays(new Date(), 1).toISOString(), clientAddress: 'غيل باوزير', status: 'completed', createdAt: subDays(new Date(), 1).toISOString() }
 ];
 
