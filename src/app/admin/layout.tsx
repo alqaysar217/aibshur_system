@@ -39,7 +39,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       )}
 
       <AdminSidebar 
-        key={Date.now()}
         isMobileOpen={isMobileOpen}
         setIsMobileOpen={setIsMobileOpen}
         isCollapsed={isCollapsed}
