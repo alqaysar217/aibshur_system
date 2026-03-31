@@ -13,6 +13,10 @@ interface UseUserHook {
   loading: boolean;
 }
 
+// --- DEVELOPMENT ONLY ---
+// Set this to `false` to use real Firebase Authentication.
+const MOCK_AUTH_ENABLED = true;
+
 export function useUser(): UseUserHook {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -21,9 +25,20 @@ export function useUser(): UseUserHook {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // This is the original logic for production
+    // --- MOCK AUTH LOGIC ---
+    if (MOCK_AUTH_ENABLED) {
+        // Use a mock user for development to bypass login.
+        // The mock user has full admin privileges.
+        setUserData(mockAdminUser);
+        // Create a fake FirebaseAuthUser object
+        setUser({ uid: mockAdminUser.uid } as FirebaseAuthUser);
+        setLoading(false);
+        return; // Skip real auth logic
+    }
+
+    // --- REAL AUTH LOGIC ---
     if (!auth || !firestore) {
-        setLoading(false); // Make sure loading is false if services are not ready
+        setLoading(false);
         return;
     }
     
@@ -35,7 +50,8 @@ export function useUser(): UseUserHook {
         if (userDoc.exists()) {
           setUserData({ uid: userDoc.id, ...userDoc.data() } as AppUser);
         } else {
-          setUserData(null);
+          // This case is for new users who haven't completed registration
+          setUserData(null); 
         }
       } else {
         setUser(null);
