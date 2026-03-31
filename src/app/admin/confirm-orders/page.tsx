@@ -1,5 +1,6 @@
 'use client';
 import { useState, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, query, orderBy, updateDoc, arrayUnion, getDocs, where, writeBatch } from 'firebase/firestore';
 import type { Order, User, Store, OrderStatus, OrderHistoryItem } from '@/lib/types';
@@ -33,7 +34,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, X, Check, Eye, Package, User as UserIcon } from 'lucide-react';
+import { Loader2, Search, X, Check, Eye, Package, User as UserIcon, Database } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -217,7 +218,28 @@ export default function ConfirmOrdersPage() {
                                 </TableCell>
                             </TableRow>
                         )) : (
-                            <TableRow><TableCell colSpan={7} className="h-48 text-center text-gray-400 font-bold">لا توجد طلبات تطابق هذه الفئة.</TableCell></TableRow>
+                            <TableRow>
+                                <TableCell colSpan={7} className="h-64 text-center">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <Package className="w-16 h-16 text-gray-300" />
+                                        <h3 className="text-xl font-bold text-gray-600">لا توجد طلبات في هذه الفئة بعد</h3>
+                                        <p className="text-gray-400 font-bold max-w-md">
+                                            {activeTab === 'pending' 
+                                            ? 'للبدء في اختبار عملية تأكيد الطلبات، يمكنك استخدام أداة حقن البيانات لإضافة طلبات جديدة وهمية.'
+                                            : 'لا توجد طلبات مسجلة تطابق هذا الفلتر. جرب فلتر آخر أو قم بإضافة بيانات.'
+                                            }
+                                        </p>
+                                        {activeTab === 'pending' && (
+                                            <Button asChild className="font-black gap-2 mt-2">
+                                                <Link href="/admin/reports/data-seeder">
+                                                    <Database className="h-4 w-4" />
+                                                    الذهاب إلى أداة حقن البيانات
+                                                </Link>
+                                            </Button>
+                                        )}
+                                    </div>
+                                </TableCell>
+                            </TableRow>
                         )}
                     </TableBody>
                 </Table>
