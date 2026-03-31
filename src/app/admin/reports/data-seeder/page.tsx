@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { User, Store, Order, WalletTopupRequest, City } from '@/lib/types';
+import type { User, Store, Order, WalletTopupRequest, City, OrderStatus } from '@/lib/types';
 
 function getRandomElement<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -132,7 +132,7 @@ export default function DataSeederPage() {
             }
 
 
-            // --- 3. Add 15 mock orders ---
+            // --- 3. Add 15 mock orders with varied statuses ---
             for (let i = 0; i < 15; i++) {
                 const orderRef = doc(collection(firestore, 'orders'));
                 const client = getRandomElement(clients);
@@ -141,6 +141,15 @@ export default function DataSeederPage() {
                 const subtotal = getRandomNumber(1500, 25000);
                 const deliveryFee = 500;
                 
+                let status: OrderStatus;
+                if (i < 7) {
+                    status = 'pending'; // 7 pending orders
+                } else if (i < 11) {
+                    status = 'preparing'; // 4 preparing orders
+                } else {
+                    status = 'delivered'; // 4 delivered orders
+                }
+
                 const orderData: Omit<Order, 'id'> = {
                     orderId: orderRef.id,
                     clientUid: client.uid,
@@ -149,7 +158,7 @@ export default function DataSeederPage() {
                     subtotal_price: subtotal,
                     delivery_fee: deliveryFee,
                     total_price: subtotal + deliveryFee,
-                    status: 'delivered',
+                    status: status,
                     payment_method: getRandomElement(['cash', 'wallet']),
                     delivery_location: store.location,
                     delivery_address_text: 'عنوان تجريبي',
