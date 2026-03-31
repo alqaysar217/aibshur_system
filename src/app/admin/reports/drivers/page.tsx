@@ -4,12 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Truck, Loader2 } from 'lucide-react';
+import { Truck, Loader2, Database } from 'lucide-react';
 import { useCollection, useFirestore } from '@/firebase';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import type { User, Order } from '@/lib/types';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
 
 const RowSkeleton = () => (
     <TableRow>
@@ -25,17 +26,17 @@ export default function DriversAnalyticsPage() {
     const firestore = useFirestore();
     const [settlingId, setSettlingId] = useState<string | null>(null);
 
-    const driversQuery = useMemo(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'driver')) : null, [firestore]);
+    const driversQuery = useMemo(() => firestore ? query(collection(firestore, 'users'), where('roles.is_driver', '==', true)) : null, [firestore]);
     const { data: drivers, loading: driversLoading, error: driversError } = useCollection<User>(driversQuery, 'users');
 
-    const ordersQuery = useMemo(() => firestore ? collection(firestore, 'orders') : null, [firestore]);
+    const ordersQuery = useMemo(() => firestore ? query(collection(firestore, 'orders'), where('status', '==', 'delivered')) : null, [firestore]);
     const { data: orders, loading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery, 'orders');
 
     const driverPerformanceData = useMemo(() => {
-        if (!drivers || !orders) return [];
+        if (!drivers) return [];
 
         return drivers.map(driver => {
-            const deliveredOrders = orders.filter(order => order.driverUid === driver.uid && order.status === 'delivered');
+            const deliveredOrders = orders?.filter(order => order.driverUid === driver.uid) || [];
             const totalCommission = deliveredOrders.reduce((acc, order) => acc + order.delivery_fee, 0);
 
             return {
@@ -52,24 +53,12 @@ export default function DriversAnalyticsPage() {
         setSettlingId(driverId);
         
         // This is a placeholder for a real financial transaction.
-        // In a real app, you would create a financial log entry and then update the driver's balance.
-        // For now, we will just show a success message as if it worked.
-        // To make it more realistic, I'll simulate a delay.
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Let's find the driver to update their wallet in the UI state if needed,
-        // though re-fetching from Firestore is the source of truth.
-        // The business logic for commission is not fully defined (where is it stored?),
-        // so for now we'll just show the toast and let the data re-render if it were to change.
         
         toast({
             title: "تمت التسوية",
             description: `تم تصفير حساب المندوب بنجاح (محاكاة).`
         });
-
-        // In a real implementation, you would update the driver's document, e.g.:
-        // const driverRef = doc(firestore, 'users', driverId);
-        // await updateDoc(driverRef, { 'driver_details.commission_balance': 0 });
         
         setSettlingId(null);
     }
@@ -82,6 +71,8 @@ export default function DriversAnalyticsPage() {
       return <p className="text-destructive text-center p-8">خطأ في جلب البيانات: {dbError.message}</p>;
     }
     if (!firestore) return <SetupFirestoreMessage />;
+
+    const isDataReady = !driversLoading && !ordersLoading;
 
 
     return (
@@ -98,7 +89,7 @@ export default function DriversAnalyticsPage() {
                         كشف حساب المناديب
                     </CardTitle>
                     <CardDescription>
-                        تعتمد العمولة المستحقة على مجموع رسوم التوصيل للطلبات المكتملة.
+                        تعتمد العمولة المستحقة على مجموع رسوم التوصيل للطلبات المكتملة فقط.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -112,7 +103,7 @@ export default function DriversAnalyticsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {driversLoading || ordersLoading ? (
+                            {!isDataReady ? (
                                 Array.from({length: 3}).map((_, i) => <RowSkeleton key={i} />)
                             ) : driverPerformanceData.length > 0 ? (
                                 driverPerformanceData.map((driver) => (
@@ -132,7 +123,21 @@ export default function DriversAnalyticsPage() {
                                 </TableRow>
                             ))) : (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-24 text-center">لا يوجد مناديب لعرضهم.</TableCell>
+                                    <TableCell colSpan={4} className="h-48 text-center">
+                                        <div className="flex flex-col items-center gap-4">
+                                            <Truck className="w-16 h-16 text-gray-300" />
+                                            <h3 className="text-xl font-bold text-gray-600">لا يوجد مناديب لعرضهم</h3>
+                                            <p className="text-gray-400 font-bold max-w-md">
+                                                لا يوجد مستخدمون لديهم صلاحية "مندوب" في النظام حالياً، أو لم يتم حقن البيانات بعد.
+                                            </p>
+                                            <Button asChild className="font-black gap-2 mt-2">
+                                                <Link href="/admin/reports/data-seeder">
+                                                    <Database className="h-4 w-4" />
+                                                    الذهاب إلى أداة حقن البيانات
+                                                </Link>
+                                            </Button>
+                                        </div>
+                                    </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
