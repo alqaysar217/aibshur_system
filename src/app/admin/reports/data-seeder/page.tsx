@@ -104,6 +104,32 @@ export default function DataSeederPage() {
                  batch.set(storeRef, newStore);
                  stores.push({...newStore, id: storeRef.id}); // Add to local array
             }
+            
+            if (drivers.length === 0) {
+                const driverRef = doc(collection(firestore, 'users'));
+                const newDriver: User = {
+                    uid: driverRef.id,
+                    full_name: 'مندوب توصيل تجريبي',
+                    phone: '777999888',
+                    role: 'driver',
+                    city_id: randomCity.cityId,
+                    created_at: new Date().toISOString(),
+                    last_login_at: new Date().toISOString(),
+                    account_status: { is_blocked: false },
+                    driver_details: {
+                        status: 'approved',
+                        is_online: true,
+                        vehicle_type: 'motorcycle',
+                        license_plate: '12345',
+                        id_card_image: '',
+                        rating: 4.8,
+                        wallet_balance: 0,
+                    },
+                    isMock: true,
+                };
+                batch.set(driverRef, newDriver);
+                drivers.push(newDriver); // Add to local array for immediate use
+            }
 
 
             // --- 3. Add 15 mock orders ---
@@ -118,7 +144,6 @@ export default function DataSeederPage() {
                 const orderData: Omit<Order, 'id'> = {
                     orderId: orderRef.id,
                     clientUid: client.uid,
-                    driverUid: driver?.uid,
                     storeId: store.storeId,
                     items: [{ productId: 'mockProd', productName_ar: 'منتج تجريبي', quantity: 1, price: subtotal }],
                     subtotal_price: subtotal,
@@ -133,6 +158,11 @@ export default function DataSeederPage() {
                     storeOwnerUid: store.storeOwnerUid,
                     isMock: true
                 };
+
+                if (driver) {
+                    orderData.driverUid = driver.uid;
+                }
+
                 batch.set(orderRef, orderData);
             }
 
