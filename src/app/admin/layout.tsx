@@ -21,9 +21,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('resize', checkSize);
   }, []);
 
-  // Use a key on the sidebar to force a re-render if needed, but prefer state management
-  // const sidebarKey = useMemo(() => Date.now(), [isCollapsed, isMobileOpen]);
-
   if (!mounted) {
     return (
         <div className="flex h-screen w-full bg-background items-center justify-center">
