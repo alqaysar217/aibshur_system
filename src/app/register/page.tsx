@@ -2,15 +2,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import type { User as AppUser, UserRole } from '@/lib/types';
+import type { User as AppUser } from '@/lib/types';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+
+type RegistrationRole = 'client' | 'driver';
 
 export default function RegisterPage() {
   const { user } = useUser();
@@ -19,7 +21,7 @@ export default function RegisterPage() {
   const { toast } = useToast();
   
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<UserRole>('client');
+  const [role, setRole] = useState<RegistrationRole>('client');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +40,7 @@ export default function RegisterPage() {
     try {
         const newUser: Omit<AppUser, 'uid'> = {
             phone: user.phoneNumber!,
-            role: role,
+            roles: role === 'driver' ? { is_user: true, is_driver: true } : { is_user: true },
             full_name: fullName,
             created_at: new Date().toISOString(),
             last_login_at: new Date().toISOString(),
@@ -62,13 +64,7 @@ export default function RegisterPage() {
         
         await setDoc(doc(firestore, 'users', user.uid), newUser);
         toast({title: "اكتمل التسجيل", description: "تم إنشاء حسابك بنجاح."});
-
-        // if role is admin create a user with that role
-        if(fullName === 'Admin User' && process.env.NODE_ENV === 'development') {
-          await setDoc(doc(firestore, 'users', user.uid), {...newUser, role: 'admin'});
-        }
-
-
+        
         router.push('/');
     } catch (error: any) {
         console.error(error);
@@ -103,7 +99,7 @@ export default function RegisterPage() {
                     defaultValue="client"
                     className="flex justify-end gap-4 pt-2"
                     value={role}
-                    onValueChange={(value: UserRole) => setRole(value)}
+                    onValueChange={(value: RegistrationRole) => setRole(value)}
                 >
                     <div className="flex items-center space-x-2 space-x-reverse">
                         <RadioGroupItem value="client" id="r1" />

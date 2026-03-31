@@ -1,28 +1,50 @@
-import type { City, User, CategoryFilter, Store, Product, Order, FinanceTransaction, UserRole } from './types';
+import type { City, User, Store, Product, Order, FinanceTransaction, CategoryFilter } from './types';
 
-export const mockAdminUser: User = {
-  uid: 'mock-admin-uid',
-  phone: '+967777777777',
-  role: 'admin',
-  full_name: 'المدير العام',
-  email: 'admin@absher.com',
-  profile_image: 'https://picsum.photos/seed/admin/200/200',
+export const mockMasterUser1: User = {
+  uid: 'mock-master-uid-1',
+  phone: '775258830',
+  full_name: 'محمود حساني',
+  email: 'mahmoud@absher.com',
+  profile_image: 'https://picsum.photos/seed/mahmoud/200/200',
+  roles: {
+    is_admin: true,
+    is_driver: true,
+    is_store_owner: true,
+    is_user: true,
+  },
   created_at: new Date().toISOString(),
   last_login_at: new Date().toISOString(),
-  account_status: {
-    is_blocked: false,
+  account_status: { is_blocked: false },
+};
+
+export const mockMasterUser2: User = {
+  uid: 'mock-master-uid-2',
+  phone: '770636008',
+  full_name: 'عمر دعكيك',
+  email: 'omar@absher.com',
+  profile_image: 'https://picsum.photos/seed/omar/200/200',
+  roles: {
+    is_admin: true,
+    is_driver: true,
+    is_store_owner: true,
+    is_user: true,
   },
+  created_at: new Date().toISOString(),
+  last_login_at: new Date().toISOString(),
+  account_status: { is_blocked: false },
 };
 
 
-export const mockCities: City[] = [
-  { cityId: 'sanaa', name_ar: 'صنعاء', name_en: 'Sana\'a', country_code: 'YE', is_active: true },
-  { cityId: 'aden', name_ar: 'عدن', name_en: 'Aden', country_code: 'YE', is_active: true },
-  { cityId: 'mukalla', name_ar: 'المكلا', name_en: 'Al Mukalla', country_code: 'YE', is_active: true },
-  { cityId: 'taiz', name_ar: 'تعز', name_en: 'Taiz', country_code: 'YE', is_active: true },
-];
+export const mockAdminUser: User = mockMasterUser1;
+export const mockUsers: User[] = [mockMasterUser1, mockMasterUser2];
 
-export const mockUsers: User[] = [mockAdminUser];
+
+export const mockCities: City[] = [
+  { cityId: 'sanaa', name_ar: 'صنعاء', name_en: 'Sana\'a', country_code: 'YE', is_active: true, support_number: '777636008' },
+  { cityId: 'aden', name_ar: 'عدن', name_en: 'Aden', country_code: 'YE', is_active: true, support_number: '777636008' },
+  { cityId: 'mukalla', name_ar: 'المكلا', name_en: 'Al Mukalla', country_code: 'YE', is_active: true, support_number: '777636008' },
+  { cityId: 'taiz', name_ar: 'تعز', name_en: 'Taiz', country_code: 'YE', is_active: true, support_number: '777636008' },
+];
 
 export const mockCategories: CategoryFilter[] = [
     { filterId: 'restaurant', name_ar: 'مطعم', name_en: 'Restaurant', type: 'restaurant' },

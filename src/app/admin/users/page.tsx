@@ -43,6 +43,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
+import { Checkbox } from '@/components/ui/checkbox';
 
 
 const RowSkeleton = () => (
@@ -79,10 +80,10 @@ export default function AdminUsersPage() {
 
   const { admins, storeOwners, drivers, clients } = useMemo(() => {
     return {
-        admins: users?.filter(u => u.role === 'admin') || [],
-        storeOwners: users?.filter(u => u.role === 'store_owner') || [],
-        drivers: users?.filter(u => u.role === 'driver') || [],
-        clients: users?.filter(u => u.role === 'client') || [],
+        admins: users?.filter(u => u.roles?.is_admin) || [],
+        storeOwners: users?.filter(u => u.roles?.is_store_owner) || [],
+        drivers: users?.filter(u => u.roles?.is_driver) || [],
+        clients: users?.filter(u => u.roles?.is_user && !u.roles.is_admin && !u.roles.is_driver && !u.roles.is_store_owner) || [],
     }
   }, [users]);
 
@@ -119,7 +120,7 @@ export default function AdminUsersPage() {
   }, [pickerRef]);
 
   const handleOpenDialog = (user: Partial<User> | null = null) => {
-    setCurrentUser(user ? { ...user } : { account_status: { is_blocked: false }, role: 'client' });
+    setCurrentUser(user ? { ...user } : { account_status: { is_blocked: false }, roles: { is_user: true } });
     setSearchQuery('');
     setIsPickerOpen(false);
     setDialogOpen(true);
@@ -164,14 +165,14 @@ export default function AdminUsersPage() {
         full_name: formData.get('full_name') as string,
         email: formData.get('email') as string,
         phone: formData.get('phone') as string,
-        role: currentUser.role
+        roles: currentUser.roles
     };
 
-    if(currentUser.role === 'store_owner' && !currentUser.store_id) {
+    if(currentUser.roles?.is_store_owner && !currentUser.store_id) {
         toast({variant: 'destructive', title: 'خطأ', description: 'الرجاء ربط صاحب المتجر بمتجر.'});
         setIsSubmitting(false);
         return;
-    } else if (currentUser.role !== 'store_owner') {
+    } else if (!currentUser.roles?.is_store_owner) {
         delete userData.store_id;
     }
 
@@ -183,8 +184,6 @@ export default function AdminUsersPage() {
         await updateDoc(docRef, userData);
         toast({ title: "تم التحديث بنجاح" });
       } else { // Adding new user (Note: This won't create a Firebase Auth user)
-        // This is for creating admin/staff users manually.
-        // A real user would register via phone.
         const uid = `manual_${Date.now()}`;
         docRef = doc(firestore, 'users', uid);
         const fullData: User = {
@@ -241,6 +240,17 @@ export default function AdminUsersPage() {
     return stores.filter(s => s.name_ar.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [searchQuery, stores]);
   
+  const handleRoleChange = (role: keyof User['roles'], checked: boolean) => {
+    setCurrentUser(prev => {
+        const newRoles = { ...prev?.roles, [role]: checked };
+        // Ensure a user is always at least a 'user'
+        if (role !== 'is_user' && !newRoles.is_user && !newRoles.is_admin && !newRoles.is_driver && !newRoles.is_store_owner) {
+            newRoles.is_user = true;
+        }
+        return { ...prev, roles: newRoles };
+    });
+  }
+
   const renderUserTable = (userData: User[], type: 'admin' | 'client' | 'driver' | 'store_owner') => {
       return (
         <Table>
@@ -361,20 +371,17 @@ export default function AdminUsersPage() {
                     <div className="space-y-2"><Label>رقم الهاتف</Label><Input name="phone" defaultValue={currentUser?.phone} required className="rounded-lg bg-gray-50" dir="ltr"/></div>
                 </div>
                  <div className="space-y-2"><Label>البريد الإلكتروني</Label><Input name="email" type="email" defaultValue={currentUser?.email} className="rounded-lg bg-gray-50" dir="ltr"/></div>
-                 <div className="space-y-2"><Label>الدور</Label>
-                    <select
-                        value={currentUser?.role || 'client'}
-                        onChange={(e) => setCurrentUser(prev => ({ ...prev, role: e.target.value as User['role'] }))}
-                        className="h-10 w-full rounded-md border border-input bg-gray-50 px-3 py-2 font-bold"
-                    >
-                        <option value="client">عميل</option>
-                        <option value="driver">مندوب</option>
-                        <option value="store_owner">صاحب متجر</option>
-                        <option value="admin">مدير</option>
-                    </select>
+                 <div className="space-y-2">
+                    <Label className="font-bold">الصلاحيات</Label>
+                    <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-gray-50">
+                        <div className="flex items-center gap-2"><Checkbox id="role-user" checked={currentUser?.roles?.is_user} onCheckedChange={checked => handleRoleChange('is_user', !!checked)} /><Label htmlFor="role-user">عميل</Label></div>
+                        <div className="flex items-center gap-2"><Checkbox id="role-driver" checked={currentUser?.roles?.is_driver} onCheckedChange={checked => handleRoleChange('is_driver', !!checked)} /><Label htmlFor="role-driver">مندوب</Label></div>
+                        <div className="flex items-center gap-2"><Checkbox id="role-owner" checked={currentUser?.roles?.is_store_owner} onCheckedChange={checked => handleRoleChange('is_store_owner', !!checked)} /><Label htmlFor="role-owner">صاحب متجر</Label></div>
+                        <div className="flex items-center gap-2"><Checkbox id="role-admin" checked={currentUser?.roles?.is_admin} onCheckedChange={checked => handleRoleChange('is_admin', !!checked)} /><Label htmlFor="role-admin">مدير</Label></div>
+                    </div>
                 </div>
                 
-                 {currentUser?.role === 'store_owner' && (
+                 {currentUser?.roles?.is_store_owner && (
                      <div className="p-4 border rounded-xl space-y-4">
                         <Label className="font-bold">ربط بمتجر</Label>
                          {!currentUser?.store_id ? (

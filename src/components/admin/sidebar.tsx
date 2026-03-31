@@ -11,7 +11,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { Button } from '../ui/button';
-import { useAuth } from '@/firebase'; // Using firebase hook
+import { useAuth, useUser } from '@/firebase'; // Using firebase hook
 
 const mainNav = [
   { name: 'لوحة التحكم', href: '/admin', icon: LayoutDashboard },
@@ -78,7 +78,8 @@ const settingsNav = [
 
 export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }) {
   const pathname = usePathname();
-  const auth = useAuth(); // Using firebase hook
+  const auth = useAuth();
+  const { userData } = useUser();
 
   const handleLinkClick = () => {
     if(isMobileOpen) {
@@ -158,11 +159,15 @@ export function AdminSidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsM
             </Link>
           ))}
           
-          <NavGroup {...financeNav} />
-          <NavGroup {...marketingNav} />
-          <NavGroup {...servicesNav} />
-          <NavGroup {...csNav} />
-          <NavGroup {...reportsNav} />
+          {userData?.roles?.is_admin && (
+            <>
+              <NavGroup {...financeNav} />
+              <NavGroup {...marketingNav} />
+              <NavGroup {...servicesNav} />
+              <NavGroup {...csNav} />
+              <NavGroup {...reportsNav} />
+            </>
+          )}
 
           <div className="pt-4 mt-4 border-t border-gray-100 space-y-1">
              {settingsNav.map((item) => (

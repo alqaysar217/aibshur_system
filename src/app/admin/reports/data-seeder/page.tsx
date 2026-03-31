@@ -37,9 +37,9 @@ export default function DataSeederPage() {
             const cities = citiesSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as City));
             const randomCity = getRandomElement(cities);
 
-            const existingClientsSnapshot = await getDocs(query(collection(firestore, 'users'), where('role', '==', 'client')));
+            const existingClientsSnapshot = await getDocs(query(collection(firestore, 'users'), where('roles.is_user', '==', true)));
             const existingStoresSnapshot = await getDocs(collection(firestore, 'stores'));
-            const existingDriversSnapshot = await getDocs(query(collection(firestore, 'users'), where('role', '==', 'driver')));
+            const existingDriversSnapshot = await getDocs(query(collection(firestore, 'users'), where('roles.is_driver', '==', true)));
 
             let clients = existingClientsSnapshot.docs.map(d => ({ ...d.data(), uid: d.id } as User));
             let stores = existingStoresSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as Store));
@@ -57,7 +57,7 @@ export default function DataSeederPage() {
                         uid: userRef.id,
                         full_name: clientData.full_name,
                         phone: clientData.phone,
-                        role: 'client',
+                        roles: { is_user: true },
                         city_id: randomCity.cityId,
                         created_at: new Date().toISOString(),
                         last_login_at: new Date().toISOString(),
@@ -75,7 +75,7 @@ export default function DataSeederPage() {
                     uid: ownerRef.id,
                     full_name: 'صاحب متجر تجريبي',
                     phone: '777555666',
-                    role: 'store_owner',
+                    roles: { is_store_owner: true, is_user: true },
                     created_at: new Date().toISOString(),
                     last_login_at: new Date().toISOString(),
                     account_status: { is_blocked: false },
@@ -111,7 +111,7 @@ export default function DataSeederPage() {
                     uid: driverRef.id,
                     full_name: 'مندوب توصيل تجريبي',
                     phone: '777999888',
-                    role: 'driver',
+                    roles: { is_driver: true, is_user: true },
                     city_id: randomCity.cityId,
                     created_at: new Date().toISOString(),
                     last_login_at: new Date().toISOString(),

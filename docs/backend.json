@@ -22,7 +22,15 @@
       "properties": {
         "uid": { "type": "string", "description": "Firebase Auth User ID." },
         "phone": { "type": "string", "format": "phone", "description": "Primary phone number for OTP." },
-        "role": { "type": "string", "enum": ["client", "driver", "admin", "store_owner"] },
+        "roles": {
+            "type": "object",
+            "properties": {
+                "is_user": { "type": "boolean", "description": "Client-level access for ordering."},
+                "is_admin": { "type": "boolean", "description": "Full access to the admin panel."},
+                "is_driver": { "type": "boolean", "description": "Access to the driver application."},
+                "is_store_owner": { "type": "boolean", "description": "Access to the store management panel."}
+            }
+        },
         "full_name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "profile_image": { "type": "string", "format": "uri" },
@@ -69,7 +77,7 @@
         },
         "isMock": { "type": "boolean", "description": "Flag to identify mock data for testing." }
       },
-      "required": ["uid", "phone", "role", "created_at", "last_login_at", "account_status"]
+      "required": ["uid", "phone", "roles", "created_at", "last_login_at", "account_status"]
     },
     "StoreCategory": {
       "title": "Store Category",

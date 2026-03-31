@@ -1,4 +1,3 @@
-export type UserRole = 'client' | 'driver' | 'admin' | 'store_owner';
 export type OrderStatus = 'pending' | 'accepted' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled' | 'rejected';
 export type PaymentMethod = 'cash' | 'wallet' | 'card';
 export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee' | 'points_conversion' | 'vip_subscription' | 'donation';
@@ -49,7 +48,12 @@ export interface VipPlan {
 export interface User {
   uid: string;
   phone: string; // Primary identifier for OTP auth
-  role: UserRole;
+  roles: {
+    is_user?: boolean;
+    is_admin?: boolean;
+    is_driver?: boolean;
+    is_store_owner?: boolean;
+  };
   full_name?: string;
   email?: string;
   profile_image?: string;
@@ -317,4 +321,12 @@ export interface LoyaltyTransaction {
     related_finance_tx_id?: string;
     description: string;
     timestamp: string;
+}
+
+// This is a legacy type, do not use.
+export interface CategoryFilter {
+    filterId: string;
+    name_ar: string;
+    name_en: string;
+    type: 'restaurant' | 'pharmacy' | 'market' | 'other';
 }
