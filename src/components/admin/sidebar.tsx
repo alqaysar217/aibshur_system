@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Calendar, ShoppingCart, Users, Building, Truck, BarChart2, Package, Shapes, MapPin,
   Wallet, Banknote, Crown, Star, TicketPercent, GalleryHorizontal, HeartHandshake, TrendingUp, Settings,
-  MessageSquare, Wrench, LogOut
+  MessageSquare, Wrench, LogOut, PanelLeftClose, PanelRightClose
 } from 'lucide-react';
 import Image from 'next/image';
 
@@ -40,17 +40,21 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
     const isActive = pathname === href;
     return (
       <Link href={href} onClick={() => isMobileOpen && setIsMobileOpen(false)} title={isCollapsed ? text : ''}>
-        <span
-          className={cn(
-            'flex items-center gap-4 px-4 py-3 rounded-lg transition-colors duration-200',
-            isLogout 
-              ? 'font-bold text-red-500 bg-red-50 hover:bg-red-100'
-              : `font-bold text-gray-700 ${isActive ? 'bg-primary/10 text-primary' : 'hover:bg-primary/5'}`,
+        <span className={cn(
+            "group relative flex items-center gap-3 px-4 py-3 transition-colors duration-200",
+            isActive
+              ? "bg-primary/10 text-primary font-black rounded-lg"
+              : isLogout 
+              ? 'font-bold text-red-500 hover:bg-red-50 rounded-lg'
+              : `font-bold text-gray-500 hover:bg-gray-100 rounded-lg`,
             isCollapsed && 'justify-center'
-          )}
-        >
-          <Icon className={cn('w-5 h-5 shrink-0 transition-colors', isActive && !isLogout ? 'text-primary' : isLogout ? 'text-red-500' : 'text-gray-400')} />
-          <span className={cn('transition-opacity duration-200', isCollapsed ? 'w-0 opacity-0' : 'opacity-100')}>{text}</span>
+        )}>
+          {isActive && <div className="absolute right-0 h-6 w-1 bg-primary rounded-r-full" />}
+          <Icon className={cn(
+              'w-5 h-5 shrink-0 transition-colors', 
+              isActive ? 'text-primary' : isLogout ? 'text-red-500' : 'text-gray-400 group-hover:text-primary'
+          )} />
+          <span className={cn('transition-opacity duration-200', isCollapsed ? 'sr-only' : 'opacity-100')}>{text}</span>
         </span>
       </Link>
     );
@@ -59,7 +63,7 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
   return (
     <aside
       className={cn(
-      "absher-sidebar-new fixed top-0 right-0 h-screen z-[101] bg-white border-l border-border flex flex-col transition-all duration-300 ease-in-out",
+      "absher-sidebar-new fixed top-0 right-0 h-screen z-[101] bg-white flex flex-col transition-all duration-300 ease-in-out",
       "lg:relative lg:translate-x-0",
       isMobileOpen ? 'translate-x-0 shadow-2xl w-64' : 'translate-x-full',
       isCollapsed ? 'lg:w-20' : 'lg:w-64'
@@ -67,11 +71,16 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
         {/* Header */}
         <div className={cn("flex items-center h-20 border-b shrink-0 px-4 gap-3 overflow-hidden", isCollapsed && "justify-center")}>
              <Image src="https://i.postimg.cc/L8g1v4w1/absher-logo-2.png" alt="أبشر Logo" width={40} height={40} className="transition-all duration-300 object-contain flex-shrink-0"/>
-             {!isCollapsed && <span className="font-black text-lg text-gray-800 whitespace-nowrap">إدارة أبشر</span>}
+             {!isCollapsed && 
+                <div>
+                    <h2 className="font-black text-lg text-gray-800 whitespace-nowrap">إدارة أبشر</h2>
+                    <p className="text-xs text-gray-400 font-bold tracking-widest">ADMIN CONSOLE</p>
+                </div>
+             }
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
             {navLinks.map((link) => <NavLink key={link.href} {...link} />)}
         </nav>
         

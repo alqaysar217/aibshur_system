@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, Bell, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Menu, Bell, PanelRightClose, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -32,7 +32,7 @@ export function AdminTopBar({ toggleMobile, toggleCollapse, isCollapsed }: Admin
   }
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-20 px-4 md:px-8 bg-white border-b border-border">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-20 px-4 md:px-8 bg-white/80 backdrop-blur-sm border-b">
       <div className="flex items-center gap-2">
          {/* Mobile Menu Toggle */}
         <Button
@@ -51,7 +51,7 @@ export function AdminTopBar({ toggleMobile, toggleCollapse, isCollapsed }: Admin
             onClick={toggleCollapse}
             className="hidden lg:flex"
         >
-            {isCollapsed ? <ChevronLeft className="w-6 h-6" /> : <ChevronRight className="w-6 h-6" />}
+            {isCollapsed ? <PanelLeftClose className="w-6 h-6" /> : <PanelRightClose className="w-6 h-6" />}
             <span className="sr-only">Toggle Sidebar Collapse</span>
         </Button>
       </div>
@@ -67,7 +67,7 @@ export function AdminTopBar({ toggleMobile, toggleCollapse, isCollapsed }: Admin
         ) : userData ? (
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center gap-3">
+                    <Button variant="ghost" className="flex items-center gap-3 p-1 h-auto rounded-full">
                         <Avatar className="h-9 w-9">
                             <AvatarImage src={userData.profile_image} alt={userData.full_name || 'User'}/>
                             <AvatarFallback>{userData.full_name ? userData.full_name[0].toUpperCase() : 'U'}</AvatarFallback>
@@ -76,7 +76,6 @@ export function AdminTopBar({ toggleMobile, toggleCollapse, isCollapsed }: Admin
                             <p className="text-sm font-bold">محمود حساني</p>
                             <p className="text-xs text-muted-foreground">{userData.roles?.is_admin ? 'مدير النظام' : 'مستخدم'}</p>
                         </div>
-                        <ChevronDown className="w-4 h-4 text-muted-foreground hidden md:block"/>
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">

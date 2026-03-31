@@ -4,13 +4,13 @@
 
 @layer base {
   :root {
-    /* Primary Identity: #1FAF9A -> Converted to HSL */
-    --primary: 171 70% 40%;
+    /* Emerald Green Primary Identity */
+    --primary: 171 70% 40%; /* #1FAF9A */
     --primary-foreground: 0 0% 100%;
     
-    /* Light Theme as requested */
-    --background: 0 0% 100%;       /* White */
-    --foreground: 222.2 84% 4.9%;  /* slate-950 */
+    /* Clean Light Theme */
+    --background: 220 13% 97%;    /* #F5F7F6 Light Gray */
+    --foreground: 222.2 84% 4.9%; /* slate-950 */
     
     --card: 0 0% 100%;             /* White */
     --card-foreground: 222.2 84% 4.9%;
@@ -24,8 +24,9 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%; /* slate-500 */
     
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 84% 4.9%;
+    /* A lighter, softer accent for hover states */
+    --accent: 171 70% 96%; /* Very light primary color */
+    --accent-foreground: 171 70% 30%; /* Darker primary for text on accent */
     
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -34,14 +35,14 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 171 70% 40%; /* Primary color for rings */
     
-    --radius: 10px; 
+    --radius: 12px;
   }
 
   .dark {
     /* Keeping dark mode consistent with light mode as per project setup */
     --primary: 171 70% 40%;
     --primary-foreground: 0 0% 100%;
-    --background: 0 0% 100%;
+    --background: 220 13% 97%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
@@ -51,8 +52,8 @@
     --secondary-foreground: 222.2 84% 4.9%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 84% 4.9%;
+    --accent: 171 70% 96%;
+    --accent-foreground: 171 70% 30%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
