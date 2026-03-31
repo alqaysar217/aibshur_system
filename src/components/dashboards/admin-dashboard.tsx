@@ -9,7 +9,7 @@ import { collection, getDocs } from "firebase/firestore";
 import SetupFirestoreMessage from "@/components/admin/setup-firestore-message";
 import type { Order as OrderType, Store as StoreType } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
-import { format, subDays, startOfDay, isWithinInterval, parseISO } from "date-fns";
+import { format, subDays, startOfDay, isWithinInterval, parseISO, endOfDay } from "date-fns";
 import { Loader2 } from "lucide-react";
 
 // Skeletons
