@@ -85,6 +85,7 @@ export interface User {
     receiptImageUrl?: string;
     activatedBy?: string; // Admin UID
   };
+  isMock?: boolean;
 }
 
 export interface StoreCategory {
@@ -136,6 +137,7 @@ export interface Store {
   rating?: number;
   // Denormalized for security rules
   storeOwnerUid: string;
+  isMock?: boolean;
 }
 
 export interface ProductVariant {

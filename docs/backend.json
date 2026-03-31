@@ -66,7 +66,8 @@
                 "receiptImageUrl": { "type": "string", "format": "uri" },
                 "activatedBy": { "type": "string", "description": "Admin UID who activated the subscription." }
             }
-        }
+        },
+        "isMock": { "type": "boolean", "description": "Flag to identify mock data for testing." }
       },
       "required": ["uid", "phone", "role", "created_at", "last_login_at", "account_status"]
     },
@@ -118,7 +119,8 @@
         "is_open": { "type": "boolean" },
         "is_active": { "type": "boolean" },
         "rating": { "type": "number" },
-        "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." }
+        "storeOwnerUid": { "type": "string", "description": "Denormalized for security rules." },
+        "isMock": { "type": "boolean", "description": "Flag to identify mock data for testing." }
       },
       "required": ["storeId", "ownerUid", "name_ar", "city_id", "filter_ids", "location", "is_active", "storeOwnerUid"]
     },

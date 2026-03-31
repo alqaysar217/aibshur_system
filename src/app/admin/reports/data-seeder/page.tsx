@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { User, Store, Order, WalletTopupRequest } from '@/lib/types';
+import type { User, Store, Order, WalletTopupRequest, City } from '@/lib/types';
 
 function getRandomElement<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -27,21 +27,86 @@ export default function DataSeederPage() {
         setIsInjecting(true);
 
         try {
-            const usersSnapshot = await getDocs(query(collection(firestore, 'users'), where('role', '==', 'client')));
-            const driversSnapshot = await getDocs(query(collection(firestore, 'users'), where('role', '==', 'driver')));
-            const storesSnapshot = await getDocs(collection(firestore, 'stores'));
-
-            const clients = usersSnapshot.docs.map(d => d.data() as User);
-            const drivers = driversSnapshot.docs.map(d => d.data() as User);
-            const stores = storesSnapshot.docs.map(d => d.data() as Store);
-
-            if (clients.length === 0 || stores.length === 0) {
-                throw new Error('لا يوجد عملاء أو متاجر لإضافة بيانات تجريبية لها. يرجى إضافة بعض العملاء والمتاجر أولاً.');
-            }
-
             const batch = writeBatch(firestore);
 
-            // 1. Add 15 mock orders
+            // --- 1. Fetch prerequisite data (Cities, Users, Stores) ---
+            const citiesSnapshot = await getDocs(collection(firestore, 'cities'));
+            if (citiesSnapshot.empty) {
+                throw new Error('يرجى إضافة مدينة واحدة على الأقل من صفحة "المدن" قبل حقن البيانات.');
+            }
+            const cities = citiesSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as City));
+            const randomCity = getRandomElement(cities);
+
+            const existingClientsSnapshot = await getDocs(query(collection(firestore, 'users'), where('role', '==', 'client')));
+            const existingStoresSnapshot = await getDocs(collection(firestore, 'stores'));
+            const existingDriversSnapshot = await getDocs(query(collection(firestore, 'users'), where('role', '==', 'driver')));
+
+            let clients = existingClientsSnapshot.docs.map(d => ({ ...d.data(), uid: d.id } as User));
+            let stores = existingStoresSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as Store));
+            let drivers = existingDriversSnapshot.docs.map(d => ({...d.data(), uid: d.id } as User));
+
+            // --- 2. Create mock data if it doesn't exist ---
+            if (clients.length === 0) {
+                const mockClientsData = [
+                    { full_name: 'عميل تجريبي ١', phone: '777111222' },
+                    { full_name: 'عميل تجريبي ٢', phone: '777333444' },
+                ];
+                for (const clientData of mockClientsData) {
+                    const userRef = doc(collection(firestore, 'users'));
+                    const newClient: User = {
+                        uid: userRef.id,
+                        full_name: clientData.full_name,
+                        phone: clientData.phone,
+                        role: 'client',
+                        city_id: randomCity.cityId,
+                        created_at: new Date().toISOString(),
+                        last_login_at: new Date().toISOString(),
+                        account_status: { is_blocked: false },
+                        isMock: true,
+                    };
+                    batch.set(userRef, newClient);
+                    clients.push(newClient); // Add to local array for immediate use
+                }
+            }
+
+            if (stores.length === 0) {
+                 const ownerRef = doc(collection(firestore, 'users'));
+                 const newOwner: User = {
+                    uid: ownerRef.id,
+                    full_name: 'صاحب متجر تجريبي',
+                    phone: '777555666',
+                    role: 'store_owner',
+                    created_at: new Date().toISOString(),
+                    last_login_at: new Date().toISOString(),
+                    account_status: { is_blocked: false },
+                    isMock: true,
+                 };
+                 
+                 const storeRef = doc(collection(firestore, 'stores'));
+                 
+                 // Link owner to store
+                 newOwner.store_id = storeRef.id;
+                 batch.set(ownerRef, newOwner);
+
+                 const newStore: Store = {
+                    storeId: storeRef.id,
+                    name_ar: 'متجر تجريبي',
+                    ownerUid: newOwner.uid,
+                    storeOwnerUid: newOwner.uid,
+                    city_id: randomCity.cityId,
+                    is_active: true,
+                    is_open: true,
+                    rating: 4.5,
+                    logo_url: 'https://picsum.photos/seed/mockstore/200',
+                    location: { latitude: 15.3694, longitude: 44.1910 }, // Sana'a coordinates
+                    filter_ids: ['restaurant'],
+                 };
+                 batch.set(storeRef, newStore);
+                 stores.push({...newStore, id: storeRef.id}); // Add to local array
+            }
+
+
+            // --- 3. Add 15 mock orders ---
             for (let i = 0; i < 15; i++) {
                 const orderRef = doc(collection(firestore, 'orders'));
                 const client = getRandomElement(clients);
@@ -71,7 +136,7 @@ export default function DataSeederPage() {
                 batch.set(orderRef, orderData);
             }
 
-            // 2. Add 5 mock wallet transactions
+            // --- 4. Add 5 mock wallet transactions ---
             for (let i = 0; i < 5; i++) {
                  const walletRef = doc(collection(firestore, 'wallet_transactions'));
                  const client = getRandomElement(clients);
@@ -101,24 +166,23 @@ export default function DataSeederPage() {
     };
 
     const handleDeleteData = async () => {
-        if (!firestore || !confirm('هل أنت متأكد؟ سيتم حذف جميع الطلبات والمعاملات التي تم إنشاؤها تجريبياً.')) return;
+        if (!firestore || !confirm('هل أنت متأكد؟ سيتم حذف جميع البيانات التي تم إنشاؤها تجريبياً (طلبات، معاملات، مستخدمون، ومتاجر).')) return;
         setIsDeleting(true);
 
         try {
             const batch = writeBatch(firestore);
             
-            // Delete mock orders
-            const ordersQuery = query(collection(firestore, 'orders'), where('isMock', '==', true));
-            const ordersSnapshot = await getDocs(ordersQuery);
-            ordersSnapshot.forEach(doc => batch.delete(doc.ref));
+            // Define collections to purge
+            const collectionsToPurge = ['users', 'stores', 'orders', 'wallet_transactions'];
 
-            // Delete mock wallet transactions
-            const walletQuery = query(collection(firestore, 'wallet_transactions'), where('isMock', '==', true));
-            const walletSnapshot = await getDocs(walletQuery);
-            walletSnapshot.forEach(doc => batch.delete(doc.ref));
+            for(const col of collectionsToPurge) {
+                const q = query(collection(firestore, col), where('isMock', '==', true));
+                const snapshot = await getDocs(q);
+                snapshot.forEach(doc => batch.delete(doc.ref));
+            }
 
             await batch.commit();
-            toast({ title: 'نجاح', description: 'تم حذف البيانات التجريبية بنجاح.' });
+            toast({ title: 'نجاح', description: 'تم حذف جميع البيانات التجريبية بنجاح.' });
         } catch (error: any) {
             console.error("Error deleting data:", error);
             toast({ variant: 'destructive', title: "خطأ", description: error.message });
@@ -147,7 +211,7 @@ export default function DataSeederPage() {
                         className="w-full font-black text-base h-12"
                     >
                         {isInjecting ? <Loader2 className="ml-2 h-5 w-5 animate-spin" /> : <Database className="ml-2 h-5 w-5" />}
-                        حقن (15) طلب و (5) عمليات شحن
+                        حقن البيانات التجريبية
                     </Button>
                 </CardContent>
             </Card>
