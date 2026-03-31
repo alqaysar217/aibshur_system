@@ -1,6 +1,5 @@
 'use client';
 
-// All original imports are kept to avoid breaking dependencies, but the component returns an empty header.
 import { Menu, Bell, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,11 +21,68 @@ interface AdminTopBarProps {
 }
 
 export function AdminTopBar({ toggleMobile }: AdminTopBarProps) {
+  const { userData, loading: userLoading } = useUser();
+  const auth = useAuth();
   
-  // Intentionally left blank to verify file updates.
+  const handleLogout = () => {
+      if (auth) {
+          auth.signOut();
+      }
+  }
+
   return (
-    <header className="sticky top-0 z-50 flex items-center h-16 px-4 md:px-8 bg-white border-b border-border">
-      <div></div>
+    <header className="sticky top-0 z-30 flex items-center justify-between h-20 px-4 md:px-8 bg-white border-b border-border">
+      <div className="flex items-center gap-2">
+         {/* Mobile Menu Toggle */}
+        <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMobile}
+            className="lg:hidden"
+        >
+            <Menu className="w-6 h-6" />
+            <span className="sr-only">Toggle Sidebar</span>
+        </Button>
+      </div>
+      
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" className="rounded-full">
+            <Bell className="w-5 h-5"/>
+            <span className="sr-only">Notifications</span>
+        </Button>
+        
+        {userLoading ? (
+            <Skeleton className="h-10 w-40" />
+        ) : userData ? (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                            <AvatarImage src={userData.profile_image} alt={userData.full_name || 'User'}/>
+                            <AvatarFallback>{userData.full_name ? userData.full_name[0].toUpperCase() : 'U'}</AvatarFallback>
+                        </Avatar>
+                        <div className="text-right hidden md:block">
+                            <p className="text-sm font-bold">{userData.full_name}</p>
+                            <p className="text-xs text-muted-foreground">{userData.roles?.is_admin ? 'مدير النظام' : 'مستخدم'}</p>
+                        </div>
+                        <ChevronDown className="w-4 h-4 text-muted-foreground hidden md:block"/>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>حسابي</DropdownMenuLabel>
+                    <DropdownMenuSeparator/>
+                    <DropdownMenuItem asChild><Link href="/admin/profile">الملف الشخصي</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/admin/settings">الإعدادات</Link></DropdownMenuItem>
+                    <DropdownMenuSeparator/>
+                    <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                        تسجيل الخروج
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        ) : null}
+
+      </div>
+
     </header>
   );
 }
