@@ -3,7 +3,7 @@ export type PaymentMethod = 'cash' | 'wallet' | 'card';
 export type TransactionType = 'top-up' | 'withdrawal' | 'order_payment' | 'refund' | 'system_fee' | 'points_conversion' | 'vip_subscription' | 'donation';
 export type TransactionStatus = 'pending' | 'completed' | 'failed';
 export type AppInfoSettingType = 'about_us' | 'privacy_policy' | 'terms_of_service' | 'ad_banner';
-export type AdminConfigSettingType = 'coupon' | 'vip_package' | 'loyalty_points_config' | 'system_fee_config';
+export type AdminConfigSettingType = 'coupon' | 'vip_package' | 'loyalty_points_config' | 'system_fee_config' | 'app_config';
 export type TargetType = 'general' | 'store' | 'product';
 export type DiscountType = 'percentage' | 'fixed_amount';
 export type CouponScope = 'global' | 'store' | 'product';
@@ -321,6 +321,39 @@ export interface LoyaltyTransaction {
     related_finance_tx_id?: string;
     description: string;
     timestamp: string;
+}
+
+export interface AppConfig {
+    id?: string;
+    financial: {
+        platform_fee_percentage: number;
+        default_delivery_fee: number;
+        min_order_for_free_delivery: number;
+    };
+    identity: {
+        app_logo_url: string;
+        main_slider_images: string[];
+    };
+    maintenance: {
+        is_maintenance_mode: boolean;
+        maintenance_message: string;
+    };
+    support: {
+        whatsapp_number: string;
+        facebook_url: string;
+        email: string;
+    }
+}
+
+export interface Complaint {
+    id?: string;
+    complaintId: string;
+    userId: string;
+    userName: string;
+    userPhone: string;
+    issueText: string;
+    createdAt: string; // ISO 8601
+    status: 'pending' | 'resolved';
 }
 
 // This is a legacy type, do not use.

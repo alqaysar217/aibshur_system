@@ -331,7 +331,7 @@
       "type": "object",
       "properties": {
         "settingId": { "type": "string" },
-        "type": { "type": "string", "enum": ["coupon", "vip_package", "loyalty_points_config", "system_fee_config"] },
+        "type": { "type": "string", "enum": ["coupon", "vip_package", "loyalty_points_config", "system_fee_config", "app_config"] },
         "config_data": { "type": "object" },
         "is_active": { "type": "boolean" }
       },
@@ -398,6 +398,58 @@
         },
         "required": ["planId", "name", "price", "durationInDays", "benefits", "isActive"]
     },
+    "AppConfig": {
+      "title": "App Configuration",
+      "description": "Holds all system-wide configurations.",
+      "type": "object",
+      "properties": {
+        "financial": {
+          "type": "object",
+          "properties": {
+            "platform_fee_percentage": { "type": "number" },
+            "default_delivery_fee": { "type": "number" },
+            "min_order_for_free_delivery": { "type": "number" }
+          }
+        },
+        "identity": {
+          "type": "object",
+          "properties": {
+            "app_logo_url": { "type": "string", "format": "uri" },
+            "main_slider_images": { "type": "array", "items": { "type": "string", "format": "uri" } }
+          }
+        },
+        "maintenance": {
+          "type": "object",
+          "properties": {
+            "is_maintenance_mode": { "type": "boolean" },
+            "maintenance_message": { "type": "string" }
+          }
+        },
+        "support": {
+          "type": "object",
+          "properties": {
+            "whatsapp_number": { "type": "string" },
+            "facebook_url": { "type": "string", "format": "uri" },
+            "email": { "type": "string", "format": "email" }
+          }
+        }
+      }
+    },
+    "Complaint": {
+        "title": "Complaint",
+        "description": "Represents a user complaint or support ticket.",
+        "type": "object",
+        "properties": {
+            "complaintId": { "type": "string" },
+            "userId": { "type": "string" },
+            "userName": { "type": "string" },
+            "userPhone": { "type": "string" },
+            "issueText": { "type": "string" },
+            "createdAt": { "type": "string", "format": "date-time" },
+            "status": { "type": "string", "enum": ["pending", "resolved"] }
+        },
+        "required": ["complaintId", "userId", "userName", "userPhone", "issueText", "createdAt", "status"]
+    },
     "GeoPoint": {
         "title": "GeoPoint",
         "description": "Represents a geographical point.",
@@ -453,7 +505,7 @@
       "schema": { "$ref": "#/entities/AppInfoSetting" },
       "description": "Public app settings, readable by all, writable by admins."
     },
-    "/admin_config_settings/{settingId}": {
+    "/settings/{settingId}": {
       "schema": { "$ref": "#/entities/AdminConfigSetting" },
       "description": "Private system configurations, accessible only by admins."
     },
@@ -484,6 +536,10 @@
     "/vip_plans/{planId}": {
         "schema": { "$ref": "#/entities/VipPlan" },
         "description": "Defines available VIP subscription plans. Writable by admins."
+    },
+    "/complaints/{complaintId}": {
+        "schema": { "$ref": "#/entities/Complaint" },
+        "description": "User submitted complaints and support tickets."
     }
   }
 }
