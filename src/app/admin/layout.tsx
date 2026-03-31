@@ -5,7 +5,6 @@ import { AdminTopBar } from "@/components/admin/top-bar";
 import { cn } from "@/lib/utils";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -33,8 +32,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Sidebar */}
       <AdminSidebar 
-        isCollapsed={isCollapsed} 
-        setIsCollapsed={setIsCollapsed}
         isMobileOpen={isMobileOpen}
         setIsMobileOpen={setIsMobileOpen}
       />
@@ -43,7 +40,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <AdminTopBar 
           toggleMobile={() => setIsMobileOpen(!isMobileOpen)} 
-          toggleDesktop={() => setIsCollapsed(!isCollapsed)}
+          toggleDesktop={() => {}} // Desktop toggle is disabled for flat sidebar
         />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10">
