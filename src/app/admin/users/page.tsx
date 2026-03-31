@@ -421,7 +421,7 @@ export default function AdminUsersPage() {
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader><AlertDialogTitle>هل أنت متأكد تماماً؟</AlertDialogTitle>
             <AlertDialogDescription>سيتم حذف حساب "{userToDelete?.full_name}" بشكل نهائي.</AlertDialogDescription>
