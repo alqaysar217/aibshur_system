@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Calendar, ShoppingCart, Users, Building, Truck, BarChart2, Package, Shapes, MapPin,
   Wallet, Banknote, Crown, Star, TicketPercent, GalleryHorizontal, HeartHandshake, TrendingUp, Settings,
-  MessageSquare, Wrench, LogOut, PanelLeftClose, PanelRightClose
+  MessageSquare, Wrench, LogOut
 } from 'lucide-react';
 import Image from 'next/image';
 
