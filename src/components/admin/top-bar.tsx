@@ -73,7 +73,7 @@ export function AdminTopBar({ toggleMobile, toggleCollapse, isCollapsed }: Admin
                             <AvatarFallback>{userData.full_name ? userData.full_name[0].toUpperCase() : 'U'}</AvatarFallback>
                         </Avatar>
                         <div className="text-right hidden md:block">
-                            <p className="text-sm font-bold">محمود حساني</p>
+                            <p className="text-sm font-bold">{userData.full_name}</p>
                             <p className="text-xs text-muted-foreground">{userData.roles?.is_admin ? 'مدير النظام' : 'مستخدم'}</p>
                         </div>
                     </Button>
