@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFirestore, useDoc, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import type { AppConfig } from '@/lib/types';
