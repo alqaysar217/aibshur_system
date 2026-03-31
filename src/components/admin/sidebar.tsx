@@ -65,7 +65,7 @@ const navGroups = [
         adminOnly: true,
         links: [
             { name: 'تقارير المبيعات', href: '/admin/reports/sales', icon: AreaChart },
-            { name: 'كشف حساب المناديب', href: '/admin/reports/drivers', icon: Truck },
+            { name: 'أداء المناديب', href: '/admin/reports/drivers', icon: Truck },
             { name: 'أدوات المطورين', href: '/admin/reports/data-seeder', icon: Database },
         ]
     }
