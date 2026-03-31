@@ -2,7 +2,6 @@
 import { ReactNode, useState, useEffect } from "react";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminTopBar } from "@/components/admin/top-bar";
-import { cn } from "@/lib/utils";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -44,11 +43,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         isCollapsed={isCollapsed}
       />
 
-      <div className={cn(
-          "flex-1 flex flex-col min-w-0 overflow-hidden relative transition-[margin-right] duration-300 ease-in-out",
-          isCollapsed ? 'lg:mr-20' : 'lg:mr-64'
-        )}
-      >
+      {/* This div no longer needs dynamic margins as flexbox handles the layout */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         <AdminTopBar 
           toggleMobile={() => setIsMobileOpen(!isMobileOpen)} 
           toggleCollapse={() => setIsCollapsed(!isCollapsed)}
