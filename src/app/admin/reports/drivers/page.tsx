@@ -1,36 +1,88 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Truck } from 'lucide-react';
-import { mockUsers } from '@/lib/mock-data';
+import { Truck, Loader2 } from 'lucide-react';
+import { useCollection, useFirestore } from '@/firebase';
+import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
+import type { User, Order } from '@/lib/types';
+import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Mock data for driver performance
-const driverPerformanceData = mockUsers.filter(u => u.role === 'driver').map(driver => ({
-  id: driver.uid,
-  name: driver.full_name,
-  deliveredOrders: Math.floor(Math.random() * 50) + 10,
-  totalCommission: Math.floor(Math.random() * 50000) + 10000,
-}));
+const RowSkeleton = () => (
+    <TableRow>
+        <TableCell colSpan={4} className="p-0">
+            <Skeleton className="w-full h-14"/>
+        </TableCell>
+    </TableRow>
+);
 
 
 export default function DriversAnalyticsPage() {
     const { toast } = useToast();
-    const [drivers, setDrivers] = useState(driverPerformanceData);
+    const firestore = useFirestore();
+    const [settlingId, setSettlingId] = useState<string | null>(null);
 
-    const handleSettleAccount = (driverId: string) => {
-        setDrivers(prevDrivers => 
-            prevDrivers.map(d => 
-                d.id === driverId ? { ...d, totalCommission: 0 } : d
-            )
-        );
+    const driversQuery = useMemo(() => firestore ? query(collection(firestore, 'users'), where('role', '==', 'driver')) : null, [firestore]);
+    const { data: drivers, loading: driversLoading, error: driversError } = useCollection<User>(driversQuery, 'users');
+
+    const ordersQuery = useMemo(() => firestore ? collection(firestore, 'orders') : null, [firestore]);
+    const { data: orders, loading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery, 'orders');
+
+    const driverPerformanceData = useMemo(() => {
+        if (!drivers || !orders) return [];
+
+        return drivers.map(driver => {
+            const deliveredOrders = orders.filter(order => order.driverUid === driver.uid && order.status === 'delivered');
+            const totalCommission = deliveredOrders.reduce((acc, order) => acc + order.delivery_fee, 0);
+
+            return {
+                id: driver.uid,
+                name: driver.full_name,
+                deliveredOrders: deliveredOrders.length,
+                totalCommission: totalCommission,
+            };
+        });
+    }, [drivers, orders]);
+
+    const handleSettleAccount = async (driverId: string) => {
+        if (!firestore) return;
+        setSettlingId(driverId);
+        
+        // This is a placeholder for a real financial transaction.
+        // In a real app, you would create a financial log entry and then update the driver's balance.
+        // For now, we will just show a success message as if it worked.
+        // To make it more realistic, I'll simulate a delay.
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Let's find the driver to update their wallet in the UI state if needed,
+        // though re-fetching from Firestore is the source of truth.
+        // The business logic for commission is not fully defined (where is it stored?),
+        // so for now we'll just show the toast and let the data re-render if it were to change.
+        
         toast({
             title: "تمت التسوية",
-            description: `تم تصفير حساب المندوب بنجاح.`
+            description: `تم تصفير حساب المندوب بنجاح (محاكاة).`
         });
+
+        // In a real implementation, you would update the driver's document, e.g.:
+        // const driverRef = doc(firestore, 'users', driverId);
+        // await updateDoc(driverRef, { 'driver_details.commission_balance': 0 });
+        
+        setSettlingId(null);
     }
+    
+    const dbError = driversError || ordersError;
+    if (dbError) {
+      if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('permission-denied')) {
+          return <SetupFirestoreMessage />;
+      }
+      return <p className="text-destructive text-center p-8">خطأ في جلب البيانات: {dbError.message}</p>;
+    }
+    if (!firestore) return <SetupFirestoreMessage />;
+
 
     return (
         <div className="space-y-8">
@@ -45,6 +97,9 @@ export default function DriversAnalyticsPage() {
                         <Truck className="text-primary"/>
                         كشف حساب المناديب
                     </CardTitle>
+                    <CardDescription>
+                        تعتمد العمولة المستحقة على مجموع رسوم التوصيل للطلبات المكتملة.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     <Table>
@@ -57,7 +112,10 @@ export default function DriversAnalyticsPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {drivers.map((driver) => (
+                            {driversLoading || ordersLoading ? (
+                                Array.from({length: 3}).map((_, i) => <RowSkeleton key={i} />)
+                            ) : driverPerformanceData.length > 0 ? (
+                                driverPerformanceData.map((driver) => (
                                 <TableRow key={driver.id}>
                                     <TableCell className="font-bold">{driver.name}</TableCell>
                                     <TableCell className="text-center font-mono font-bold">{driver.deliveredOrders}</TableCell>
@@ -66,14 +124,13 @@ export default function DriversAnalyticsPage() {
                                         <Button
                                             size="sm"
                                             onClick={() => handleSettleAccount(driver.id)}
-                                            disabled={driver.totalCommission === 0}
+                                            disabled={driver.totalCommission === 0 || settlingId === driver.id}
                                         >
-                                            تسوية الحساب
+                                            {settlingId === driver.id ? <Loader2 className="h-4 w-4 animate-spin"/> : 'تسوية الحساب'}
                                         </Button>
                                     </TableCell>
                                 </TableRow>
-                            ))}
-                            {drivers.length === 0 && (
+                            ))) : (
                                 <TableRow>
                                     <TableCell colSpan={4} className="h-24 text-center">لا يوجد مناديب لعرضهم.</TableCell>
                                 </TableRow>
