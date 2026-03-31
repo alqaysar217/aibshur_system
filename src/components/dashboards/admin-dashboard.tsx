@@ -112,7 +112,7 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
-          <Card key={idx} className="border-border shadow-sm rounded-[20px] overflow-hidden hover:shadow-lg transition-all group bg-card">
+          <Card key={idx} className="border-border shadow-sm rounded-2xl overflow-hidden hover:shadow-lg transition-all group bg-card">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", stat.bg)}>
@@ -140,7 +140,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-border shadow-sm rounded-[25px] bg-card overflow-hidden">
+        <Card className="lg:col-span-2 border-border shadow-sm rounded-2xl bg-card overflow-hidden">
           <CardHeader className="p-6 border-b border-border flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-black flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" /> نمو المبيعات الأسبوعي
@@ -165,7 +165,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-border shadow-sm rounded-[25px] bg-card overflow-hidden">
+        <Card className="border-border shadow-sm rounded-2xl bg-card overflow-hidden">
           <CardHeader className="p-6 border-b border-border">
             <CardTitle className="text-sm font-black flex items-center gap-2">
               <Store className="h-4 w-4 text-primary" /> توزيع المتاجر حسب الفئة
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      <Card className="border-border shadow-sm rounded-[25px] bg-card overflow-hidden">
+      <Card className="border-border shadow-sm rounded-2xl bg-card overflow-hidden">
         <CardHeader className="p-6 border-b border-border flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-black flex items-center gap-2">
             <ShoppingBag className="h-4 w-4 text-primary" /> أحدث الطلبات

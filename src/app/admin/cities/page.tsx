@@ -196,7 +196,7 @@ export default function AdminCitiesPage() {
         </div>
       </div>
 
-      <Card className="border-none shadow-sm rounded-[20px] bg-white overflow-hidden">
+      <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
         <CardHeader className="p-6 border-b border-gray-50 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-black flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-primary" /> المدن المتاحة
