@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useDoc, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, collection } from 'firebase/firestore';
 import type { AppConfig, Complaint } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,7 @@ export default function SupportPage() {
   const configDocRef = useMemo(() => firestore ? doc(firestore, CONFIG_COLLECTION_ID, CONFIG_DOC_ID) : null, [firestore]);
   
   const { data: fetchedConfig, loading: configLoading, error: configError } = useDoc<AppConfig>(configDocRef);
-  const { data: complaints, loading: complaintsLoading, error: complaintsError } = useCollection<Complaint>(useMemo(() => firestore ? doc(firestore, 'complaints') : null, [firestore]));
+  const { data: complaints, loading: complaintsLoading, error: complaintsError } = useCollection<Complaint>(useMemo(() => firestore ? collection(firestore, 'complaints') : null, [firestore]), 'complaints');
 
   const [config, setConfig] = useState<AppConfig>(initialConfig);
   const [isSubmitting, setIsSubmitting] = useState(false);
