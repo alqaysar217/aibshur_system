@@ -21,6 +21,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('resize', checkSize);
   }, []);
 
+  // Use a key on the sidebar to force a re-render if needed, but prefer state management
+  // const sidebarKey = useMemo(() => Date.now(), [isCollapsed, isMobileOpen]);
+
   if (!mounted) {
     return (
         <div className="flex h-screen w-full bg-background items-center justify-center">
@@ -44,8 +47,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         isCollapsed={isCollapsed}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ease-in-out"
-           style={{ marginRight: isCollapsed ? '5rem' : '16rem' }}
+      <div className={cn(
+          "flex-1 flex flex-col min-w-0 overflow-hidden relative transition-[margin-right] duration-300 ease-in-out",
+          isCollapsed ? 'lg:mr-20' : 'lg:mr-64'
+        )}
       >
         <AdminTopBar 
           toggleMobile={() => setIsMobileOpen(!isMobileOpen)} 

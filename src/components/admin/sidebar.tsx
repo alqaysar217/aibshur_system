@@ -10,26 +10,26 @@ import {
 import Image from 'next/image';
 
 const navLinks = [
-  { href: '/admin', icon: LayoutDashboard, text: 'الرئيسية' },
-  { href: '/admin/appointments', icon: Calendar, text: 'إدارة المواعيد' },
-  { href: '/admin/confirm-orders', icon: ShoppingCart, text: 'إدارة الطلبات' },
-  { href: '/admin/users', icon: Users, text: 'إدارة المستخدمين' },
-  { href: '/admin/stores', icon: Building, text: 'إدارة المتاجر' },
-  { href: '/admin/reports/drivers', icon: Truck, text: 'أداء المناديب' },
-  { href: '/admin/products', icon: Package, text: 'إدارة المنتجات' },
-  { href: '/admin/categories', icon: Shapes, text: 'إدارة الفئات' },
-  { href: '/admin/cities', icon: MapPin, text: 'إدارة المدن' },
-  { href: '/admin/wallet-requests', icon: Wallet, text: 'شحن المحافظ' },
-  { href: '/admin/bank-accounts', icon: Banknote, text: 'حسابات البنوك' },
-  { href: '/admin/vip-plans', icon: Crown, text: 'باقات VIP' },
-  { href: '/admin/points-system', icon: Star, text: 'نظام الولاء' },
-  { href: '/admin/marketing/coupons', icon: TicketPercent, text: 'كوبونات الخصم' },
-  { href: '/admin/marketing/banners', icon: GalleryHorizontal, text: 'الإعلانات' },
-  { href: '/admin/donations', icon: HeartHandshake, text: 'إدارة التبرعات' },
-  { href: '/admin/reports/sales', icon: TrendingUp, text: 'تقارير المبيعات' },
-  { href: '/admin/settings', icon: Settings, text: 'إعدادات النظام' },
-  { href: '/admin/support', icon: MessageSquare, text: 'الدعم الفني' },
-  { href: '/admin/reports/data-seeder', icon: Wrench, text: 'أدوات المطورين' },
+    { href: '/admin', icon: LayoutDashboard, text: 'الرئيسية' },
+    { href: '/admin/appointments', icon: Calendar, text: 'إدارة المواعيد' },
+    { href: '/admin/confirm-orders', icon: ShoppingCart, text: 'إدارة الطلبات' },
+    { href: '/admin/users', icon: Users, text: 'إدارة المستخدمين' },
+    { href: '/admin/stores', icon: Building, text: 'إدارة المتاجر' },
+    { href: '/admin/reports/drivers', icon: Truck, text: 'أداء المناديب' },
+    { href: '/admin/products', icon: Package, text: 'إدارة المنتجات' },
+    { href: '/admin/categories', icon: Shapes, text: 'إدارة الفئات' },
+    { href: '/admin/cities', icon: MapPin, text: 'إدارة المدن' },
+    { href: '/admin/wallet-requests', icon: Wallet, text: 'شحن المحافظ' },
+    { href: '/admin/bank-accounts', icon: Banknote, text: 'حسابات البنوك' },
+    { href: '/admin/vip-plans', icon: Crown, text: 'باقات VIP' },
+    { href: '/admin/points-system', icon: Star, text: 'نظام الولاء' },
+    { href: '/admin/marketing/coupons', icon: TicketPercent, text: 'كوبونات الخصم' },
+    { href: '/admin/marketing/banners', icon: GalleryHorizontal, text: 'الإعلانات' },
+    { href: '/admin/donations', icon: HeartHandshake, text: 'إدارة التبرعات' },
+    { href: '/admin/reports/sales', icon: TrendingUp, text: 'تقارير المبيعات' },
+    { href: '/admin/settings', icon: Settings, text: 'إعدادات النظام' },
+    { href: '/admin/support', icon: MessageSquare, text: 'الدعم الفني' },
+    { href: '/admin/reports/data-seeder', icon: Wrench, text: 'أدوات المطورين' },
 ];
 
 export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
@@ -38,7 +38,7 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
   const NavLink = ({ href, icon: Icon, text, isLogout = false }) => {
     const isActive = pathname === href;
     return (
-      <Link href={href} onClick={() => isMobileOpen && setIsMobileOpen(false)} title={text}>
+      <Link href={href} onClick={() => isMobileOpen && setIsMobileOpen(false)} title={isCollapsed ? text : ''}>
         <span
           className={cn(
             'flex items-center gap-4 px-4 py-3 rounded-lg transition-colors duration-200',
@@ -48,7 +48,7 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
             isCollapsed && 'justify-center'
           )}
         >
-          <Icon className={cn('w-5 h-5 shrink-0', isActive && !isLogout ? 'text-primary' : isLogout ? 'text-red-500' : 'text-gray-400')} />
+          <Icon className={cn('w-5 h-5 shrink-0 transition-colors', isActive && !isLogout ? 'text-primary' : isLogout ? 'text-red-500' : 'text-gray-400')} />
           <span className={cn('transition-opacity duration-200', isCollapsed ? 'w-0 opacity-0' : 'opacity-100')}>{text}</span>
         </span>
       </Link>
@@ -64,12 +64,13 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
       isCollapsed ? 'lg:w-20' : 'lg:w-64'
     )}>
         {/* Header */}
-        <div className={cn("flex items-center h-20 border-b shrink-0 px-4 gap-3", isCollapsed && "justify-center")}>
-             <Image src="https://i.postimg.cc/L8g1v4w1/absher-logo-2.png" alt="أبشر Logo" width={isCollapsed ? 40 : 100} height={isCollapsed ? 40 : 34} className="transition-all duration-300 object-contain"/>
+        <div className={cn("flex items-center h-20 border-b shrink-0 px-4 gap-3 overflow-hidden", isCollapsed && "justify-center")}>
+             <Image src="https://i.postimg.cc/L8g1v4w1/absher-logo-2.png" alt="أبشر Logo" width={40} height={40} className="transition-all duration-300 object-contain flex-shrink-0"/>
+             {!isCollapsed && <span className="font-black text-lg text-gray-800 whitespace-nowrap">إدارة أبشر</span>}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
             {navLinks.map((link) => <NavLink key={link.href} {...link} />)}
         </nav>
         
