@@ -6,16 +6,26 @@ import { cn } from "@/lib/utils";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false); // New state for desktop collapse
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    // Optional: Set initial collapsed state based on screen size
+    const checkSize = () => {
+      if (window.innerWidth < 1024) { // lg breakpoint
+        setIsCollapsed(true);
+      }
+    };
+    checkSize();
+    window.addEventListener('resize', checkSize);
+    return () => window.removeEventListener('resize', checkSize);
   }, []);
 
   if (!mounted) {
     return (
         <div className="flex h-screen w-full bg-background items-center justify-center">
+            {/* You can add a full-page loader here */}
         </div>
     );
   }
@@ -38,11 +48,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative transition-all duration-300 ease-in-out"
+           style={{ marginRight: isCollapsed ? '5rem' : '16rem' }}
+      >
         <AdminTopBar 
           toggleMobile={() => setIsMobileOpen(!isMobileOpen)} 
-          toggleCollapse={() => setIsCollapsed(!isCollapsed)} // Pass the toggle function
-          isCollapsed={isCollapsed} // Pass state for icon change
+          toggleCollapse={() => setIsCollapsed(!isCollapsed)}
+          isCollapsed={isCollapsed}
         />
         
         <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 bg-[#F5F7F6]">
