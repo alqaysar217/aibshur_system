@@ -30,14 +30,14 @@ interface StorePerformance {
     sales: number;
 }
 
-// Color mapping for charts
+// Color mapping for charts, aligned with user request
 const statusColors: { [key: string]: string } = {
-    delivered: '#1FAF9A', // Primary Green
-    pending: '#FBBF24', // Amber 400
-    preparing: '#60A5FA', // Blue 400
-    cancelled: '#F87171', // Red 400
-    rejected: '#EF4444',     // Red 500
-    out_for_delivery: '#34D399', // Emerald 400
+    delivered: '#1FAF9A',      // Green for success
+    pending: '#A0AEC0',        // Gray for pending
+    preparing: '#FBBF24',     // Amber for in-progress state
+    out_for_delivery: '#60A5FA',// Blue for in-transit
+    cancelled: '#F87171',      // Red for cancelled
+    rejected: '#EF4444',       // Darker Red for rejected
 };
 
 const statusLabels: { [key: string]: string } = {
