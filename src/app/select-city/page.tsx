@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useCollection, useFirestore, useUser } from '@/firebase';
 import { collection, doc, updateDoc } from 'firebase/firestore';
 import type { City } from '@/lib/types';
@@ -25,9 +25,8 @@ export default function SelectCityPage() {
     const router = useRouter();
     const { toast } = useToast();
 
-    const { data: cities, loading: citiesLoading } = useCollection<City>(
-        firestore ? collection(firestore, 'cities') : null
-    );
+    const citiesQuery = useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]);
+    const { data: cities, loading: citiesLoading } = useCollection<City>(citiesQuery);
 
     const [selectedCityId, setSelectedCityId] = useState<string | null>(null);
     const [updating, setUpdating] = useState(false);

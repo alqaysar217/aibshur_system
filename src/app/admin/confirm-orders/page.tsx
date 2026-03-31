@@ -72,9 +72,12 @@ export default function ConfirmOrdersPage() {
 
   // Data fetching
   const ordersQuery = useMemo(() => firestore ? query(collection(firestore, 'orders'), orderBy('created_at', 'desc')) : null, [firestore]);
+  const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
+
   const { data: orders, loading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery, 'orders');
-  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(firestore ? collection(firestore, 'users') : null, 'users');
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(firestore ? collection(firestore, 'stores') : null, 'stores');
+  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(usersQuery, 'users');
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, 'stores');
   
   const dataLoading = ordersLoading || usersLoading || storesLoading;
 
