@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { User, Store, Order, WalletTopupRequest, City, OrderStatus } from '@/lib/types';
+import { mockUsers, mockStores } from '@/lib/mock-data';
 
 function getRandomElement<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -29,106 +30,24 @@ export default function DataSeederPage() {
         try {
             const batch = writeBatch(firestore);
 
-            // --- 1. Fetch prerequisite data (Cities, Users, Stores) ---
-            const citiesSnapshot = await getDocs(collection(firestore, 'cities'));
-            if (citiesSnapshot.empty) {
-                throw new Error('يرجى إضافة مدينة واحدة على الأقل من صفحة "المدن" قبل حقن البيانات.');
-            }
-            const cities = citiesSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as City));
-            const randomCity = getRandomElement(cities);
+            // --- 1. Seed Users and Stores from mock-data.ts ---
+            toast({ title: 'بدء الحقن', description: `جاري إضافة ${mockUsers.length} مستخدم و ${mockStores.length} متجر...` });
+            mockUsers.forEach(user => {
+                const userRef = doc(firestore, 'users', user.uid);
+                batch.set(userRef, user);
+            });
+            mockStores.forEach(store => {
+                const storeRef = doc(firestore, 'stores', store.storeId);
+                batch.set(storeRef, store);
+            });
 
-            const existingClientsSnapshot = await getDocs(query(collection(firestore, 'users'), where('roles.is_user', '==', true)));
-            const existingStoresSnapshot = await getDocs(collection(firestore, 'stores'));
-            const existingDriversSnapshot = await getDocs(query(collection(firestore, 'users'), where('roles.is_driver', '==', true)));
-
-            let clients = existingClientsSnapshot.docs.map(d => ({ ...d.data(), uid: d.id } as User));
-            let stores = existingStoresSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as Store));
-            let drivers = existingDriversSnapshot.docs.map(d => ({...d.data(), uid: d.id } as User));
-
-            // --- 2. Create mock data if it doesn't exist ---
-            if (clients.length === 0) {
-                const mockClientsData = [
-                    { full_name: 'عميل تجريبي ١', phone: '777111222' },
-                    { full_name: 'عميل تجريبي ٢', phone: '777333444' },
-                ];
-                for (const clientData of mockClientsData) {
-                    const userRef = doc(collection(firestore, 'users'));
-                    const newClient: User = {
-                        uid: userRef.id,
-                        full_name: clientData.full_name,
-                        phone: clientData.phone,
-                        roles: { is_user: true },
-                        city_id: randomCity.cityId,
-                        created_at: new Date().toISOString(),
-                        last_login_at: new Date().toISOString(),
-                        account_status: { is_blocked: false },
-                        isMock: true,
-                    };
-                    batch.set(userRef, newClient);
-                    clients.push(newClient); // Add to local array for immediate use
-                }
-            }
-
-            if (stores.length === 0) {
-                 const ownerRef = doc(collection(firestore, 'users'));
-                 const newOwner: User = {
-                    uid: ownerRef.id,
-                    full_name: 'صاحب متجر تجريبي',
-                    phone: '777555666',
-                    roles: { is_store_owner: true, is_user: true },
-                    created_at: new Date().toISOString(),
-                    last_login_at: new Date().toISOString(),
-                    account_status: { is_blocked: false },
-                    isMock: true,
-                 };
-                 
-                 const storeRef = doc(collection(firestore, 'stores'));
-                 
-                 // Link owner to store
-                 newOwner.store_id = storeRef.id;
-                 batch.set(ownerRef, newOwner);
-
-                 const newStore: Store = {
-                    storeId: storeRef.id,
-                    name_ar: 'متجر تجريبي',
-                    ownerUid: newOwner.uid,
-                    storeOwnerUid: newOwner.uid,
-                    city_id: randomCity.cityId,
-                    is_active: true,
-                    is_open: true,
-                    rating: 4.5,
-                    logo_url: 'https://picsum.photos/seed/mockstore/200',
-                    location: { latitude: 15.3694, longitude: 44.1910 }, // Sana'a coordinates
-                    filter_ids: ['restaurant'],
-                 };
-                 batch.set(storeRef, newStore);
-                 stores.push({...newStore, id: storeRef.id}); // Add to local array
-            }
+            // --- 2. Use newly available mock data for subsequent seeding ---
+            const clients = mockUsers.filter(u => u.roles.is_user && !u.roles.is_admin && !u.roles.is_driver && !u.roles.is_store_owner);
+            const drivers = mockUsers.filter(u => u.roles.is_driver);
+            const stores = mockStores;
             
-            if (drivers.length === 0) {
-                const driverRef = doc(collection(firestore, 'users'));
-                const newDriver: User = {
-                    uid: driverRef.id,
-                    full_name: 'مندوب توصيل تجريبي',
-                    phone: '777999888',
-                    roles: { is_driver: true, is_user: true },
-                    city_id: randomCity.cityId,
-                    created_at: new Date().toISOString(),
-                    last_login_at: new Date().toISOString(),
-                    account_status: { is_blocked: false },
-                    driver_details: {
-                        status: 'approved',
-                        is_online: true,
-                        vehicle_type: 'motorcycle',
-                        license_plate: '12345',
-                        id_card_image: '',
-                        rating: 4.8,
-                        wallet_balance: 0,
-                    },
-                    isMock: true,
-                };
-                batch.set(driverRef, newDriver);
-                drivers.push(newDriver); // Add to local array for immediate use
+            if (clients.length === 0 || stores.length === 0) {
+                 throw new Error('لا يوجد عملاء أو متاجر لإضافة بيانات تجريبية لها.');
             }
 
 
@@ -136,7 +55,7 @@ export default function DataSeederPage() {
             for (let i = 0; i < 15; i++) {
                 const orderRef = doc(collection(firestore, 'orders'));
                 const client = getRandomElement(clients);
-                const driver = drivers.length > 0 ? getRandomElement(drivers) : null;
+                const driver = drivers.length > 0 ? getRandomElement(drivers) : undefined;
                 const store = getRandomElement(stores);
                 const subtotal = getRandomNumber(1500, 25000);
                 const deliveryFee = 500;
