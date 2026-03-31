@@ -50,16 +50,15 @@ export default function AdminDashboard() {
   const firestore = useFirestore();
   const [firestoreError, setFirestoreError] = useState<Error | null>(null);
   const [stats, setStats] = useState([
-    { label: "إجمالي المتاجر", value: "...", icon: Store, trend: "", up: true, color: "text-sky-600", bg: "bg-sky-50" },
-    { label: "إجمالي المدن", value: "...", icon: Building2, trend: "", up: true, color: "text-fuchsia-600", bg: "bg-fuchsia-50" },
-    { label: "المناديب النشطين", value: "0", icon: Truck, trend: "", up: false, color: "text-orange-600", bg: "bg-orange-50" },
-    { label: "مستخدمين جدد", value: "0", icon: Users, trend: "", up: true, color: "text-purple-600", bg: "bg-purple-50" },
+    { label: "إجمالي المتاجر", value: "...", icon: Store, trend: "", up: true, color: "text-sky-400", bg: "bg-sky-500/10" },
+    { label: "إجمالي المدن", value: "...", icon: Building2, trend: "", up: true, color: "text-fuchsia-400", bg: "bg-fuchsia-500/10" },
+    { label: "المناديب النشطين", value: "0", icon: Truck, trend: "", up: false, color: "text-orange-400", bg: "bg-orange-500/10" },
+    { label: "مستخدمين جدد", value: "0", icon: Users, trend: "", up: true, color: "text-purple-400", bg: "bg-purple-500/10" },
   ]);
 
   useEffect(() => {
     const fetchStats = async () => {
       if (!firestore) {
-        // This case is handled by the root check below
         return;
       }
 
@@ -80,11 +79,10 @@ export default function AdminDashboard() {
           if (stat.label === "إجمالي المدن") return { ...stat, value: citiesCount.toString() };
           return stat;
         }));
-        setFirestoreError(null); // Clear error on success
+        setFirestoreError(null);
 
       } catch (error: any) {
         console.error("Critical Error fetching dashboard stats:", error);
-        // This is a more robust check for Firestore setup errors.
         const msg = error.message || '';
         if (msg.includes('database (default) does not exist') || msg.includes('Could not reach Firestore backend') || msg.includes('permission-denied') || msg.includes('Missing or insufficient permissions') || msg.includes('Cloud Firestore API has not been used')) {
             setFirestoreError(error);
@@ -95,7 +93,6 @@ export default function AdminDashboard() {
     fetchStats();
   }, [firestore]);
 
-  // If firestore instance is not available OR there's a specific setup error
   if (!firestore || firestoreError) {
     return <SetupFirestoreMessage />;
   }
@@ -105,18 +102,17 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900">نظرة عامة على النظام</h1>
-          <p className="text-gray-400 text-sm font-bold mt-1">أهلاً بك مجدداً، إليك ملخص نشاط تطبيق أبشر لليوم</p>
+          <h1 className="text-2xl font-black text-foreground">نظرة عامة على النظام</h1>
+          <p className="text-muted-foreground text-sm font-bold mt-1">أهلاً بك مجدداً، إليك ملخص نشاط تطبيق أبشر لليوم</p>
         </div>
         <Button className="rounded-lg bg-primary hover:bg-primary/90 font-black gap-2 h-11 shadow-lg shadow-primary/20">
           <TrendingUp className="h-4 w-4" /> تحميل التقارير
         </Button>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
-          <Card key={idx} className="border-none shadow-sm rounded-[20px] overflow-hidden hover:shadow-md transition-all group bg-white">
+          <Card key={idx} className="border-border shadow-sm rounded-[20px] overflow-hidden hover:shadow-lg transition-all group bg-card">
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className={cn("h-12 w-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110", stat.bg)}>
@@ -125,7 +121,7 @@ export default function AdminDashboard() {
                 {stat.trend && (
                   <Badge className={cn(
                     "rounded-full border-none font-black px-2 py-0.5 text-[10px] gap-1",
-                    stat.up ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                    stat.up ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"
                   )}>
                     {stat.up ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
                     {stat.trend}
@@ -133,9 +129,9 @@ export default function AdminDashboard() {
                 )}
               </div>
               <div className="space-y-1">
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{stat.label}</p>
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</p>
                 <div className="flex items-baseline gap-1">
-                  <h3 className="text-2xl font-black text-gray-900 tabular-nums">{stat.value}</h3>
+                  <h3 className="text-2xl font-black text-foreground tabular-nums">{stat.value}</h3>
                 </div>
               </div>
             </CardContent>
@@ -143,10 +139,9 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-none shadow-sm rounded-[25px] bg-white overflow-hidden">
-          <CardHeader className="p-6 border-b border-gray-50 flex flex-row items-center justify-between">
+        <Card className="lg:col-span-2 border-border shadow-sm rounded-[25px] bg-card overflow-hidden">
+          <CardHeader className="p-6 border-b border-border flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-black flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" /> نمو المبيعات الأسبوعي
             </CardTitle>
@@ -156,22 +151,22 @@ export default function AdminDashboard() {
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={SALES_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#9CA3AF' }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border) / 0.5)" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: 'hsl(var(--muted-foreground))' }} />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', direction: 'rtl' }}
+                    contentStyle={{ borderRadius: '15px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--background))', direction: 'rtl' }}
                     labelStyle={{ fontWeight: 'black', marginBottom: '5px' }}
                   />
-                  <Line type="monotone" dataKey="sales" stroke="#1FAF9A" strokeWidth={4} dot={{ r: 6, fill: '#1FAF9A', strokeWidth: 2, stroke: '#FFF' }} activeDot={{ r: 8 }} />
+                  <Line type="monotone" dataKey="sales" stroke="#1FAF9A" strokeWidth={4} dot={{ r: 6, fill: '#1FAF9A', strokeWidth: 2, stroke: 'hsl(var(--card))' }} activeDot={{ r: 8 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-sm rounded-[25px] bg-white overflow-hidden">
-          <CardHeader className="p-6 border-b border-gray-50">
+        <Card className="border-border shadow-sm rounded-[25px] bg-card overflow-hidden">
+          <CardHeader className="p-6 border-b border-border">
             <CardTitle className="text-sm font-black flex items-center gap-2">
               <Store className="h-4 w-4 text-primary" /> توزيع المتاجر حسب الفئة
             </CardTitle>
@@ -188,19 +183,19 @@ export default function AdminDashboard() {
                     dataKey="value"
                   >
                     {CATEGORY_DATA.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
+                      <Cell key={`cell-${index}`} fill={entry.color} stroke={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', backgroundColor: 'hsl(var(--background))' }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-4">
               {CATEGORY_DATA.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                <div key={idx} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
                   <div className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-[10px] font-black text-gray-600">{item.name}</span>
-                  <span className="text-[10px] font-bold text-gray-400 mr-auto">{item.value}٪</span>
+                  <span className="text-[10px] font-black text-foreground/80">{item.name}</span>
+                  <span className="text-[10px] font-bold text-muted-foreground mr-auto">{item.value}٪</span>
                 </div>
               ))}
             </div>
@@ -208,9 +203,8 @@ export default function AdminDashboard() {
         </Card>
       </div>
 
-      {/* Recent Orders Table */}
-      <Card className="border-none shadow-sm rounded-[25px] bg-white overflow-hidden">
-        <CardHeader className="p-6 border-b border-gray-50 flex flex-row items-center justify-between">
+      <Card className="border-border shadow-sm rounded-[25px] bg-card overflow-hidden">
+        <CardHeader className="p-6 border-b border-border flex flex-row items-center justify-between">
           <CardTitle className="text-sm font-black flex items-center gap-2">
             <ShoppingBag className="h-4 w-4 text-primary" /> أحدث الطلبات
           </CardTitle>
@@ -222,7 +216,7 @@ export default function AdminDashboard() {
           <div className="overflow-x-auto">
             <table className="w-full text-right">
               <thead>
-                <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                <tr className="bg-muted/30 text-[10px] font-black text-muted-foreground uppercase tracking-widest border-b border-border">
                   <th className="px-6 py-4">رقم الطلب</th>
                   <th className="px-6 py-4">العميل</th>
                   <th className="px-6 py-4">المتجر</th>
@@ -231,23 +225,23 @@ export default function AdminDashboard() {
                   <th className="px-6 py-4 text-left">الوقت</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-border">
                 {RECENT_ORDERS.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50/50 transition-colors group">
+                  <tr key={order.id} className="hover:bg-muted/50 transition-colors group">
                     <td className="px-6 py-4">
-                      <span className="font-black text-xs text-primary bg-primary/5 px-2 py-1 rounded-md">#{order.id}</span>
+                      <span className="font-black text-xs text-primary bg-primary/10 px-2 py-1 rounded-md">#{order.id}</span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-xs text-gray-700">{order.customer}</td>
-                    <td className="px-6 py-4 font-bold text-xs text-gray-700">{order.store}</td>
+                    <td className="px-6 py-4 font-bold text-xs text-foreground/90">{order.customer}</td>
+                    <td className="px-6 py-4 font-bold text-xs text-foreground/90">{order.store}</td>
                     <td className="px-6 py-4">
-                      <span className="font-black text-xs text-gray-900">{order.amount} <small className="text-[10px] text-gray-400">ريال</small></span>
+                      <span className="font-black text-xs text-foreground">{order.amount} <small className="text-[10px] text-muted-foreground">ريال</small></span>
                     </td>
                     <td className="px-6 py-4">
-                      <Badge className={cn(
+                       <Badge className={cn(
                         "rounded-xl border-none font-black px-3 py-1 text-[9px]",
-                        order.status === 'delivered' ? "bg-green-100 text-green-600" :
-                        order.status === 'pending' ? "bg-yellow-100 text-yellow-600" :
-                        order.status === 'canceled' ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"
+                        order.status === 'delivered' ? "bg-green-500/10 text-green-400" :
+                        order.status === 'pending' ? "bg-yellow-500/10 text-yellow-400" :
+                        order.status === 'canceled' ? "bg-red-500/10 text-red-400" : "bg-blue-500/10 text-blue-400"
                       )}>
                         {order.status === 'delivered' ? 'تم التوصيل' : 
                          order.status === 'onWay' ? 'في الطريق' :
@@ -257,9 +251,9 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 text-left">
                       <div className="flex items-center justify-end gap-2">
-                        <span className="text-[10px] font-bold text-gray-400">{order.time}</span>
+                        <span className="text-[10px] font-bold text-muted-foreground">{order.time}</span>
                         <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                          <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                          <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </div>
                     </td>

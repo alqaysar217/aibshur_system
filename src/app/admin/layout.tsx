@@ -15,14 +15,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (!mounted) {
     return (
-        <div className="flex h-screen w-full bg-[#F8FAFB] items-center justify-center">
+        <div className="flex h-screen w-full bg-background items-center justify-center">
             {/* Optional: Add a loading spinner */}
         </div>
     );
   }
 
   return (
-    <div className="flex h-screen w-full bg-[#F8FAFB] font-body overflow-hidden" dir="rtl">
+    <div className="flex h-screen w-full bg-background font-body overflow-hidden" dir="rtl">
       {/* Sidebar Overlay for Mobile */}
       {isMobileOpen && (
         <div 

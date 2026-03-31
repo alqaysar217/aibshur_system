@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, Bell, ChevronDown, PanelLeft } from 'lucide-react';
+import { Menu, Bell, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,7 +20,7 @@ interface AdminTopBarProps {
   toggleDesktop: () => void;
 }
 
-export function AdminTopBar({ toggleMobile, toggleDesktop }: AdminTopBarProps) {
+export function AdminTopBar({ toggleMobile }: AdminTopBarProps) {
   const { userData, loading } = useUser(); // Get real user data
   const auth = useAuth();
 
@@ -54,16 +54,18 @@ export function AdminTopBar({ toggleMobile, toggleDesktop }: AdminTopBarProps) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center gap-2">
+          <button className="flex items-center gap-3">
             <Avatar className="h-9 w-9">
               <AvatarImage src={userData.profile_image} alt={userData.full_name} />
               <AvatarFallback>{userData.full_name?.charAt(0) || 'U'}</AvatarFallback>
             </Avatar>
             <div className="hidden md:flex flex-col items-start">
-              <span className="text-xs font-black text-gray-800">{userData.full_name}</span>
-              <span className="text-[10px] font-bold text-gray-400 capitalize">{userData.role}</span>
+              <span className="text-sm font-black text-foreground">{userData.full_name}</span>
+              <span className="text-xs font-bold text-muted-foreground capitalize">
+                {userData.roles?.is_admin ? 'مدير نظام' : 'مستخدم'}
+              </span>
             </div>
-            <ChevronDown className="h-4 w-4 text-gray-400 hidden md:flex" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground hidden md:flex" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="rounded-xl shadow-lg w-56">
@@ -74,7 +76,7 @@ export function AdminTopBar({ toggleMobile, toggleDesktop }: AdminTopBarProps) {
           </DropdownMenuItem>
           <DropdownMenuItem className="font-bold rounded-lg">الإعدادات</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} className="text-red-500 font-bold rounded-lg focus:bg-red-50 focus:text-red-600">
+          <DropdownMenuItem onClick={handleLogout} className="text-red-500 font-bold rounded-lg focus:bg-red-500/10 focus:text-red-400">
             تسجيل الخروج
           </DropdownMenuItem>
         </DropdownMenuContent>
@@ -83,20 +85,17 @@ export function AdminTopBar({ toggleMobile, toggleDesktop }: AdminTopBarProps) {
   }
 
   return (
-    <header className="sticky top-0 z-50 flex items-center h-16 px-4 md:px-8 bg-white/80 backdrop-blur-sm border-b border-gray-100">
-      {/* Desktop Toggle */}
-      <Button variant="ghost" size="icon" className="hidden lg:flex" onClick={toggleDesktop}>
-        <PanelLeft className="h-5 w-5 text-gray-500" />
-      </Button>
+    <header className="sticky top-0 z-50 flex items-center h-16 px-4 md:px-8 bg-card/80 backdrop-blur-sm border-b border-border">
       {/* Mobile Toggle */}
       <Button variant="ghost" size="icon" className="lg:hidden" onClick={toggleMobile}>
-        <Menu className="h-5 w-5 text-gray-500" />
+        <Menu className="h-5 w-5 text-muted-foreground" />
       </Button>
       
       <div className="mr-auto flex items-center gap-4">
         <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5 text-gray-500" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary animate-pulse"></span>
+          <Bell className="h-5 w-5 text-muted-foreground" />
+          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary animate-ping"></span>
+           <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-primary"></span>
         </Button>
         <UserAvatar />
       </div>

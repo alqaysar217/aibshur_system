@@ -8,32 +8,30 @@
     --primary: 171 70% 40%;
     --primary-foreground: 0 0% 100%;
     
-    /* Backgrounds: #FFFFFF and #F8FAFB */
-    --background: 210 17% 98%; /* equivalent to #F8FAFB */
-    --foreground: 221 39% 11%;
+    /* Dark Theme: Deep Slate/Black */
+    --background: 222.2 84% 4.9%; /* slate-950 */
+    --foreground: 210 40% 98%;    /* slate-50 */
     
-    --card: 0 0% 100%;
-    --card-foreground: 221 39% 11%;
+    --card: 224 71.4% 4.1%; /* Almost black */
+    --card-foreground: 210 40% 98%;
     
-    --popover: 0 0% 100%;
-    --popover-foreground: 221 39% 11%;
+    --popover: 224 71.4% 4.1%;
+    --popover-foreground: 210 40% 98%;
     
-    --secondary: 210 17% 95%; /* Lighter gray for secondary elements */
-    --secondary-foreground: 221 39% 11%;
+    --secondary: 217.2 32.6% 17.5%; /* slate-800 */
+    --secondary-foreground: 210 40% 98%;
     
-    --muted: 210 17% 90%;
-    --muted-foreground: 215 14% 46%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%; /* slate-400 */
     
-    /* Accent: #1FAF9A */
-    --accent: 171 70% 40%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
     
-    /* Status Colors */
-    --destructive: 0 84% 60%;
+    --destructive: 0 72.2% 50.6%;
     --destructive-foreground: 210 40% 98%;
     
-    --border: 210 17% 90%;
-    --input: 210 17% 90%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
     --ring: 171 70% 40%;
     
     --radius: 10px; 
