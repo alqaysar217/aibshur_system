@@ -34,7 +34,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, X, Check, Eye, Package, User as UserIcon, Database } from 'lucide-react';
+import { Loader2, Search, X, Check, Eye, Package, User as UserIcon, Database, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -62,6 +62,7 @@ export default function ConfirmOrdersPage() {
 
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Modals state
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -71,9 +72,9 @@ export default function ConfirmOrdersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Data fetching
-  const ordersQuery = useMemo(() => firestore ? query(collection(firestore, 'orders'), orderBy('created_at', 'desc'), limit(15)) : null, [firestore]);
-  const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
+  const ordersQuery = useMemo(() => firestore ? query(collection(firestore, 'orders'), orderBy('created_at', 'desc'), limit(15)) : null, [firestore, refreshKey]);
+  const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore, refreshKey]);
+  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore, refreshKey]);
 
   const { data: orders, loading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery, { fetchOnce: true, collectionPath: 'orders' });
   const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(usersQuery, { fetchOnce: true, collectionPath: 'users' });
@@ -143,6 +144,7 @@ export default function ConfirmOrdersPage() {
           });
           toast({ title: "تم تحديث حالة الطلب بنجاح" });
           if(isCancelOpen) setCancelOpen(false);
+          setRefreshKey(prev => prev + 1); // Manually trigger a refresh
       } catch(err: any) {
           toast({ variant: 'destructive', title: "خطأ", description: "فشل تحديث حالة الطلب" });
           if (err.code === 'permission-denied') {
@@ -165,9 +167,14 @@ export default function ConfirmOrdersPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black text-gray-900">إدارة وتأكيد الطلبات</h1>
-        <p className="text-gray-400 text-sm font-bold mt-1">متابعة وقبول الطلبات الجديدة وتمريرها للمتاجر.</p>
+      <div className="flex justify-between items-center">
+        <div>
+            <h1 className="text-2xl font-black text-gray-900">إدارة وتأكيد الطلبات</h1>
+            <p className="text-gray-400 text-sm font-bold mt-1">متابعة وقبول الطلبات الجديدة وتمريرها للمتاجر.</p>
+        </div>
+        <Button variant="outline" size="icon" onClick={() => setRefreshKey(prev => prev + 1)} disabled={dataLoading}>
+            <RefreshCw className={cn("h-4 w-4", dataLoading && "animate-spin")} />
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} dir="rtl">
