@@ -3,12 +3,13 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, query, orderBy, updateDoc, doc, arrayUnion } from 'firebase/firestore';
-import type { Appointment, User, Store, AppointmentStatus, OrderHistoryItem } from '@/lib/types';
+import type { Appointment, User, Store, AppointmentStatus, AppointmentHistoryItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Calendar as CalendarIcon, CheckCircle, Clock, Send, Pencil, Loader2, Info, User as UserIcon, ShoppingBag, MapPin, Tag } from 'lucide-react';
+import { Calendar as CalendarIcon, CheckCircle, Clock, Send, Pencil, Loader2, Info, User as UserIcon, ShoppingBag, MapPin, Tag, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -20,6 +21,7 @@ import { ar } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 const CardSkeleton = () => (
     <div className="border bg-card text-card-foreground shadow-sm rounded-2xl p-6 space-y-4">
@@ -50,6 +52,17 @@ const getStatusBadge = (status: AppointmentStatus) => {
     }
 }
 
+const getStatusLabel = (status: AppointmentStatus) => {
+    switch (status) {
+        case 'scheduled': return 'مجدول';
+        case 'confirmed': return 'مؤكد';
+        case 'dispatched': return 'مرسل للمندوب';
+        case 'completed': return 'مكتمل';
+        case 'cancelled': return 'ملغي';
+        default: return 'غير معروف';
+    }
+}
+
 export default function AppointmentsPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
@@ -61,6 +74,8 @@ export default function AppointmentsPage() {
   const [isEditOpen, setEditOpen] = useState(false);
   const [editedDate, setEditedDate] = useState<Date | undefined>();
   const [editedTime, setEditedTime] = useState('');
+  const [isCancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   // Data Fetching
   const appointmentsQuery = useMemo(() => firestore ? query(collection(firestore, 'appointments'), orderBy('appointmentDate', 'asc')) : null, [firestore]);
@@ -78,21 +93,19 @@ export default function AppointmentsPage() {
 
   const filteredAppointments = useMemo(() => {
     if (!appointments) return [];
-    switch (timeFilter) {
-      case 'today':
-        return appointments.filter(app => isToday(parseISO(app.appointmentDate)));
-      case 'tomorrow':
-        return appointments.filter(app => isTomorrow(parseISO(app.appointmentDate)));
-      case 'this_month':
-        return appointments.filter(app => isThisMonth(parseISO(app.appointmentDate)));
-      case 'completed':
-        return appointments.filter(app => app.status === 'completed');
-      default:
-        return appointments;
-    }
+    return appointments.filter(app => {
+        if (app.status === 'completed' && timeFilter !== 'completed') return false;
+        if (timeFilter === 'completed') return app.status === 'completed';
+
+        const appDate = parseISO(app.appointmentDate);
+        if (timeFilter === 'today') return isToday(appDate);
+        if (timeFilter === 'tomorrow') return isTomorrow(appDate);
+        if (timeFilter === 'this_month') return isThisMonth(appDate);
+        
+        return true;
+    });
   }, [appointments, timeFilter]);
   
-  // Sound Notification
   const appointmentsRef = useRef<Appointment[] | null>(null);
   const newAppointmentSound = useMemo(() => typeof Audio !== 'undefined' ? new Audio('/sounds/notification.mp3') : null, []);
 
@@ -113,13 +126,23 @@ export default function AppointmentsPage() {
   }, [appointments, newAppointmentSound, toast]);
   
 
-  const handleStatusUpdate = async (appointmentId: string, newStatus: AppointmentStatus) => {
+  const handleStatusUpdate = async (appointmentId: string, newStatus: AppointmentStatus, reason?: string) => {
       if (!firestore || !adminUser) return;
       setIsSubmitting(true);
       const appointmentDocRef = doc(firestore, 'appointments', appointmentId);
+      
+      const historyEntry: AppointmentHistoryItem = {
+          status: newStatus,
+          timestamp: new Date().toISOString(),
+          updatedBy: adminUser.uid,
+          ...(reason && { reason }),
+      };
 
       try {
-          await updateDoc(appointmentDocRef, { status: newStatus });
+          await updateDoc(appointmentDocRef, { 
+              status: newStatus,
+              history: arrayUnion(historyEntry)
+           });
           toast({ title: "تم تحديث حالة الموعد" });
       } catch(err: any) {
           toast({ variant: 'destructive', title: "خطأ", description: "فشل تحديث حالة الموعد" });
@@ -129,6 +152,8 @@ export default function AppointmentsPage() {
           console.error(err);
       } finally {
           setIsSubmitting(false);
+          if (isCancelOpen) setCancelOpen(false);
+          if (isEditOpen) setEditOpen(false);
       }
   }
 
@@ -137,6 +162,7 @@ export default function AppointmentsPage() {
     const appointmentDate = parseISO(app.appointmentDate);
     setEditedDate(appointmentDate);
     setEditedTime(format(appointmentDate, 'HH:mm'));
+    setCancelReason('');
     setEditOpen(true);
   }
 
@@ -249,6 +275,7 @@ export default function AppointmentsPage() {
                   </DialogDescription>
               </DialogHeader>
               {selectedAppointment && (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
                     <div className="space-y-4">
                        <h4 className="font-bold">تعديل التوقيت</h4>
@@ -272,24 +299,42 @@ export default function AppointmentsPage() {
                     <div className="space-y-4">
                         <h4 className="font-bold">تعديل الحالة</h4>
                         <div className="flex flex-col gap-2">
-                            {['scheduled', 'confirmed', 'completed', 'cancelled'].map((status) => (
+                            {['scheduled', 'confirmed', 'completed'].map((status) => (
                                 <Button
                                     key={status}
                                     variant={selectedAppointment.status === status ? 'default' : 'outline'}
-                                    onClick={() => {
-                                        handleStatusUpdate(selectedAppointment.id!, status as AppointmentStatus);
-                                        setEditOpen(false);
-                                    }}
+                                    onClick={() => handleStatusUpdate(selectedAppointment.id!, status as AppointmentStatus)}
                                 >
                                     {status === 'scheduled' && 'إعادة إلى "مجدول"'}
                                     {status === 'confirmed' && 'تأكيد الموعد'}
                                     {status === 'completed' && 'تحديد كمكتمل'}
-                                    {status === 'cancelled' && 'إلغاء الموعد'}
                                 </Button>
                             ))}
+                            <Button variant="destructive" onClick={() => setCancelOpen(true)}>إلغاء الموعد</Button>
                         </div>
                     </div>
                 </div>
+                 <div className="mt-6 pt-4 border-t col-span-1 md:col-span-2">
+                    <h4 className="font-bold mb-2">سجل تغييرات الحالة</h4>
+                    {selectedAppointment?.history && selectedAppointment.history.length > 0 ? (
+                        <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {selectedAppointment.history.slice().reverse().map((entry, index) => (
+                                <div key={index} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded-md">
+                                    <div>
+                                        <span className="font-bold">{getStatusLabel(entry.status)}</span>
+                                        {entry.reason && <p className="text-xs text-muted-foreground">السبب: {entry.reason}</p>}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground font-mono">
+                                        {format(parseISO(entry.timestamp), 'dd/MM/yy hh:mm a', {locale: ar})}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">لا يوجد سجل لعرضه.</p>
+                    )}
+                </div>
+                </>
               )}
               <DialogFooter>
                   <Button onClick={handleUpdateAppointment} disabled={isSubmitting}>
@@ -299,6 +344,33 @@ export default function AppointmentsPage() {
               </DialogFooter>
           </DialogContent>
       </Dialog>
+      
+      <AlertDialog open={isCancelOpen} onOpenChange={setCancelOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>تأكيد إلغاء الموعد</AlertDialogTitle>
+                <AlertDialogDescription>الرجاء كتابة سبب الإلغاء. سيتم تسجيله في سجل الموعد.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <Textarea 
+                placeholder="مثال: بناءً على طلب العميل..."
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+            />
+            <AlertDialogFooter>
+                <AlertDialogCancel>تراجع</AlertDialogCancel>
+                <AlertDialogAction 
+                    onClick={() => handleStatusUpdate(selectedAppointment!.id!, 'cancelled', cancelReason)}
+                    disabled={!cancelReason || isSubmitting}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : "تأكيد الإلغاء"}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
+
+    

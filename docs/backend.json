@@ -238,7 +238,20 @@
             "paymentMethod": { "type": "string", "enum": ["cash", "wallet", "card"] },
             "appointmentDate": { "type": "string", "format": "date-time", "description": "The scheduled date and time for the delivery." },
             "status": { "type": "string", "enum": ["scheduled", "confirmed", "dispatched", "completed", "cancelled"] },
-            "createdAt": { "type": "string", "format": "date-time" }
+            "createdAt": { "type": "string", "format": "date-time" },
+            "history": {
+              "type": "array",
+              "description": "Log of status changes for the appointment.",
+              "items": {
+                  "type": "object",
+                  "properties": {
+                      "status": { "type": "string", "enum": ["scheduled", "confirmed", "dispatched", "completed", "cancelled"] },
+                      "timestamp": { "type": "string", "format": "date-time" },
+                      "updatedBy": { "type": "string", "description": "UID of the user who made the change." },
+                      "reason": { "type": "string", "description": "Reason for status change, e.g., cancellation." }
+                  }
+              }
+            }
         },
         "required": ["appointmentId", "clientUid", "storeId", "items", "totalPrice", "appointmentDate", "status", "createdAt"]
     },
@@ -568,4 +581,6 @@
     }
   }
 }
+    
+
     

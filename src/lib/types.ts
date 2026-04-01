@@ -212,6 +212,13 @@ export interface Order {
   storeOwnerUid: string;
 }
 
+export interface AppointmentHistoryItem {
+  status: AppointmentStatus;
+  timestamp: string; // ISO 8601
+  updatedBy?: string; // Admin or System UID
+  reason?: string; // For cancellations
+}
+
 export interface Appointment {
     id?: string;
     appointmentId: string;
@@ -228,6 +235,7 @@ export interface Appointment {
     status: AppointmentStatus;
     createdAt: string; // ISO 8601
     isMock?: boolean;
+    history?: AppointmentHistoryItem[];
 }
 
 export interface FinanceTransaction {
@@ -385,3 +393,5 @@ export interface CategoryFilter {
     name_en: string;
     type: 'restaurant' | 'pharmacy' | 'market' | 'other';
 }
+
+    
