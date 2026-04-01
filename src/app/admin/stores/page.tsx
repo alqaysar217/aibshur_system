@@ -1,8 +1,8 @@
 'use client';
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc, getDocs } from 'firebase/firestore';
-import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
+import { useState, useMemo, useCallback } from 'react';
+import { useFirestore, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
+import type { Store, City, DailyHours, StoreCategory, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -47,7 +47,7 @@ import { Switch } from '@/components/ui/switch';
 
 const StoreRowSkeleton = () => (
     <TableRow>
-        <TableCell colSpan={4} className="p-0">
+        <TableCell colSpan={5} className="p-0">
             <Skeleton className="w-full h-[60px]"/>
         </TableCell>
     </TableRow>
@@ -76,13 +76,14 @@ const dayNames: Record<string, string> = {
 export default function AdminStoresPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const [refreshKey, setRefreshKey] = useState(0);
 
-  const [stores, setStores] = useState<Store[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
-  const [storeCategories, setStoreCategories] = useState<StoreCategory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dbError, setDbError] = useState<Error | null>(null);
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]), { fetchOnce: false });
+  const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]), { fetchOnce: false });
+  const { data: storeCategories, loading: categoriesLoading, error: categoriesError } = useCollection<StoreCategory>(useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]), { fetchOnce: false });
+  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]), { fetchOnce: false });
+
+  const loading = storesLoading || citiesLoading || categoriesLoading || usersLoading;
+  const dbError = storesError || citiesError || categoriesError || usersError;
   
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -92,31 +93,8 @@ export default function AdminStoresPage() {
   const [schedule, setSchedule] = useState<Record<string, DailyHours>>(initialSchedule);
   const [logoPreview, setLogoPreview] = useState('');
 
-  const handleRefresh = () => setRefreshKey(prev => prev + 1);
-
-  useEffect(() => {
-    if (!firestore) return;
-    const fetchData = async () => {
-        setLoading(true);
-        setDbError(null);
-        try {
-            const [storesSnapshot, citiesSnapshot, categoriesSnapshot] = await Promise.all([
-                getDocs(collection(firestore, 'stores')),
-                getDocs(collection(firestore, 'cities')),
-                getDocs(collection(firestore, 'store_categories')),
-            ]);
-            setStores(storesSnapshot.docs.map(d => ({...d.data(), id: d.id } as Store)));
-            setCities(citiesSnapshot.docs.map(d => ({...d.data(), id: d.id } as City)));
-            setStoreCategories(categoriesSnapshot.docs.map(d => ({...d.data(), id: d.id } as StoreCategory)));
-        } catch (err: any) {
-            setDbError(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-    fetchData();
-  }, [firestore, refreshKey]);
-
+  const cityMap = useMemo(() => new Map(cities?.map(c => [c.id, c.name_ar])), [cities]);
+  const userMap = useMemo(() => new Map(users?.map(u => [u.uid, u.full_name])), [users]);
 
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
     if (store) {
@@ -246,7 +224,6 @@ export default function AdminStoresPage() {
 
         setIsFormDialogOpen(false);
         setCurrentStore(null);
-        handleRefresh();
 
     } catch (error: any) {
         console.error("Error saving store: ", error);
@@ -272,7 +249,6 @@ export default function AdminStoresPage() {
     try {
         await deleteDoc(docRef);
         toast({ title: "تم الحذف", description: `تم حذف متجر "${storeToDelete.name_ar}" بنجاح.` });
-        handleRefresh();
     } catch (error: any) {
         console.error("Error deleting store: ", error);
         if (error.code === 'permission-denied') {
@@ -290,10 +266,8 @@ export default function AdminStoresPage() {
     }
   };
   
-  const getCityName = (cityId: string) => {
-    if (loading) return '...';
-    return cities.find(c => c.id === cityId)?.name_ar || cityId;
-  }
+  const getCityName = useCallback((cityId: string) => cityMap.get(cityId) || cityId, [cityMap]);
+  const getOwnerName = useCallback((ownerUid?: string) => ownerUid ? (userMap.get(ownerUid) || '...') : 'غير محدد', [userMap]);
 
   if (dbError) {
     console.error("Error fetching data for stores page:", dbError);
@@ -312,13 +286,10 @@ export default function AdminStoresPage() {
           <h1 className="text-2xl font-black text-gray-900">إدارة المتاجر</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">إضافة وتعديل بيانات المتاجر المسجلة في النظام.</p>
         </div>
-        <div className="flex items-center gap-2">
-            <Button onClick={handleRefresh} variant="outline" size="icon" disabled={loading}><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")}/></Button>
-            <Button onClick={() => handleOpenFormDialog()} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
-            <PlusCircle className="w-4 h-4" />
-            إضافة متجر جديد
-            </Button>
-        </div>
+        <Button onClick={() => handleOpenFormDialog()} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
+        <PlusCircle className="w-4 h-4" />
+        إضافة متجر جديد
+        </Button>
       </div>
       
       <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
@@ -333,6 +304,7 @@ export default function AdminStoresPage() {
               <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
                 <TableHead className="px-6 py-4 text-center">اسم المتجر</TableHead>
                 <TableHead className="px-6 py-4 text-center">المدينة</TableHead>
+                <TableHead className="px-6 py-4 text-center">صاحب المتجر</TableHead>
                 <TableHead className="px-6 py-4 text-center">الحالة</TableHead>
                 <TableHead className="px-6 py-4 text-center">إجراءات</TableHead>
               </TableRow>
@@ -348,6 +320,7 @@ export default function AdminStoresPage() {
                         {store.name_ar}
                     </TableCell>
                     <TableCell className="px-6 py-4 font-bold text-xs text-gray-400 text-center">{getCityName(store.city_id)}</TableCell>
+                    <TableCell className="px-6 py-4 font-bold text-xs text-gray-500 text-center">{getOwnerName(store.ownerUid)}</TableCell>
                     <TableCell className="px-6 py-4 text-center">
                       <Badge className={cn(
                         "rounded-xl border-none font-black px-3 py-1 text-[9px]",
@@ -368,7 +341,7 @@ export default function AdminStoresPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-48 text-center text-gray-400 font-bold">
+                  <TableCell colSpan={5} className="h-48 text-center text-gray-400 font-bold">
                     <p>لا توجد متاجر مضافة بعد. قم بإضافة متجرك الأول.</p>
                   </TableCell>
                 </TableRow>

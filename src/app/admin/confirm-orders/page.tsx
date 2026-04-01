@@ -1,8 +1,8 @@
 'use client';
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useFirestore, useUser, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { collection, doc, query, orderBy, updateDoc, arrayUnion, getDocs, where, writeBatch, limit } from 'firebase/firestore';
+import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { collection, doc, query, orderBy, updateDoc, arrayUnion } from 'firebase/firestore';
 import type { Order, User, Store, OrderStatus, OrderHistoryItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Search, X, Check, Eye, Package, User as UserIcon, Database, RefreshCw } from 'lucide-react';
+import { Loader2, Search, X, Check, Eye, Package, User as UserIcon, Database, RefreshCw, Truck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -60,12 +60,13 @@ export default function ConfirmOrdersPage() {
   const firestore = useFirestore();
   const { userData: adminUser } = useUser();
 
-  // Data state
-  const [orders, setOrders] = useState<Order[] | null>(null);
-  const [users, setUsers] = useState<User[] | null>(null);
-  const [stores, setStores] = useState<Store[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [dbError, setDbError] = useState<Error | null>(null);
+  // Data fetching with real-time updates
+  const { data: orders, loading: ordersLoading, error: ordersError } = useCollection<Order>(useMemo(() => firestore ? query(collection(firestore, 'orders'), orderBy('created_at', 'desc')) : null, [firestore]), { fetchOnce: false });
+  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]), { fetchOnce: false });
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]), { fetchOnce: false });
+
+  const loading = ordersLoading || usersLoading || storesLoading;
+  const dbError = ordersError || usersError || storesError;
 
   // UI State
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('pending');
@@ -77,85 +78,12 @@ export default function ConfirmOrdersPage() {
   const [isCancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // --- Data Fetching and Caching Logic ---
-  const fetchDataFromFirestore = useCallback(async () => {
-    if (!firestore) return;
-    setLoading(true);
-    setDbError(null);
-
-    try {
-        const ordersQuery = query(collection(firestore, 'orders'), orderBy('created_at', 'desc'), limit(15));
-        const usersQuery = collection(firestore, 'users');
-        const storesQuery = collection(firestore, 'stores');
-
-        const [ordersSnapshot, usersSnapshot, storesSnapshot] = await Promise.all([
-            getDocs(ordersQuery),
-            getDocs(usersQuery),
-            getDocs(storesQuery),
-        ]);
-
-        const ordersData = ordersSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order));
-        const usersData = usersSnapshot.docs.map(d => ({ ...d.data(), id: d.id, uid: d.id } as User));
-        const storesData = storesSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as Store));
-
-        setOrders(ordersData);
-        setUsers(usersData);
-        setStores(storesData);
-
-        // Cache the data in localStorage
-        const now = new Date().getTime();
-        localStorage.setItem('cachedOrders', JSON.stringify({ timestamp: now, data: ordersData }));
-        localStorage.setItem('cachedUsers', JSON.stringify({ timestamp: now, data: usersData }));
-        localStorage.setItem('cachedStores', JSON.stringify({ timestamp: now, data: storesData }));
-        
-        toast({ title: "تم تحديث البيانات بنجاح" });
-
-    } catch (err: any) {
-        setDbError(err);
-        console.error("Firestore fetch error:", err);
-    } finally {
-        setLoading(false);
-    }
-  }, [firestore, toast]);
-  
-  // On initial mount, try to load from cache
-  useEffect(() => {
-    if (!firestore) {
-        setLoading(false);
-        return;
-    };
-    try {
-        const cachedOrders = localStorage.getItem('cachedOrders');
-        const cachedUsers = localStorage.getItem('cachedUsers');
-        const cachedStores = localStorage.getItem('cachedStores');
-
-        if (cachedOrders && cachedUsers && cachedStores) {
-            setOrders(JSON.parse(cachedOrders).data);
-            setUsers(JSON.parse(cachedUsers).data);
-            setStores(JSON.parse(cachedStores).data);
-            setLoading(false);
-            toast({ title: 'تم تحميل البيانات من الذاكرة المؤقتة' });
-        } else {
-            fetchDataFromFirestore();
-        }
-    } catch (e) {
-        console.error("Failed to read from localStorage, fetching fresh data.", e);
-        handleRefresh(); // Clear potentially corrupted cache and fetch fresh
-    }
-  }, [firestore, fetchDataFromFirestore]);
-
-  const handleRefresh = useCallback(() => {
-    localStorage.removeItem('cachedOrders');
-    localStorage.removeItem('cachedUsers');
-    localStorage.removeItem('cachedStores');
-    fetchDataFromFirestore();
-  }, [fetchDataFromFirestore]);
-
+  const [selectedDriverId, setSelectedDriverId] = useState('');
 
   // Create maps for efficient lookups
   const userMap = useMemo(() => new Map(users?.map(u => [u.uid, u])), [users]);
   const storeMap = useMemo(() => new Map(stores?.map(s => [s.id, s])), [stores]);
+  const availableDrivers = useMemo(() => users?.filter(u => u.roles?.is_driver && u.driver_details?.status === 'approved') || [], [users]);
 
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
@@ -187,6 +115,7 @@ export default function ConfirmOrdersPage() {
 
   const handleOpenDetails = (order: Order) => {
     setSelectedOrder(order);
+    setSelectedDriverId('');
     setDetailsOpen(true);
   };
   
@@ -215,7 +144,6 @@ export default function ConfirmOrdersPage() {
           });
           toast({ title: "تم تحديث حالة الطلب بنجاح" });
           if(isCancelOpen) setCancelOpen(false);
-          handleRefresh(); // Refresh data after update
       } catch(err: any) {
           toast({ variant: 'destructive', title: "خطأ", description: "فشل تحديث حالة الطلب" });
           if (err.code === 'permission-denied') {
@@ -226,6 +154,38 @@ export default function ConfirmOrdersPage() {
           setIsSubmitting(false);
       }
   }
+
+  const handleAssignDriver = async () => {
+    if (!firestore || !adminUser || !selectedOrder || !selectedDriverId) return;
+    setIsSubmitting(true);
+    const orderDocRef = doc(firestore, 'orders', selectedOrder.id!);
+
+    const historyEntry: OrderHistoryItem = {
+        status: 'out_for_delivery',
+        timestamp: new Date().toISOString(),
+        updatedBy: adminUser.uid,
+        reason: `تم إسناد الطلب للمندوب`,
+    };
+
+    try {
+        await updateDoc(orderDocRef, {
+            status: 'out_for_delivery',
+            driverUid: selectedDriverId,
+            order_history: arrayUnion(historyEntry)
+        });
+        toast({ title: "تم إسناد الطلب للمندوب بنجاح" });
+        setDetailsOpen(false); // Close dialog on success
+    } catch(err: any) {
+         toast({ variant: 'destructive', title: "خطأ", description: "فشل إسناد الطلب" });
+          if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({path: orderDocRef.path, operation: 'update'}));
+          }
+          console.error(err);
+    } finally {
+        setIsSubmitting(false);
+    }
+}
+
 
   if (dbError) {
     if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('permission-denied')) {
@@ -242,9 +202,6 @@ export default function ConfirmOrdersPage() {
             <h1 className="text-2xl font-black text-gray-900">إدارة وتأكيد الطلبات</h1>
             <p className="text-gray-400 text-sm font-bold mt-1">متابعة وقبول الطلبات الجديدة وتمريرها للمتاجر.</p>
         </div>
-        <Button variant="outline" size="icon" onClick={handleRefresh} disabled={loading}>
-            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} dir="rtl">
@@ -334,7 +291,7 @@ export default function ConfirmOrdersPage() {
                 <DialogTitle>تفاصيل الطلب #{selectedOrder?.id?.slice(-6)}</DialogTitle>
             </DialogHeader>
             {selectedOrder && (
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-4 max-h-[70vh] overflow-y-auto">
                     <div className="p-3 bg-gray-50 rounded-lg">
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
@@ -367,6 +324,27 @@ export default function ConfirmOrdersPage() {
                         <div className="flex justify-between"><span className="text-muted-foreground">رسوم التوصيل:</span> <span className="font-bold">{selectedOrder.delivery_fee.toLocaleString()} ر.ي</span></div>
                         <div className="flex justify-between font-black text-base"><span className="text-primary">الإجمالي:</span> <span>{selectedOrder.total_price.toLocaleString()} ر.ي</span></div>
                      </div>
+                    
+                    {selectedOrder.status === 'preparing' && availableDrivers.length > 0 && (
+                        <div className="pt-4 border-t">
+                            <h4 className="font-bold mb-2 flex items-center gap-2 text-primary"><Truck className="w-4 h-4"/>إسناد الطلب إلى مندوب</h4>
+                            <div className="flex items-stretch gap-2">
+                                <select
+                                    value={selectedDriverId}
+                                    onChange={(e) => setSelectedDriverId(e.target.value)}
+                                    className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    <option value="" disabled>اختر المندوب...</option>
+                                    {availableDrivers.map(driver => (
+                                        <option key={driver.uid} value={driver.uid}>{driver.full_name}</option>
+                                    ))}
+                                </select>
+                                <Button onClick={handleAssignDriver} disabled={!selectedDriverId || isSubmitting}>
+                                    {isSubmitting ? <Loader2 className="animate-spin" /> : "إسناد"}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
             <DialogFooter>
@@ -405,5 +383,3 @@ export default function ConfirmOrdersPage() {
     </div>
   );
 }
-
-    
