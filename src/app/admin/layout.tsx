@@ -11,14 +11,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    const checkSize = () => {
-      if (window.innerWidth < 1024) {
-        setIsCollapsed(true);
-      }
-    };
-    checkSize();
-    window.addEventListener('resize', checkSize);
-    return () => window.removeEventListener('resize', checkSize);
   }, []);
 
   if (!mounted) {

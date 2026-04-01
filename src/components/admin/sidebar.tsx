@@ -46,7 +46,7 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
         <span className={cn(
             "group relative flex items-center gap-3 px-4 py-3 transition-colors duration-200",
             isActive
-              ? "bg-primary/10 text-primary font-black rounded-lg"
+              ? "bg-primary text-primary-foreground font-black rounded-xl"
               : isLogout 
               ? 'font-bold text-red-500 hover:bg-red-50 rounded-lg'
               : `font-bold text-gray-500 hover:bg-gray-100 rounded-lg`,
@@ -55,7 +55,7 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
           {isActive && <div className="absolute right-0 h-6 w-1 bg-primary rounded-r-full" />}
           <Icon className={cn(
               'w-5 h-5 shrink-0 transition-colors', 
-              isActive ? 'text-primary' : isLogout ? 'text-red-500' : 'text-gray-400 group-hover:text-primary'
+              isActive ? 'text-primary-foreground' : isLogout ? 'text-red-500' : 'text-gray-400 group-hover:text-primary'
           )} />
           <span className={cn('transition-opacity duration-200', shouldBeCollapsed ? 'sr-only' : 'opacity-100')}>{text}</span>
         </span>
@@ -77,7 +77,7 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
     )}>
         {/* Header */}
         <div className={cn("flex items-center h-20 border-b shrink-0 px-4 gap-3 overflow-hidden", shouldBeCollapsed && "justify-center")}>
-             <Image src="/logo-app.png" alt="أبشر Logo" width={40} height={40} className="transition-all duration-300 object-contain flex-shrink-0 rounded-lg"/>
+             <Image src="/logo-app.png" alt="أبشر Logo" width={40} height={40} className="transition-all duration-300 object-contain flex-shrink-0 rounded-lg shadow-md"/>
              {!shouldBeCollapsed && 
                 <div>
                     <h2 className="font-black text-lg text-gray-800 whitespace-nowrap">إدارة أبشر</h2>
@@ -87,7 +87,7 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-3 overflow-y-auto">
             {navLinks.map((link) => <NavLink key={link.href} {...link} />)}
         </nav>
         
