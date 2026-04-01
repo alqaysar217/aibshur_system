@@ -32,7 +32,8 @@ export function useCollection<T extends DocumentData>(
     }
     setLoading(true);
     
-    if (fetchOnce) {
+    // Default to fetching once. Only use onSnapshot if fetchOnce is explicitly false.
+    if (fetchOnce !== false) {
         const fetchData = async () => {
             try {
                 const snapshot = await getDocs(query);
@@ -59,7 +60,7 @@ export function useCollection<T extends DocumentData>(
         };
         fetchData();
         return () => {}; // For fetchOnce, there's no listener to unsubscribe from.
-    } else {
+    } else { // fetchOnce is explicitly false, so use real-time updates.
         const unsubscribe = onSnapshot(
           query,
           (snapshot) => {
