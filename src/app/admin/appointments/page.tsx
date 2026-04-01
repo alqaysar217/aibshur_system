@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, query, orderBy, updateDoc, doc, arrayUnion, getDocs, limit } from 'firebase/firestore';
 import type { Appointment, User, Store, AppointmentStatus, AppointmentHistoryItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter, SheetClose } from '@/components/ui/sheet';
+import { Card, CardContent } from '@/components/ui/card';
 import { Calendar as CalendarIcon, CheckCircle, Clock, Send, Pencil, Loader2, Info, User as UserIcon, ShoppingBag, MapPin, Tag, X, History, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -23,22 +23,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 const CardSkeleton = () => (
-    <div className="border bg-card text-card-foreground shadow-md rounded-2xl p-6 space-y-4">
-        <Skeleton className="h-6 w-1/2" />
-        <Skeleton className="h-4 w-1/3" />
-        <div className="flex justify-between items-center pt-4">
-            <Skeleton className="h-10 w-24" />
-            <Skeleton className="h-10 w-24" />
+    <div className="border bg-card text-card-foreground shadow-md rounded-2xl p-4 space-y-3">
+        <div className="flex justify-between items-center">
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-6 w-1/4" />
         </div>
+        <Skeleton className="h-8 w-1/3" />
     </div>
 );
-
-const statusTabs: { label: string; value: 'today' | 'tomorrow' | 'this_month' | 'completed' }[] = [
-    { label: 'مواعيد اليوم', value: 'today' },
-    { label: 'مواعيد الغد', value: 'tomorrow' },
-    { label: 'هذا الشهر', value: 'this_month' },
-    { label: 'مكتملة', value: 'completed' },
-];
 
 const getStatusBadge = (status: AppointmentStatus) => {
     switch (status) {
@@ -71,19 +63,22 @@ export default function AppointmentsPage() {
   const [timeFilter, setTimeFilter] = useState<'today' | 'tomorrow' | 'this_month' | 'completed'>('today');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  const [isEditOpen, setEditOpen] = useState(false);
+  
+  const [isSheetOpen, setSheetOpen] = useState(false);
   const [editedDate, setEditedDate] = useState<Date | undefined>();
   const [editedTime, setEditedTime] = useState('');
+  
   const [isCancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
   // Data Fetching
   const appointmentsQuery = useMemo(() => firestore ? query(collection(firestore, 'appointments'), orderBy('appointmentDate', 'asc'), limit(50)) : null, [firestore, refreshKey]);
-  const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore, refreshKey]);
-  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore, refreshKey]);
-
   const { data: appointments, loading: appointmentsLoading, error: appointmentsError } = useCollection<Appointment>(appointmentsQuery, {fetchOnce: true});
+  
+  const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore, refreshKey]);
   const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(usersQuery, {fetchOnce: true});
+
+  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore, refreshKey]);
   const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, {fetchOnce: true});
   
   const dataLoading = appointmentsLoading || usersLoading || storesLoading;
@@ -91,19 +86,45 @@ export default function AppointmentsPage() {
   const userMap = useMemo(() => new Map(users?.map(u => [u.uid, u])), [users]);
   const storeMap = useMemo(() => new Map(stores?.map(s => [s.id, s])), [stores]);
 
-  const filteredAppointments = useMemo(() => {
-    if (!appointments) return [];
-    return appointments.filter(app => {
-        if (timeFilter === 'completed') return app.status === 'completed';
-        if (app.status === 'completed') return false;
+  const { filteredAppointments, counts } = useMemo(() => {
+    if (!appointments) return { filteredAppointments: [], counts: { today: 0, tomorrow: 0, this_month: 0, completed: 0 } };
 
+    const today: Appointment[] = [];
+    const tomorrow: Appointment[] = [];
+    const this_month: Appointment[] = [];
+    const completed: Appointment[] = [];
+
+    appointments.forEach(app => {
+        if (app.status === 'completed') {
+            completed.push(app);
+            return;
+        }
         const appDate = parseISO(app.appointmentDate);
-        if (timeFilter === 'today') return isToday(appDate);
-        if (timeFilter === 'tomorrow') return isTomorrow(appDate);
-        if (timeFilter === 'this_month') return isThisMonth(appDate);
-        
-        return true;
-    }).sort((a, b) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime());
+        if (isToday(appDate)) today.push(app);
+        if (isTomorrow(appDate)) tomorrow.push(app);
+        if (isThisMonth(appDate)) this_month.push(app);
+    });
+
+    const counts = {
+        today: today.length,
+        tomorrow: tomorrow.length,
+        this_month: this_month.length,
+        completed: completed.length
+    }
+
+    let filtered: Appointment[] = [];
+    switch(timeFilter) {
+        case 'today': filtered = today; break;
+        case 'tomorrow': filtered = tomorrow; break;
+        case 'this_month': filtered = this_month; break;
+        case 'completed': filtered = completed; break;
+    }
+    
+    return { 
+        filteredAppointments: filtered.sort((a, b) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()), 
+        counts 
+    };
+
   }, [appointments, timeFilter]);
   
 
@@ -140,17 +161,17 @@ export default function AppointmentsPage() {
       } finally {
           setIsSubmitting(false);
           if (isCancelOpen) setCancelOpen(false);
-          if (isEditOpen) setEditOpen(false);
+          if (isSheetOpen) setSheetOpen(false);
       }
   }
 
-  const handleOpenEditDialog = (app: Appointment) => {
+  const handleOpenSheet = (app: Appointment) => {
     setSelectedAppointment(app);
     const appointmentDate = parseISO(app.appointmentDate);
     setEditedDate(appointmentDate);
     setEditedTime(format(appointmentDate, 'HH:mm'));
     setCancelReason('');
-    setEditOpen(true);
+    setSheetOpen(true);
   }
 
   const handleUpdateAppointment = async () => {
@@ -168,7 +189,7 @@ export default function AppointmentsPage() {
         });
 
         toast({ title: "تم تعديل الموعد بنجاح" });
-        setEditOpen(false);
+        setSheetOpen(false);
         handleRefresh();
     } catch (err: any) {
         toast({ variant: 'destructive', title: "خطأ في التعديل", description: err.message });
@@ -184,6 +205,13 @@ export default function AppointmentsPage() {
   }
   if (!firestore) return <SetupFirestoreMessage />;
 
+  const statusTabs: { label: string; value: 'today' | 'tomorrow' | 'this_month' | 'completed'; count: number }[] = [
+    { label: 'مواعيد اليوم', value: 'today', count: counts.today },
+    { label: 'مواعيد الغد', value: 'tomorrow', count: counts.tomorrow },
+    { label: 'هذا الشهر', value: 'this_month', count: counts.this_month },
+    { label: 'مكتملة', value: 'completed', count: counts.completed },
+];
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-start">
@@ -197,57 +225,32 @@ export default function AppointmentsPage() {
       </div>
 
       <Tabs value={timeFilter} onValueChange={(value) => setTimeFilter(value as any)} dir="rtl">
-        <TabsList className="grid w-full grid-cols-4 bg-muted p-1 rounded-full h-auto">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 bg-muted p-1 rounded-full h-auto">
             {statusTabs.map(tab => (
-                <TabsTrigger key={tab.value} value={tab.value} className="rounded-full py-2 text-sm font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow">{tab.label}</TabsTrigger>
+                <TabsTrigger key={tab.value} value={tab.value} className="rounded-full py-2.5 text-sm font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300">
+                    {tab.label}
+                    <Badge className={cn("mr-2", timeFilter === tab.value ? 'bg-background/20 text-white' : 'bg-primary/10 text-primary')}>{tab.count}</Badge>
+                </TabsTrigger>
             ))}
         </TabsList>
         <div className="mt-6">
             {dataLoading ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {Array.from({length: 3}).map((_, i) => <CardSkeleton key={i} />)}
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {Array.from({length: 4}).map((_, i) => <CardSkeleton key={i} />)}
                  </div>
             ) : filteredAppointments.length > 0 ? (
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredAppointments.map(app => {
-                       const client = userMap.get(app.clientUid);
-                       const store = storeMap.get(app.storeId);
-                       const isDispatchable = app.status === 'confirmed' && isWithinInterval(parseISO(app.appointmentDate), { start: new Date(), end: addHours(new Date(), 1) });
-                       
-                       return (
-                        <Card key={app.id} className="border-none shadow-md rounded-2xl bg-white flex flex-col">
-                            <CardHeader className="pb-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredAppointments.map(app => (
+                        <Card key={app.id} onClick={() => handleOpenSheet(app)} className="shadow-md rounded-2xl bg-white flex flex-col cursor-pointer transition-all hover:shadow-xl hover:-translate-y-1">
+                            <CardContent className="p-4">
                                 <div className="flex items-center justify-between">
-                                    <div className="font-bold text-sm text-muted-foreground">{format(parseISO(app.appointmentDate), 'EEEE, d MMMM', {locale: ar})}</div>
+                                    <span className="font-bold text-lg text-foreground">{userMap.get(app.clientUid)?.full_name || app.clientName}</span>
                                     {getStatusBadge(app.status)}
                                 </div>
-                                <CardTitle className="font-mono text-3xl font-black text-foreground pt-1">{format(parseISO(app.appointmentDate), 'hh:mm a')}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="flex-1 space-y-4">
-                                <div className="space-y-2 p-3 bg-gray-50 rounded-xl">
-                                    <h4 className="font-bold text-sm flex items-center gap-2"><UserIcon className="w-4 h-4 text-primary"/>العميل</h4>
-                                    <p className="font-black text-foreground">{client?.full_name || app.clientName}</p>
-                                    <p className="text-xs text-muted-foreground font-mono" dir="ltr">{client?.phone || app.clientPhone}</p>
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3"/>{app.clientAddress}</p>
-                                </div>
-                                 <div className="space-y-2 p-3 bg-gray-50 rounded-xl">
-                                     <h4 className="font-bold text-sm flex items-center gap-2"><ShoppingBag className="w-4 h-4 text-primary"/>الطلب</h4>
-                                    <p className="font-bold text-sm">{store?.name_ar || app.storeName}</p>
-                                    <p className="text-xs text-muted-foreground list-disc pr-4">
-                                        {app.items.length} أصناف
-                                    </p>
-                                    <p className="font-black pt-2 border-t mt-2 text-foreground flex items-center gap-1.5"><Tag className="w-4 h-4 text-primary"/>{app.totalPrice.toLocaleString()} ر.ي - <span className="text-muted-foreground text-xs font-bold">{app.paymentMethod === 'wallet' ? 'محفظة' : 'عند الاستلام'}</span></p>
-                                </div>
+                                <p className="font-mono text-3xl font-black text-primary pt-1">{format(parseISO(app.appointmentDate), 'hh:mm a')}</p>
                             </CardContent>
-                            <CardFooter className="p-4 bg-gray-50/50 border-t">
-                                <div className="w-full flex gap-2">
-                                {app.status === 'scheduled' && <Button size="sm" disabled={isSubmitting} onClick={() => handleStatusUpdate(app.id!, 'confirmed')} className="flex-1"><CheckCircle className="ml-2 h-4 w-4"/>تأكيد الحجز</Button>}
-                                {isDispatchable && <Button size="sm" disabled={isSubmitting} onClick={() => handleStatusUpdate(app.id!, 'dispatched')} className="flex-1 bg-orange-500 hover:bg-orange-600"><Send className="ml-2 h-4 w-4"/>إرسال للمندوب</Button>}
-                                <Button size="sm" variant="outline" className="flex-1" onClick={() => handleOpenEditDialog(app)}><Pencil className="ml-2 h-4 w-4"/>تعديل</Button>
-                                </div>
-                            </CardFooter>
                         </Card>
-                    )})}
+                    ))}
                 </div>
             ) : (
                 <div className="h-64 flex flex-col items-center justify-center gap-4 text-center">
@@ -259,60 +262,47 @@ export default function AppointmentsPage() {
         </div>
       </Tabs>
       
-      <Dialog open={isEditOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="sm:max-w-2xl p-6">
-              <DialogHeader>
-                  <DialogTitle>تعديل الموعد</DialogTitle>
-                  <DialogDescription>
-                      تعديل بيانات موعد العميل "{selectedAppointment?.clientName}".
-                  </DialogDescription>
-              </DialogHeader>
-              {selectedAppointment && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                        <h4 className="font-bold">تعديل التوقيت</h4>
-                        <div className="flex justify-center">
-                          <Calendar
-                              mode="single"
-                              selected={editedDate}
-                              onSelect={setEditedDate}
-                              className="rounded-md border"
-                              disabled={(date) => date < new Date()}
-                          />
-                        </div>
-                          <div className="space-y-2">
-                              <Label htmlFor="appointment-time">الوقت</Label>
-                              <Input
-                                  id="appointment-time"
-                                  type="time"
-                                  value={editedTime}
-                                  onChange={(e) => setEditedTime(e.target.value)}
-                              />
-                          </div>
-                      </div>
-                      <div className="space-y-4">
-                          <h4 className="font-bold">تعديل الحالة</h4>
-                          <div className="flex flex-col gap-2">
-                              {['scheduled', 'confirmed', 'completed'].map((status) => (
-                                  <Button
-                                      key={status}
-                                      variant={selectedAppointment.status === status ? 'default' : 'outline'}
-                                      onClick={() => handleStatusUpdate(selectedAppointment.id!, status as AppointmentStatus)}
-                                  >
-                                      {status === 'scheduled' && 'إعادة إلى "مجدول"'}
-                                      {status === 'confirmed' && 'تأكيد الموعد'}
-                                      {status === 'completed' && 'تحديد كمكتمل'}
-                                  </Button>
-                              ))}
-                              <Button variant="destructive" onClick={() => setCancelOpen(true)}>إلغاء الموعد</Button>
-                          </div>
-                      </div>
-                  </div>
-                  <div className="pt-4 border-t col-span-1 md:col-span-2">
+      <Sheet open={isSheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="sm:max-w-xl w-full p-0">
+            <SheetHeader className="p-6 border-b">
+                <SheetTitle>تفاصيل الموعد</SheetTitle>
+                <SheetDescription>عرض وتعديل الموعد #{selectedAppointment?.id?.slice(-6)}</SheetDescription>
+            </SheetHeader>
+            {selectedAppointment && (
+                <div className="p-6 space-y-6 overflow-y-auto h-[calc(100vh-160px)]">
+                    {/* Client & Store Details */}
+                    <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
+                        <h4 className="font-bold text-sm flex items-center gap-2"><UserIcon className="w-4 h-4 text-primary"/>العميل</h4>
+                        <p className="font-black text-foreground">{userMap.get(selectedAppointment.clientUid)?.full_name || selectedAppointment.clientName}</p>
+                        <p className="text-xs text-muted-foreground font-mono" dir="ltr">{userMap.get(selectedAppointment.clientUid)?.phone || selectedAppointment.clientPhone}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3"/>{selectedAppointment.clientAddress}</p>
+                    </div>
+                    <div className="space-y-2 p-4 bg-gray-50 rounded-xl">
+                        <h4 className="font-bold text-sm flex items-center gap-2"><ShoppingBag className="w-4 h-4 text-primary"/>الطلب</h4>
+                        <p className="font-bold text-sm">{storeMap.get(selectedAppointment.storeId)?.name_ar || selectedAppointment.storeName}</p>
+                        <ul className="text-xs text-muted-foreground list-disc pr-4">
+                            {selectedAppointment.items.map((item, i) => <li key={i}>{item.productName_ar} (x{item.quantity})</li>)}
+                        </ul>
+                        <p className="font-black pt-2 border-t mt-2 text-foreground flex items-center gap-1.5"><Tag className="w-4 h-4 text-primary"/>{selectedAppointment.totalPrice.toLocaleString()} ر.ي - <span className="text-muted-foreground text-xs font-bold">{selectedAppointment.paymentMethod === 'wallet' ? 'محفظة' : 'عند الاستلام'}</span></p>
+                    </div>
+
+                     {/* Management Section */}
+                    <div className="space-y-4 pt-4 border-t">
+                         <h4 className="font-bold">تعديل الموعد</h4>
+                         <div className="flex justify-center p-2 border rounded-xl">
+                            <Calendar mode="single" selected={editedDate} onSelect={setEditedDate} className="rounded-md" disabled={(date) => date < new Date()} />
+                         </div>
+                         <div className="space-y-2">
+                             <Label htmlFor="appointment-time">الوقت</Label>
+                             <Input id="appointment-time" type="time" value={editedTime} onChange={(e) => setEditedTime(e.target.value)} />
+                         </div>
+                    </div>
+                     
+                    {/* History */}
+                    <div className="pt-4 border-t">
                       <h4 className="font-bold mb-2 flex items-center gap-2"><History className="w-4 h-4 text-primary"/>سجل تغييرات الحالة</h4>
                       {selectedAppointment?.history && selectedAppointment.history.length > 0 ? (
-                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                          <div className="space-y-2 max-h-40 overflow-y-auto">
                               {selectedAppointment.history.slice().reverse().map((entry, index) => (
                                   <div key={index} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded-md">
                                       <div>
@@ -329,16 +319,23 @@ export default function AppointmentsPage() {
                           <p className="text-sm text-muted-foreground">لا يوجد سجل لعرضه.</p>
                       )}
                   </div>
+
                 </div>
-              )}
-              <DialogFooter>
-                  <Button onClick={handleUpdateAppointment} disabled={isSubmitting}>
-                      {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : 'حفظ تغييرات التوقيت'}
-                  </Button>
-                  <DialogClose asChild><Button variant="secondary">إغلاق</Button></DialogClose>
-              </DialogFooter>
-          </DialogContent>
-      </Dialog>
+            )}
+            {selectedAppointment && 
+              <SheetFooter className="p-4 bg-gray-50/80 border-t backdrop-blur-sm">
+                  <div className="w-full grid grid-cols-2 gap-2">
+                    <Button onClick={handleUpdateAppointment} disabled={isSubmitting}>
+                        {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : 'حفظ تغييرات التوقيت'}
+                    </Button>
+                    <Button onClick={() => setSheetOpen(false)} variant="secondary">إغلاق</Button>
+                    {selectedAppointment.status === 'scheduled' && <Button size="sm" disabled={isSubmitting} onClick={() => handleStatusUpdate(selectedAppointment.id!, 'confirmed')} className="col-span-2"><CheckCircle className="ml-2 h-4 w-4"/>تأكيد الحجز</Button>}
+                    <Button variant="destructive" className="col-span-2" onClick={() => setCancelOpen(true)}>إلغاء الموعد</Button>
+                  </div>
+              </SheetFooter>
+            }
+        </SheetContent>
+      </Sheet>
       
       <AlertDialog open={isCancelOpen} onOpenChange={setCancelOpen}>
         <AlertDialogContent>
@@ -367,3 +364,5 @@ export default function AppointmentsPage() {
     </div>
   );
 }
+
+    
