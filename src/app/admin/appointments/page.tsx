@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar as CalendarIcon, CheckCircle, Clock, Loader2, User as UserIcon, ShoppingBag, MapPin, Tag, X, History, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, CheckCircle, Clock, Loader2, User as UserIcon, ShoppingBag, MapPin, Tag, X, History, RefreshCw, CalendarDays, Sunrise } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,8 @@ import { ar } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
 
 const CardSkeleton = () => (
     <Card className="rounded-md shadow p-3 space-y-2">
@@ -82,10 +84,14 @@ export default function AppointmentsPage() {
 
     appointments.forEach(app => {
         if (app.status === 'completed' || app.status === 'cancelled') return;
-        const appDate = parseISO(app.appointmentDate);
-        if (isToday(appDate)) today.push(app);
-        if (isTomorrow(appDate)) tomorrow.push(app);
-        if (isThisMonth(appDate)) this_month.push(app);
+        try {
+            const appDate = parseISO(app.appointmentDate);
+            if (isToday(appDate)) today.push(app);
+            if (isTomorrow(appDate)) tomorrow.push(app);
+            if (isThisMonth(appDate)) this_month.push(app);
+        } catch (e) {
+            console.error(`Invalid date format for appointment ${app.id}: ${app.appointmentDate}`);
+        }
     });
 
     const counts = { today: today.length, tomorrow: tomorrow.length, this_month: this_month.length, completed: completed.length };
@@ -124,9 +130,16 @@ export default function AppointmentsPage() {
 
   const handleOpenDetails = (app: Appointment) => {
     setSelectedAppointment(app);
-    const appointmentDate = parseISO(app.appointmentDate);
-    setEditedDate(format(appointmentDate, 'yyyy-MM-dd'));
-    setEditedTime(format(appointmentDate, 'HH:mm'));
+    try {
+        const appointmentDate = parseISO(app.appointmentDate);
+        setEditedDate(format(appointmentDate, 'yyyy-MM-dd'));
+        setEditedTime(format(appointmentDate, 'HH:mm'));
+    } catch(e) {
+        console.error(`Invalid date format on open details for appointment ${app.id}: ${app.appointmentDate}`);
+        const now = new Date();
+        setEditedDate(format(now, 'yyyy-MM-dd'));
+        setEditedTime(format(now, 'HH:mm'));
+    }
     setCancelReason('');
     setRescheduleActive(false);
     setDetailsOpen(true);
@@ -139,6 +152,9 @@ export default function AppointmentsPage() {
 
     try {
         const newAppointmentDateTime = new Date(`${editedDate}T${editedTime}`);
+        if(isNaN(newAppointmentDateTime.getTime())){
+            throw new Error("تاريخ أو وقت غير صالح");
+        }
         await updateDoc(appointmentDocRef, { appointmentDate: newAppointmentDateTime.toISOString() });
         toast({ title: "تم تعديل الموعد بنجاح" });
         setDetailsOpen(false);
@@ -158,10 +174,10 @@ export default function AppointmentsPage() {
   if (!firestore) return <SetupFirestoreMessage />;
 
   const statusTabs = [
-    { label: 'مواعيد اليوم', value: 'today', count: counts.today },
-    { label: 'مواعيد الغد', value: 'tomorrow', count: counts.tomorrow },
-    { label: 'هذا الشهر', value: 'this_month', count: counts.this_month },
-    { label: 'مكتملة', value: 'completed', count: counts.completed },
+    { label: 'مواعيد اليوم', value: 'today', count: counts.today, icon: CalendarIcon },
+    { label: 'مواعيد الغد', value: 'tomorrow', count: counts.tomorrow, icon: Sunrise },
+    { label: 'هذا الشهر', value: 'this_month', count: counts.this_month, icon: CalendarDays },
+    { label: 'مكتملة', value: 'completed', count: counts.completed, icon: CheckCircle },
   ];
 
   return (
@@ -181,6 +197,7 @@ export default function AppointmentsPage() {
             <TabsList className="bg-transparent p-0 gap-2 h-auto whitespace-nowrap">
                 {statusTabs.map(tab => (
                     <TabsTrigger key={tab.value} value={tab.value} className="shrink-0 text-xs font-bold rounded-lg px-3 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-300 bg-secondary text-secondary-foreground hover:bg-secondary/80 data-[state=inactive]:shadow-none">
+                        <tab.icon className="ml-1.5 h-4 w-4" />
                         {tab.label}
                         <Badge className="mr-2 text-xs bg-black/10 text-current">{tab.count}</Badge>
                     </TabsTrigger>
@@ -201,7 +218,7 @@ export default function AppointmentsPage() {
                                     <span className="font-bold text-sm text-foreground truncate">{userMap.get(app.clientUid)?.full_name || app.clientName}</span>
                                     {getStatusBadge(app.status)}
                                 </div>
-                                <p className="font-mono text-xl font-black text-primary">{format(parseISO(app.appointmentDate), 'hh:mm a')}</p>
+                                <p className="font-mono text-xl font-black text-primary">{app.appointmentDate ? format(parseISO(app.appointmentDate), 'hh:mm a') : 'وقت غير محدد'}</p>
                             </CardContent>
                         </Card>
                     ))}
@@ -218,27 +235,53 @@ export default function AppointmentsPage() {
       
       <Dialog open={isDetailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="p-0 max-w-lg" dir="rtl">
-            <DialogHeader className="p-6 pb-0 text-right">
+            <DialogHeader className="p-6 pb-4 text-right">
                 <DialogTitle>تفاصيل الموعد #{selectedAppointment?.id?.slice(-6)}</DialogTitle>
-                <DialogDescription>عرض وتعديل الموعد والإجراءات المتاحة.</DialogDescription>
             </DialogHeader>
             {selectedAppointment && (
                 <div className="space-y-4 px-6 max-h-[60vh] overflow-y-auto">
-                    <div className="space-y-1 p-3 bg-muted/50 rounded-md">
+                    {/* Customer Info */}
+                    <div className="space-y-2 p-3 bg-muted/50 rounded-md">
                         <h4 className="font-bold text-xs flex items-center gap-2 text-primary"><UserIcon className="w-3 h-3"/>العميل</h4>
-                        <p className="font-bold text-sm text-foreground">{userMap.get(selectedAppointment.clientUid)?.full_name || selectedAppointment.clientName}</p>
-                        <p className="text-xs text-muted-foreground font-mono" dir="ltr">{userMap.get(selectedAppointment.clientUid)?.phone || selectedAppointment.clientPhone}</p>
-                        <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3"/>{selectedAppointment.clientAddress}</p>
+                        <div className="space-y-1 text-sm">
+                            <p className="font-bold text-foreground">{userMap.get(selectedAppointment.clientUid)?.full_name || selectedAppointment.clientName}</p>
+                            <p className="text-muted-foreground font-mono" dir="ltr">{userMap.get(selectedAppointment.clientUid)?.phone || selectedAppointment.clientPhone}</p>
+                            <p className="text-muted-foreground flex items-center gap-1.5"><MapPin className="w-3 h-3"/>{selectedAppointment.clientAddress}</p>
+                        </div>
                     </div>
-                    <div className="space-y-1 p-3 bg-muted/50 rounded-md">
-                        <h4 className="font-bold text-xs flex items-center gap-2 text-primary"><ShoppingBag className="w-3 h-3"/>الطلب</h4>
-                        <p className="font-bold text-sm">{storeMap.get(selectedAppointment.storeId)?.name_ar || selectedAppointment.storeName}</p>
-                        <ul className="text-xs text-muted-foreground list-disc pr-4">
-                            {selectedAppointment.items.map((item, i) => <li key={i}>{item.productName_ar} (x{item.quantity})</li>)}
-                        </ul>
-                        <p className="font-black pt-2 border-t mt-2 text-foreground flex items-center gap-1.5 text-sm"><Tag className="w-3 h-3 text-primary"/>{selectedAppointment.totalPrice.toLocaleString()} ر.ي - <span className="text-muted-foreground text-xs font-bold">{selectedAppointment.paymentMethod === 'wallet' ? 'محفظة' : 'عند الاستلام'}</span></p>
+                    {/* Invoice */}
+                    <div className="border rounded-md overflow-hidden">
+                       <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/50">
+                                    <TableHead className="text-right">الصنف</TableHead>
+                                    <TableHead className="text-center w-[50px]">الكمية</TableHead>
+                                    <TableHead className="text-left">السعر</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {selectedAppointment.items.map((item, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell className="font-bold">{item.productName_ar}</TableCell>
+                                        <TableCell className="text-center">{item.quantity}</TableCell>
+                                        <TableCell className="text-left font-mono">{(item.price * item.quantity).toLocaleString()} ر.ي</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                       </Table>
                     </div>
-
+                     {/* Summary */}
+                    <div className="space-y-2 p-3 bg-muted/50 rounded-md border-t">
+                       <div className="flex justify-between items-center text-sm">
+                         <span className="text-muted-foreground flex items-center gap-1.5"><Tag className="w-3 h-3"/>الإجمالي</span>
+                         <span className="font-bold text-lg text-primary">{selectedAppointment.totalPrice.toLocaleString()} ر.ي</span>
+                       </div>
+                       <div className="flex justify-between items-center text-xs">
+                         <span className="text-muted-foreground">طريقة الدفع</span>
+                         <span className="font-bold">{selectedAppointment.paymentMethod === 'wallet' ? 'محفظة' : 'عند الاستلام'}</span>
+                       </div>
+                    </div>
+                    {/* Reschedule UI */}
                     {isRescheduleActive && (
                         <div className="space-y-2 p-3 border rounded-md bg-background animate-in fade-in duration-300">
                              <h4 className="font-bold text-xs">إعادة جدولة الموعد</h4>
@@ -251,7 +294,7 @@ export default function AppointmentsPage() {
                              </Button>
                         </div>
                     )}
-                     
+                     {/* History */}
                     {selectedAppointment?.history && selectedAppointment.history.length > 0 && (
                         <div className="pt-2">
                           <h4 className="font-bold mb-2 flex items-center gap-2 text-xs text-primary"><History className="w-3 h-3"/>سجل التغييرات</h4>
@@ -274,8 +317,8 @@ export default function AppointmentsPage() {
                 </div>
             )}
             {selectedAppointment && 
-              <DialogFooter className="p-4 bg-muted/80 border-t flex-row justify-between sm:justify-between w-full">
-                  <div className="flex gap-2">
+              <DialogFooter className="p-4 bg-muted/80 border-t flex-col sm:flex-row justify-between w-full gap-2">
+                  <div className="flex gap-2 justify-start">
                     {selectedAppointment.status === 'scheduled' && <Button size="sm" className="rounded-md" disabled={isSubmitting} onClick={() => handleStatusUpdate(selectedAppointment.id!, 'confirmed')}><CheckCircle className="ml-1 h-4 w-4"/>تأكيد</Button>}
                     <Button size="sm" variant="outline" className="rounded-md" onClick={() => setRescheduleActive(s => !s)}>إعادة جدولة</Button>
                     <Button size="sm" variant="destructive" className="rounded-md" onClick={() => { setDetailsOpen(false); setTimeout(() => setCancelOpen(true), 150);}}>إلغاء</Button>
@@ -294,10 +337,10 @@ export default function AppointmentsPage() {
             </AlertDialogHeader>
             <Textarea placeholder="مثال: بناءً على طلب العميل..." value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} className="rounded-md"/>
             <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-md">تراجع</AlertDialogCancel>
                 <AlertDialogAction onClick={() => handleStatusUpdate(selectedAppointment!.id!, 'cancelled', cancelReason)} disabled={!cancelReason || isSubmitting} className="rounded-md bg-destructive hover:bg-destructive/90">
                     {isSubmitting ? <Loader2 className="animate-spin h-4 w-4" /> : "تأكيد الإلغاء"}
                 </AlertDialogAction>
-                 <AlertDialogCancel className="rounded-md">تراجع</AlertDialogCancel>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
