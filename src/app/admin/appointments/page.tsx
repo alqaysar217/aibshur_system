@@ -120,7 +120,12 @@ export default function AppointmentsPage() {
           toast({ title: "تم تحديث حالة الموعد" });
           handleRefresh();
       } catch(err: any) {
-          toast({ variant: 'destructive', title: "خطأ", description: "فشل تحديث حالة الموعد" });
+          if (err.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({path: appointmentDocRef.path, operation: 'update'});
+            errorEmitter.emit('permission-error', permissionError);
+          } else {
+            toast({ variant: 'destructive', title: "خطأ", description: "فشل تحديث حالة الموعد" });
+          }
       } finally {
           setIsSubmitting(false);
           setCancelOpen(false);
@@ -160,7 +165,12 @@ export default function AppointmentsPage() {
         setDetailsOpen(false);
         handleRefresh();
     } catch (err: any) {
-        toast({ variant: 'destructive', title: "خطأ في التعديل", description: err.message });
+        if (err.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({path: appointmentDocRef.path, operation: 'update'});
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            toast({ variant: 'destructive', title: "خطأ في التعديل", description: err.message });
+        }
     } finally {
         setIsSubmitting(false);
     }
@@ -215,7 +225,7 @@ export default function AppointmentsPage() {
                         <Card key={app.id} onClick={() => handleOpenDetails(app)} className="rounded-md bg-card text-card-foreground shadow-sm flex flex-col cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5">
                             <CardContent className="p-3">
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="font-bold text-sm text-foreground truncate">{userMap.get(app.clientUid)?.full_name || app.clientName}</span>
+                                    <span className="font-bold text-sm text-foreground truncate">{app.clientName}</span>
                                     {getStatusBadge(app.status)}
                                 </div>
                                 <p className="font-mono text-xl font-black text-primary">{app.appointmentDate ? format(parseISO(app.appointmentDate), 'hh:mm a') : 'وقت غير محدد'}</p>
@@ -244,8 +254,8 @@ export default function AppointmentsPage() {
                     <div className="space-y-2 p-3 bg-muted/50 rounded-md">
                         <h4 className="font-bold text-xs flex items-center gap-2 text-primary"><UserIcon className="w-3 h-3"/>العميل</h4>
                         <div className="space-y-1 text-sm">
-                            <p className="font-bold text-foreground">{userMap.get(selectedAppointment.clientUid)?.full_name || selectedAppointment.clientName}</p>
-                            <p className="text-muted-foreground font-mono" dir="ltr">{userMap.get(selectedAppointment.clientUid)?.phone || selectedAppointment.clientPhone}</p>
+                            <p className="font-bold text-foreground">{selectedAppointment.clientName}</p>
+                            <p className="text-muted-foreground font-mono" dir="ltr">{selectedAppointment.clientPhone}</p>
                             <p className="text-muted-foreground flex items-center gap-1.5"><MapPin className="w-3 h-3"/>{selectedAppointment.clientAddress}</p>
                         </div>
                     </div>
