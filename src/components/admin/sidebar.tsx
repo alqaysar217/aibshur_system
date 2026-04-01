@@ -35,11 +35,14 @@ const navLinks = [
 
 export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
   const pathname = usePathname();
+  // On mobile view, the sidebar should never be in a "collapsed" state when it's open.
+  // The `isCollapsed` prop is for the desktop-only collapsed view.
+  const shouldBeCollapsed = isCollapsed && !isMobileOpen;
 
   const NavLink = ({ href, icon: Icon, text, isLogout = false }) => {
     const isActive = pathname === href;
     return (
-      <Link href={href} onClick={() => isMobileOpen && setIsMobileOpen(false)} title={isCollapsed ? text : ''}>
+      <Link href={href} onClick={() => isMobileOpen && setIsMobileOpen(false)} title={shouldBeCollapsed ? text : ''}>
         <span className={cn(
             "group relative flex items-center gap-3 px-4 py-3 transition-colors duration-200",
             isActive
@@ -47,14 +50,14 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
               : isLogout 
               ? 'font-bold text-red-500 hover:bg-red-50 rounded-lg'
               : `font-bold text-gray-500 hover:bg-gray-100 rounded-lg`,
-            isCollapsed && 'justify-center'
+            shouldBeCollapsed && 'justify-center'
         )}>
           {isActive && <div className="absolute right-0 h-6 w-1 bg-primary rounded-r-full" />}
           <Icon className={cn(
               'w-5 h-5 shrink-0 transition-colors', 
               isActive ? 'text-primary' : isLogout ? 'text-red-500' : 'text-gray-400 group-hover:text-primary'
           )} />
-          <span className={cn('transition-opacity duration-200', isCollapsed ? 'sr-only' : 'opacity-100')}>{text}</span>
+          <span className={cn('transition-opacity duration-200', shouldBeCollapsed ? 'sr-only' : 'opacity-100')}>{text}</span>
         </span>
       </Link>
     );
@@ -73,9 +76,9 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
         isMobileOpen ? 'translate-x-0 shadow-2xl w-64' : 'translate-x-full lg:translate-x-0'
     )}>
         {/* Header */}
-        <div className={cn("flex items-center h-20 border-b shrink-0 px-4 gap-3 overflow-hidden", isCollapsed && "justify-center")}>
-             <Image src="https://i.postimg.cc/L8g1v4w1/absher-logo-2.png" alt="أبشر Logo" width={40} height={40} className="transition-all duration-300 object-contain flex-shrink-0"/>
-             {!isCollapsed && 
+        <div className={cn("flex items-center h-20 border-b shrink-0 px-4 gap-3 overflow-hidden", shouldBeCollapsed && "justify-center")}>
+             <Image src="/logo-app.png" alt="أبشر Logo" width={40} height={40} className="transition-all duration-300 object-contain flex-shrink-0 rounded-lg"/>
+             {!shouldBeCollapsed && 
                 <div>
                     <h2 className="font-black text-lg text-gray-800 whitespace-nowrap">إدارة أبشر</h2>
                     <p className="text-xs text-gray-400 font-bold tracking-widest">ADMIN CONSOLE</p>
