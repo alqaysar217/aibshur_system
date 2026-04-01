@@ -35,8 +35,6 @@ const navLinks = [
 
 export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
   const pathname = usePathname();
-  // On mobile view, the sidebar should never be in a "collapsed" state when it's open.
-  // The `isCollapsed` prop is for the desktop-only collapsed view.
   const shouldBeCollapsed = isCollapsed && !isMobileOpen;
 
   const NavLink = ({ href, icon: Icon, text, isLogout = false }) => {
@@ -46,16 +44,16 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
         <span className={cn(
             "group relative flex items-center gap-3 px-4 py-3 transition-colors duration-200",
             isActive
-              ? "bg-primary text-primary-foreground font-black rounded-xl"
+              ? "bg-primary text-primary-foreground font-black rounded-xl shadow-sm"
               : isLogout 
               ? 'font-bold text-red-500 hover:bg-red-50 rounded-lg'
-              : `font-bold text-gray-500 hover:bg-gray-100 rounded-lg`,
+              : `font-bold text-muted-foreground hover:bg-accent rounded-lg`,
             shouldBeCollapsed && 'justify-center'
         )}>
-          {isActive && <div className="absolute right-0 h-6 w-1 bg-primary rounded-r-full" />}
+          {isActive && <div className="absolute -right-1.5 h-6 w-1 bg-primary rounded-r-full" />}
           <Icon className={cn(
               'w-5 h-5 shrink-0 transition-colors', 
-              isActive ? 'text-primary-foreground' : isLogout ? 'text-red-500' : 'text-gray-400 group-hover:text-primary'
+              isActive ? 'text-primary-foreground' : isLogout ? 'text-red-500' : 'text-muted-foreground group-hover:text-primary'
           )} />
           <span className={cn('transition-opacity duration-200', shouldBeCollapsed ? 'sr-only' : 'opacity-100')}>{text}</span>
         </span>
@@ -66,32 +64,24 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
   return (
     <aside
       className={cn(
-        // Always fixed, positioned on the right
-        "fixed top-0 right-0 h-screen z-[101] bg-white flex flex-col transition-all duration-300 ease-in-out border-l",
-        
-        // Desktop state (always visible)
-        isCollapsed ? 'lg:w-20' : 'lg:w-64',
-
-        // Mobile state (slides in and out)
-        isMobileOpen ? 'translate-x-0 shadow-2xl w-64' : 'translate-x-full lg:translate-x-0'
+        "fixed top-0 right-0 h-screen z-[101] bg-card flex flex-col transition-all duration-300 ease-in-out border-l",
+        isMobileOpen ? 'translate-x-0 shadow-2xl w-64' : 'translate-x-full lg:translate-x-0',
+        shouldBeCollapsed ? 'lg:w-20' : 'lg:w-64'
     )}>
-        {/* Header */}
         <div className={cn("flex items-center h-20 border-b shrink-0 px-4 gap-3 overflow-hidden", shouldBeCollapsed && "justify-center")}>
-             <Image src="/logo-app.png" alt="أبشر Logo" width={40} height={40} className="transition-all duration-300 object-contain flex-shrink-0 rounded-lg shadow-md"/>
+             <Image src="/logo-app.png" alt="أبشر Logo" width={48} height={48} className="transition-all duration-300 object-contain flex-shrink-0 rounded-2xl shadow-md"/>
              {!shouldBeCollapsed && 
                 <div>
-                    <h2 className="font-black text-lg text-gray-800 whitespace-nowrap">إدارة أبشر</h2>
-                    <p className="text-xs text-gray-400 font-bold tracking-widest">ADMIN CONSOLE</p>
+                    <h2 className="font-black text-lg text-foreground whitespace-nowrap">إدارة أبشر</h2>
+                    <p className="text-xs text-muted-foreground font-bold tracking-widest">ADMIN CONSOLE</p>
                 </div>
              }
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-3 py-4 space-y-3 overflow-y-auto">
             {navLinks.map((link) => <NavLink key={link.href} {...link} />)}
         </nav>
         
-        {/* Footer */}
         <div className="px-3 py-4 border-t shrink-0">
              <NavLink href="/login" icon={LogOut} text="تسجيل الخروج" isLogout={true} />
         </div>

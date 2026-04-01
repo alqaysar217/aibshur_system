@@ -5,18 +5,17 @@ import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEm
 import { collection, query, orderBy, updateDoc, doc, arrayUnion } from 'firebase/firestore';
 import type { Appointment, User, Store, AppointmentStatus, AppointmentHistoryItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Calendar as CalendarIcon, CheckCircle, Clock, Send, Pencil, Loader2, Info, User as UserIcon, ShoppingBag, MapPin, Tag, X } from 'lucide-react';
+import { Calendar as CalendarIcon, CheckCircle, Clock, Send, Pencil, Loader2, Info, User as UserIcon, ShoppingBag, MapPin, Tag, X, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { format, isToday, isTomorrow, isThisMonth, startOfTomorrow, endOfTomorrow, startOfDay, endOfDay, addHours, isWithinInterval, parseISO } from 'date-fns';
+import { format, isToday, isTomorrow, isThisMonth, parseISO, addHours, isWithinInterval } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
@@ -24,7 +23,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 const CardSkeleton = () => (
-    <div className="border bg-card text-card-foreground shadow-sm rounded-2xl p-6 space-y-4">
+    <div className="border bg-card text-card-foreground shadow-md rounded-2xl p-6 space-y-4">
         <Skeleton className="h-6 w-1/2" />
         <Skeleton className="h-4 w-1/3" />
         <div className="flex justify-between items-center pt-4">
@@ -103,7 +102,7 @@ export default function AppointmentsPage() {
         if (timeFilter === 'this_month') return isThisMonth(appDate);
         
         return true;
-    });
+    }).sort((a, b) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime());
   }, [appointments, timeFilter]);
   
   const appointmentsRef = useRef<Appointment[] | null>(null);
@@ -204,9 +203,9 @@ export default function AppointmentsPage() {
       </div>
 
       <Tabs value={timeFilter} onValueChange={(value) => setTimeFilter(value as any)} dir="rtl">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-4 bg-muted p-1 rounded-full h-auto">
             {statusTabs.map(tab => (
-                <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
+                <TabsTrigger key={tab.value} value={tab.value} className="rounded-full py-2 text-sm font-bold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow">{tab.label}</TabsTrigger>
             ))}
         </TabsList>
         <div className="mt-6">
@@ -222,28 +221,28 @@ export default function AppointmentsPage() {
                        const isDispatchable = app.status === 'confirmed' && isWithinInterval(parseISO(app.appointmentDate), { start: new Date(), end: addHours(new Date(), 1) });
                        
                        return (
-                        <Card key={app.id} className="border-none shadow-sm rounded-2xl bg-white flex flex-col">
+                        <Card key={app.id} className="border-none shadow-md rounded-2xl bg-white flex flex-col">
                             <CardHeader className="pb-4">
                                 <div className="flex items-center justify-between">
-                                    <div className="font-black text-primary text-base">{format(parseISO(app.appointmentDate), 'EEEE, d MMMM', {locale: ar})}</div>
+                                    <div className="font-bold text-sm text-muted-foreground">{format(parseISO(app.appointmentDate), 'EEEE, d MMMM', {locale: ar})}</div>
                                     {getStatusBadge(app.status)}
                                 </div>
-                                <CardTitle className="font-mono text-3xl font-bold text-gray-800 pt-1">{format(parseISO(app.appointmentDate), 'hh:mm a')}</CardTitle>
+                                <CardTitle className="font-mono text-3xl font-black text-foreground pt-1">{format(parseISO(app.appointmentDate), 'hh:mm a')}</CardTitle>
                             </CardHeader>
                             <CardContent className="flex-1 space-y-4">
-                                <div className="space-y-2 p-3 bg-gray-50 rounded-lg">
-                                    <h4 className="font-bold text-sm flex items-center gap-2"><UserIcon className="w-4 h-4 text-muted-foreground"/> العميل</h4>
-                                    <p className="font-bold">{client?.full_name || app.clientName}</p>
+                                <div className="space-y-2 p-3 bg-gray-50 rounded-xl">
+                                    <h4 className="font-bold text-sm flex items-center gap-2"><UserIcon className="w-4 h-4 text-primary"/>العميل</h4>
+                                    <p className="font-black text-foreground">{client?.full_name || app.clientName}</p>
                                     <p className="text-xs text-muted-foreground font-mono" dir="ltr">{client?.phone || app.clientPhone}</p>
                                     <p className="text-xs text-muted-foreground flex items-center gap-1"><MapPin className="w-3 h-3"/>{app.clientAddress}</p>
                                 </div>
-                                 <div className="space-y-2 p-3 bg-gray-50 rounded-lg">
-                                     <h4 className="font-bold text-sm flex items-center gap-2"><ShoppingBag className="w-4 h-4 text-muted-foreground"/> الطلب</h4>
+                                 <div className="space-y-2 p-3 bg-gray-50 rounded-xl">
+                                     <h4 className="font-bold text-sm flex items-center gap-2"><ShoppingBag className="w-4 h-4 text-primary"/>الطلب</h4>
                                     <p className="font-bold text-sm">{store?.name_ar || app.storeName}</p>
                                     <p className="text-xs text-muted-foreground list-disc pr-4">
                                         {app.items.length} أصناف
                                     </p>
-                                    <p className="font-bold pt-2 border-t mt-2"><Tag className="w-3 h-3 inline-block ml-1"/>{app.totalPrice.toLocaleString()} ر.ي - <span className="text-muted-foreground text-xs">{app.paymentMethod === 'wallet' ? 'محفظة' : 'عند الاستلام'}</span></p>
+                                    <p className="font-black pt-2 border-t mt-2 text-foreground flex items-center gap-1.5"><Tag className="w-4 h-4 text-primary"/>{app.totalPrice.toLocaleString()} ر.ي - <span className="text-muted-foreground text-xs font-bold">{app.paymentMethod === 'wallet' ? 'محفظة' : 'عند الاستلام'}</span></p>
                                 </div>
                             </CardContent>
                             <CardFooter className="p-4 bg-gray-50/50 border-t">
@@ -267,7 +266,7 @@ export default function AppointmentsPage() {
       </Tabs>
       
       <Dialog open={isEditOpen} onOpenChange={setEditOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-2xl p-6">
               <DialogHeader>
                   <DialogTitle>تعديل الموعد</DialogTitle>
                   <DialogDescription>
@@ -275,66 +274,68 @@ export default function AppointmentsPage() {
                   </DialogDescription>
               </DialogHeader>
               {selectedAppointment && (
-                <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                    <div className="space-y-4">
-                       <h4 className="font-bold">تعديل التوقيت</h4>
-                       <Calendar
-                            mode="single"
-                            selected={editedDate}
-                            onSelect={setEditedDate}
-                            className="rounded-md border"
-                            disabled={(date) => date < new Date()}
-                        />
-                         <div className="space-y-2">
-                            <Label htmlFor="appointment-time">الوقت</Label>
-                            <Input
-                                id="appointment-time"
-                                type="time"
-                                value={editedTime}
-                                onChange={(e) => setEditedTime(e.target.value)}
-                            />
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h4 className="font-bold">تعديل التوقيت</h4>
+                        <div className="flex justify-center">
+                          <Calendar
+                              mode="single"
+                              selected={editedDate}
+                              onSelect={setEditedDate}
+                              className="rounded-md border"
+                              disabled={(date) => date < new Date()}
+                          />
                         </div>
-                    </div>
-                    <div className="space-y-4">
-                        <h4 className="font-bold">تعديل الحالة</h4>
-                        <div className="flex flex-col gap-2">
-                            {['scheduled', 'confirmed', 'completed'].map((status) => (
-                                <Button
-                                    key={status}
-                                    variant={selectedAppointment.status === status ? 'default' : 'outline'}
-                                    onClick={() => handleStatusUpdate(selectedAppointment.id!, status as AppointmentStatus)}
-                                >
-                                    {status === 'scheduled' && 'إعادة إلى "مجدول"'}
-                                    {status === 'confirmed' && 'تأكيد الموعد'}
-                                    {status === 'completed' && 'تحديد كمكتمل'}
-                                </Button>
-                            ))}
-                            <Button variant="destructive" onClick={() => setCancelOpen(true)}>إلغاء الموعد</Button>
-                        </div>
-                    </div>
+                          <div className="space-y-2">
+                              <Label htmlFor="appointment-time">الوقت</Label>
+                              <Input
+                                  id="appointment-time"
+                                  type="time"
+                                  value={editedTime}
+                                  onChange={(e) => setEditedTime(e.target.value)}
+                              />
+                          </div>
+                      </div>
+                      <div className="space-y-4">
+                          <h4 className="font-bold">تعديل الحالة</h4>
+                          <div className="flex flex-col gap-2">
+                              {['scheduled', 'confirmed', 'completed'].map((status) => (
+                                  <Button
+                                      key={status}
+                                      variant={selectedAppointment.status === status ? 'default' : 'outline'}
+                                      onClick={() => handleStatusUpdate(selectedAppointment.id!, status as AppointmentStatus)}
+                                  >
+                                      {status === 'scheduled' && 'إعادة إلى "مجدول"'}
+                                      {status === 'confirmed' && 'تأكيد الموعد'}
+                                      {status === 'completed' && 'تحديد كمكتمل'}
+                                  </Button>
+                              ))}
+                              <Button variant="destructive" onClick={() => setCancelOpen(true)}>إلغاء الموعد</Button>
+                          </div>
+                      </div>
+                  </div>
+                  <div className="pt-4 border-t col-span-1 md:col-span-2">
+                      <h4 className="font-bold mb-2 flex items-center gap-2"><History className="w-4 h-4 text-primary"/>سجل تغييرات الحالة</h4>
+                      {selectedAppointment?.history && selectedAppointment.history.length > 0 ? (
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {selectedAppointment.history.slice().reverse().map((entry, index) => (
+                                  <div key={index} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded-md">
+                                      <div>
+                                          <span className="font-bold">{getStatusLabel(entry.status)}</span>
+                                          {entry.reason && <p className="text-xs text-muted-foreground">السبب: {entry.reason}</p>}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground font-mono">
+                                          {format(parseISO(entry.timestamp), 'dd/MM/yy hh:mm a', {locale: ar})}
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      ) : (
+                          <p className="text-sm text-muted-foreground">لا يوجد سجل لعرضه.</p>
+                      )}
+                  </div>
                 </div>
-                 <div className="mt-6 pt-4 border-t col-span-1 md:col-span-2">
-                    <h4 className="font-bold mb-2">سجل تغييرات الحالة</h4>
-                    {selectedAppointment?.history && selectedAppointment.history.length > 0 ? (
-                        <div className="space-y-2 max-h-48 overflow-y-auto">
-                            {selectedAppointment.history.slice().reverse().map((entry, index) => (
-                                <div key={index} className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded-md">
-                                    <div>
-                                        <span className="font-bold">{getStatusLabel(entry.status)}</span>
-                                        {entry.reason && <p className="text-xs text-muted-foreground">السبب: {entry.reason}</p>}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground font-mono">
-                                        {format(parseISO(entry.timestamp), 'dd/MM/yy hh:mm a', {locale: ar})}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">لا يوجد سجل لعرضه.</p>
-                    )}
-                </div>
-                </>
               )}
               <DialogFooter>
                   <Button onClick={handleUpdateAppointment} disabled={isSubmitting}>
@@ -372,5 +373,3 @@ export default function AppointmentsPage() {
     </div>
   );
 }
-
-    
