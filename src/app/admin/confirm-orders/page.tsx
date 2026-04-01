@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { collection, doc, query, orderBy, updateDoc, arrayUnion, getDocs, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, query, orderBy, updateDoc, arrayUnion, getDocs, where, writeBatch, limit } from 'firebase/firestore';
 import type { Order, User, Store, OrderStatus, OrderHistoryItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -71,13 +71,13 @@ export default function ConfirmOrdersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Data fetching
-  const ordersQuery = useMemo(() => firestore ? query(collection(firestore, 'orders'), orderBy('created_at', 'desc')) : null, [firestore]);
+  const ordersQuery = useMemo(() => firestore ? query(collection(firestore, 'orders'), orderBy('created_at', 'desc'), limit(15)) : null, [firestore]);
   const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]);
   const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
 
-  const { data: orders, loading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery, 'orders');
-  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(usersQuery, 'users');
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, 'stores');
+  const { data: orders, loading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery, { fetchOnce: true, collectionPath: 'orders' });
+  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(usersQuery, { fetchOnce: true, collectionPath: 'users' });
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, { fetchOnce: true, collectionPath: 'stores' });
   
   const dataLoading = ordersLoading || usersLoading || storesLoading;
 
