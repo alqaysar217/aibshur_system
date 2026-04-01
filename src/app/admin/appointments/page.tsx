@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useFirestore, useUser, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, query, orderBy, updateDoc, doc, arrayUnion, getDocs, limit } from 'firebase/firestore';
 import type { Appointment, User, Store, AppointmentStatus, AppointmentHistoryItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,10 @@ export default function AppointmentsPage() {
   const { userData: adminUser } = useUser();
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<Error | null>(null);
+
   const [timeFilter, setTimeFilter] = useState<'today' | 'tomorrow' | 'this_month' | 'completed'>('today');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
@@ -67,14 +71,29 @@ export default function AppointmentsPage() {
   const [isCancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
 
-  const { data: appointments, loading: appointmentsLoading, error: appointmentsError } = useCollection<Appointment>(useMemo(() => firestore ? query(collection(firestore, 'appointments'), orderBy('appointmentDate', 'asc')) : null, [firestore, refreshKey]), {fetchOnce: true});
-  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore, refreshKey]), {fetchOnce: true});
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore, refreshKey]), {fetchOnce: true});
-  
-  const dataLoading = appointmentsLoading || usersLoading || storesLoading;
+  const handleRefresh = () => { setRefreshKey(prev => prev + 1); toast({title: "جاري تحديث البيانات..."}); }
 
-  const userMap = useMemo(() => new Map(users?.map(u => [u.uid, u])), [users]);
-  const storeMap = useMemo(() => new Map(stores?.map(s => [s.id, s])), [stores]);
+  useEffect(() => {
+    if (!firestore) {
+        setLoading(false);
+        return;
+    }
+
+    const fetchData = async () => {
+        setLoading(true);
+        setDbError(null);
+        try {
+            const appointmentsQuery = query(collection(firestore, 'appointments'), orderBy('appointmentDate', 'asc'), limit(50));
+            const snapshot = await getDocs(appointmentsQuery);
+            setAppointments(snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Appointment)));
+        } catch (err: any) {
+            setDbError(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchData();
+  }, [firestore, refreshKey]);
 
   const { filteredAppointments, counts } = useMemo(() => {
     if (!appointments) return { filteredAppointments: [], counts: { today: 0, tomorrow: 0, this_month: 0, completed: 0 } };
@@ -106,7 +125,6 @@ export default function AppointmentsPage() {
     return { filteredAppointments: filtered.sort((a, b) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()), counts };
   }, [appointments, timeFilter]);
   
-  const handleRefresh = () => { setRefreshKey(prev => prev + 1); toast({title: "جاري تحديث البيانات..."}); }
 
   const handleStatusUpdate = async (appointmentId: string, newStatus: AppointmentStatus, reason?: string) => {
       if (!firestore || !adminUser) return;
@@ -176,7 +194,6 @@ export default function AppointmentsPage() {
     }
   }
 
-  const dbError = appointmentsError || usersError || storesError;
   if (dbError) {
     if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('permission-denied')) return <SetupFirestoreMessage />;
     return <p className="text-destructive text-center p-8">خطأ في جلب البيانات: {dbError.message}</p>;
@@ -197,8 +214,8 @@ export default function AppointmentsPage() {
             <h1 className="text-xl font-black text-gray-900">إدارة المواعيد والطلبات المجدولة</h1>
             <p className="text-gray-400 text-xs font-bold mt-1">تأكيد وتوزيع الطلبات المجدولة على المناديب.</p>
         </div>
-        <Button onClick={handleRefresh} variant="ghost" size="icon" disabled={dataLoading}>
-            <RefreshCw className={cn("h-5 w-5", dataLoading && "animate-spin")} />
+        <Button onClick={handleRefresh} variant="ghost" size="icon" disabled={loading}>
+            <RefreshCw className={cn("h-5 w-5", loading && "animate-spin")} />
         </Button>
       </div>
 
@@ -215,7 +232,7 @@ export default function AppointmentsPage() {
             </TabsList>
         </div>
         <div className="mt-4">
-            {dataLoading ? (
+            {loading ? (
                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                     {Array.from({length: 5}).map((_, i) => <CardSkeleton key={i} />)}
                  </div>

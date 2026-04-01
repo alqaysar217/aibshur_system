@@ -1,6 +1,6 @@
 'use client';
-import { useState, useMemo, useEffect } from 'react';
-import { useFirestore, FirestorePermissionError, errorEmitter, useCollection } from '@/firebase';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc, getDocs } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Plus, X } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Plus, X, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -76,6 +76,13 @@ const dayNames: Record<string, string> = {
 export default function AdminStoresPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const [stores, setStores] = useState<Store[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [storeCategories, setStoreCategories] = useState<StoreCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<Error | null>(null);
   
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -85,52 +92,30 @@ export default function AdminStoresPage() {
   const [schedule, setSchedule] = useState<Record<string, DailyHours>>(initialSchedule);
   const [logoPreview, setLogoPreview] = useState('');
 
-  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, 'stores');
-  
-  const [cities, setCities] = useState<City[]>([]);
-  const [citiesLoading, setCitiesLoading] = useState(true);
-  const [citiesError, setCitiesError] = useState<Error | null>(null);
-  const [storeCategories, setStoreCategories] = useState<StoreCategory[]>([]);
-  const [storeCategoriesLoading, setStoreCategoriesLoading] = useState(true);
-  const [storeCategoriesError, setStoreCategoriesError] = useState<Error | null>(null);
+  const handleRefresh = () => setRefreshKey(prev => prev + 1);
 
   useEffect(() => {
-    if (!firestore) {
-      setCitiesLoading(false);
-      setStoreCategoriesLoading(false);
-      return;
-    }
-
-    const fetchDataForDropdowns = async () => {
-      setCitiesLoading(true);
-      setStoreCategoriesLoading(true);
-      try {
-        const citiesPromise = getDocs(collection(firestore, 'cities'));
-        const categoriesPromise = getDocs(collection(firestore, 'store_categories'));
-
-        const [citiesSnapshot, categoriesSnapshot] = await Promise.all([citiesPromise, categoriesPromise]);
-
-        const citiesData = citiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as City));
-        setCities(citiesData);
-        setCitiesError(null);
-
-        const categoriesData = categoriesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as StoreCategory));
-        setStoreCategories(categoriesData);
-        setStoreCategoriesError(null);
-
-      } catch (error: any) {
-        console.error("Error fetching data for dropdowns:", error);
-        setCitiesError(error);
-        setStoreCategoriesError(error);
-      } finally {
-        setCitiesLoading(false);
-        setStoreCategoriesLoading(false);
-      }
+    if (!firestore) return;
+    const fetchData = async () => {
+        setLoading(true);
+        setDbError(null);
+        try {
+            const [storesSnapshot, citiesSnapshot, categoriesSnapshot] = await Promise.all([
+                getDocs(collection(firestore, 'stores')),
+                getDocs(collection(firestore, 'cities')),
+                getDocs(collection(firestore, 'store_categories')),
+            ]);
+            setStores(storesSnapshot.docs.map(d => ({...d.data(), id: d.id } as Store)));
+            setCities(citiesSnapshot.docs.map(d => ({...d.data(), id: d.id } as City)));
+            setStoreCategories(categoriesSnapshot.docs.map(d => ({...d.data(), id: d.id } as StoreCategory)));
+        } catch (err: any) {
+            setDbError(err);
+        } finally {
+            setLoading(false);
+        }
     };
-
-    fetchDataForDropdowns();
-  }, [firestore]);
+    fetchData();
+  }, [firestore, refreshKey]);
 
 
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
@@ -261,6 +246,7 @@ export default function AdminStoresPage() {
 
         setIsFormDialogOpen(false);
         setCurrentStore(null);
+        handleRefresh();
 
     } catch (error: any) {
         console.error("Error saving store: ", error);
@@ -286,6 +272,7 @@ export default function AdminStoresPage() {
     try {
         await deleteDoc(docRef);
         toast({ title: "تم الحذف", description: `تم حذف متجر "${storeToDelete.name_ar}" بنجاح.` });
+        handleRefresh();
     } catch (error: any) {
         console.error("Error deleting store: ", error);
         if (error.code === 'permission-denied') {
@@ -304,11 +291,10 @@ export default function AdminStoresPage() {
   };
   
   const getCityName = (cityId: string) => {
-    if (citiesLoading) return '...';
+    if (loading) return '...';
     return cities.find(c => c.id === cityId)?.name_ar || cityId;
   }
 
-  const dbError = storesError || citiesError || storeCategoriesError;
   if (dbError) {
     console.error("Error fetching data for stores page:", dbError);
     if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('Could not reach Firestore backend') || dbError.message.includes('permission-denied') || dbError.message.includes('Missing or insufficient permissions')) {
@@ -326,10 +312,13 @@ export default function AdminStoresPage() {
           <h1 className="text-2xl font-black text-gray-900">إدارة المتاجر</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">إضافة وتعديل بيانات المتاجر المسجلة في النظام.</p>
         </div>
-        <Button onClick={() => handleOpenFormDialog()} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
-          <PlusCircle className="w-4 h-4" />
-          إضافة متجر جديد
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button onClick={handleRefresh} variant="outline" size="icon" disabled={loading}><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")}/></Button>
+            <Button onClick={() => handleOpenFormDialog()} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
+            <PlusCircle className="w-4 h-4" />
+            إضافة متجر جديد
+            </Button>
+        </div>
       </div>
       
       <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
@@ -349,7 +338,7 @@ export default function AdminStoresPage() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-50">
-              {storesLoading ? (
+              {loading ? (
                  Array.from({length: 3}).map((_, i) => <StoreRowSkeleton key={i}/>)
               ) : stores && stores.length > 0 ? (
                 stores.map((store) => (
@@ -423,12 +412,12 @@ export default function AdminStoresPage() {
                                 required
                                 value={currentStore?.city_id || ''}
                                 onChange={(e) => setCurrentStore(prev => ({...prev, city_id: e.target.value}))}
-                                disabled={citiesLoading}
+                                disabled={loading}
                                 className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
                                 dir="rtl"
                             >
                                 <option value="" disabled>اختر المحافظة</option>
-                                {citiesLoading ? (
+                                {loading ? (
                                     <option disabled>جاري التحميل...</option>
                                 ) : cities && cities.length > 0 ? (
                                     cities.map(city => <option key={city.id} value={city.id!}>{city.name_ar}</option>)
@@ -444,12 +433,12 @@ export default function AdminStoresPage() {
                                 required
                                 value={currentStore?.filter_ids?.[0] || ''}
                                 onChange={(e) => setCurrentStore(prev => ({...prev, filter_ids: [e.target.value]}))}
-                                disabled={storeCategoriesLoading}
+                                disabled={loading}
                                 className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
                                 dir="rtl"
                             >
                                 <option value="" disabled>اختر الفئة</option>
-                                {storeCategoriesLoading ? (
+                                {loading ? (
                                     <option disabled>جاري التحميل...</option>
                                 ) : storeCategories && storeCategories.length > 0 ? (
                                     storeCategories.map(cat => <option key={cat.id} value={cat.id!}>{cat.name_ar}</option>)
@@ -558,7 +547,7 @@ export default function AdminStoresPage() {
 
             </div>
             <DialogFooter className="pt-4 border-t mt-4">
-                <Button type="submit" disabled={isSubmitting || citiesLoading || storeCategoriesLoading} className="rounded-lg font-black w-32">
+                <Button type="submit" disabled={isSubmitting || loading} className="rounded-lg font-black w-32">
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin"/> : (currentStore?.id ? 'حفظ التعديلات' : 'حفظ المتجر')}
                 </Button>
                  <DialogClose asChild>

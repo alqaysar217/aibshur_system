@@ -1,12 +1,12 @@
 'use client';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useFirestore, useUser, useCollection } from '@/firebase';
 import { collection, doc, query, where, getDocs, runTransaction, orderBy, limit } from 'firebase/firestore';
 import type { WalletTopupRequest, User, AppBank } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, UserCheck, UserX, Wallet, ListChecks, ExternalLink } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, Wallet, ListChecks, ExternalLink, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import { ar } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
 
 const LogRowSkeleton = () => (
     <TableRow>
@@ -30,6 +31,7 @@ export default function DirectCreditPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { userData: adminUser } = useUser();
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Form State
   const [searchPhone, setSearchPhone] = useState('');
@@ -45,11 +47,35 @@ export default function DirectCreditPage() {
   const [logSearch, setLogSearch] = useState('');
 
   // Data Fetching
-  const banksQuery = useMemo(() => firestore ? collection(firestore, 'app_banks') : null, [firestore]);
-  const { data: banks, loading: banksLoading, error: banksError } = useCollection<AppBank>(banksQuery, 'app_banks');
+  const [requests, setRequests] = useState<WalletTopupRequest[]>([]);
+  const [banks, setBanks] = useState<AppBank[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<Error | null>(null);
 
-  const requestsQuery = useMemo(() => firestore ? query(collection(firestore, 'wallet_transactions'), orderBy('timestamp', 'desc'), limit(50)) : null, [firestore]);
-  const { data: requests, loading: requestsLoading, error: requestsError } = useCollection<WalletTopupRequest>(requestsQuery, 'wallet_transactions');
+  const handleRefresh = () => setRefreshKey(prev => prev + 1);
+
+  useEffect(() => {
+      if (!firestore) return;
+      const fetchData = async () => {
+          setLoading(true);
+          setDbError(null);
+          try {
+              const requestsQuery = query(collection(firestore, 'wallet_transactions'), orderBy('timestamp', 'desc'), limit(50));
+              const [requestsSnapshot, banksSnapshot] = await Promise.all([
+                  getDocs(requestsQuery),
+                  getDocs(collection(firestore, 'app_banks')),
+              ]);
+
+              setRequests(requestsSnapshot.docs.map(d => ({...d.data(), id: d.id } as WalletTopupRequest)));
+              setBanks(banksSnapshot.docs.map(d => ({...d.data(), id: d.id } as AppBank)));
+          } catch (err: any) {
+              setDbError(err);
+          } finally {
+              setLoading(false);
+          }
+      };
+      fetchData();
+  }, [firestore, refreshKey]);
 
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
@@ -61,9 +87,9 @@ export default function DirectCreditPage() {
   }, [requests, logSearch]);
 
   const getBankName = useCallback((bankId: string) => {
-    if (banksLoading || !banks) return '...';
+    if (loading || !banks) return '...';
     return banks.find(b => b.id === bankId)?.bank_name || 'غير معروف';
-  }, [banks, banksLoading]);
+  }, [banks, loading]);
 
 
   const handleSearchUser = async () => {
@@ -150,6 +176,7 @@ export default function DirectCreditPage() {
         setReceiptNumber('');
         setReceiptImage('');
         setSelectedBankId('');
+        handleRefresh();
 
       } catch (error: any) {
         console.error("Submission transaction failed:", error);
@@ -159,7 +186,6 @@ export default function DirectCreditPage() {
       }
   }
   
-  const dbError = banksError || requestsError;
   if (dbError) {
     if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('permission-denied')) {
       return <SetupFirestoreMessage />;
@@ -223,7 +249,7 @@ export default function DirectCreditPage() {
                               required
                               value={selectedBankId}
                               onChange={(e) => setSelectedBankId(e.target.value)}
-                              disabled={banksLoading}
+                              disabled={loading}
                               className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
                           >
                               <option value="" disabled>اختر حساب البنك...</option>
@@ -248,7 +274,7 @@ export default function DirectCreditPage() {
                      </div>
                 </fieldset>
 
-                <Button type="submit" className='w-full h-12 text-lg font-black' disabled={!foundUser || isSubmitting || banksLoading}>
+                <Button type="submit" className='w-full h-12 text-lg font-black' disabled={!foundUser || isSubmitting || loading}>
                     {isSubmitting ? <Loader2 className='animate-spin w-6 h-6'/> : 'اعتماد وشحن الرصيد فوراً'}
                 </Button>
             </form>
@@ -256,11 +282,14 @@ export default function DirectCreditPage() {
       </Card>
       
       <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2"><ListChecks className="text-primary"/> سجل عمليات الشحن اليدوي</CardTitle>
-            <div className="pt-2">
-                <Input placeholder="ابحث برقم الهاتف أو رقم السند..." value={logSearch} onChange={e => setLogSearch(e.target.value)} className="max-w-sm" />
+        <CardHeader className="flex-row items-center justify-between">
+            <div>
+                <CardTitle className="flex items-center gap-2"><ListChecks className="text-primary"/> سجل عمليات الشحن اليدوي</CardTitle>
+                <div className="pt-2">
+                    <Input placeholder="ابحث برقم الهاتف أو رقم السند..." value={logSearch} onChange={e => setLogSearch(e.target.value)} className="max-w-sm" />
+                </div>
             </div>
+            <Button onClick={handleRefresh} variant="outline" size="icon" disabled={loading}><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")}/></Button>
         </CardHeader>
         <CardContent className="p-0">
              <Table>
@@ -276,7 +305,7 @@ export default function DirectCreditPage() {
                 </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-gray-50">
-                    {requestsLoading ? Array.from({ length: 4 }).map((_, i) => <LogRowSkeleton key={i} />)
+                    {loading ? Array.from({ length: 4 }).map((_, i) => <LogRowSkeleton key={i} />)
                     : filteredRequests.length === 0 ? (
                         <TableRow><TableCell colSpan={7} className="text-center h-24">لا توجد سجلات لعرضها.</TableCell></TableRow>
                     )

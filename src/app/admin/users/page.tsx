@@ -1,6 +1,6 @@
 'use client';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useFirestore, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import type { User, Store } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Users, Search, X, ShieldCheck, Truck, User as UserIcon, Store as StoreIcon, Crown } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Users, Search, X, ShieldCheck, Truck, User as UserIcon, Store as StoreIcon, Crown, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -57,26 +57,48 @@ const RowSkeleton = () => (
 export default function AdminUsersPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const [users, setUsers] = useState<User[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<Error | null>(null);
 
   const [activeTab, setActiveTab] = useState('clients');
  
   const [isDialogOpen, setDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<Partial<User> | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  
-  const [stores, setStores] = useState<Store[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
 
-  // Search/Picker State for Store Owners
   const [searchQuery, setSearchQuery] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
-  const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(usersQuery, 'users');
+  const handleRefresh = () => setRefreshKey(prev => prev + 1);
+
+  useEffect(() => {
+    if (!firestore) return;
+    const fetchData = async () => {
+        setLoading(true);
+        setDbError(null);
+        try {
+            const [usersSnapshot, storesSnapshot] = await Promise.all([
+                getDocs(collection(firestore, 'users')),
+                getDocs(collection(firestore, 'stores')),
+            ]);
+            setUsers(usersSnapshot.docs.map(d => ({...d.data(), id: d.id, uid: d.id } as User)));
+            setStores(storesSnapshot.docs.map(d => ({...d.data(), id: d.id } as Store)));
+        } catch (err: any) {
+            setDbError(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchData();
+  }, [firestore, refreshKey]);
 
   const { admins, storeOwners, drivers, clients } = useMemo(() => {
     return {
@@ -86,26 +108,6 @@ export default function AdminUsersPage() {
         clients: users?.filter(u => u.roles?.is_user && !u.roles.is_admin && !u.roles.is_driver && !u.roles.is_store_owner) || [],
     }
   }, [users]);
-
-
-  useEffect(() => {
-    if (!firestore) {
-      setDataLoading(false);
-      return;
-    }
-    const fetchStoresData = async () => {
-      try {
-        const storesSnapshot = await getDocs(collection(firestore, 'stores'));
-        setStores(storesSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as Store)));
-      } catch (error) {
-        console.error("Error fetching stores:", error);
-        toast({ variant: 'destructive', title: "خطأ في جلب بيانات المتاجر" });
-      } finally {
-        setDataLoading(false);
-      }
-    };
-    fetchStoresData();
-  }, [firestore, toast]);
   
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -138,6 +140,7 @@ export default function AdminUsersPage() {
         const currentStatus = user.account_status.is_blocked;
         await updateDoc(userDocRef, { 'account_status.is_blocked': !currentStatus });
         toast({ title: `تم ${currentStatus ? 'رفع الحظر' : 'حظر'} المستخدم`});
+        handleRefresh();
     } catch (e: any) {
         toast({ variant: 'destructive', title: 'فشل تغيير الحالة' });
     }
@@ -149,7 +152,8 @@ export default function AdminUsersPage() {
       try {
           await updateDoc(userDocRef, { 'driver_details.status': newStatus });
           toast({ title: `تم ${newStatus === 'approved' ? 'قبول' : 'رفض'} المندوب` });
-      } catch (e: any)          {
+          handleRefresh();
+      } catch (e: any) {
            toast({ variant: 'destructive', title: 'فشل تحديث حالة المندوب' });
       }
   }
@@ -196,6 +200,7 @@ export default function AdminUsersPage() {
         toast({ title: "تمت الإضافة بنجاح" });
       }
       setDialogOpen(false);
+      handleRefresh();
     } catch (error: any) {
       console.error("Error saving user:", error);
        if (error.code === 'permission-denied') {
@@ -218,6 +223,7 @@ export default function AdminUsersPage() {
     try {
       await deleteDoc(docRef);
       toast({ title: "تم الحذف بنجاح" });
+      handleRefresh();
     } catch (error: any) {
       if (error.code === 'permission-denied') {
         errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' }));
@@ -231,9 +237,9 @@ export default function AdminUsersPage() {
 
   const getStoreName = useCallback((storeId?: string) => {
     if (!storeId) return <span className="text-red-500">غير مربوط</span>;
-    if (dataLoading) return '...';
+    if (loading) return '...';
     return stores.find(s => s.id === storeId)?.name_ar || <span className="text-gray-400">متجر محذوف</span>;
-  }, [stores, dataLoading]);
+  }, [stores, loading]);
   
   const searchResults = useMemo(() => {
     if (!searchQuery) return [];
@@ -265,7 +271,7 @@ export default function AdminUsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-50">
-              {usersLoading ? Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)
+              {loading ? Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)
                 : userData.map((user) => (
                     <TableRow key={user.uid} className="hover:bg-muted/50">
                         <TableCell className="font-bold text-xs text-gray-700">
@@ -305,11 +311,11 @@ export default function AdminUsersPage() {
       )
   }
 
-  if (usersError) {
-    if (usersError.message.includes('database (default) does not exist') || usersError.message.includes('permission-denied')) {
+  if (dbError) {
+    if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('permission-denied')) {
       return <SetupFirestoreMessage />;
     }
-    return <p className="text-destructive text-center">خطأ: {usersError.message}</p>;
+    return <p className="text-destructive text-center">خطأ: {dbError.message}</p>;
   }
   if (!firestore) return <SetupFirestoreMessage />;
 
@@ -320,9 +326,12 @@ export default function AdminUsersPage() {
           <h1 className="text-2xl font-black text-gray-900">إدارة المستخدمين</h1>
           <p className="text-gray-400 text-sm font-bold mt-1">تحكم في صلاحيات وحسابات جميع مستخدمي النظام.</p>
         </div>
-        <Button onClick={() => handleOpenDialog()} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
-          <PlusCircle /> إضافة مستخدم جديد
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button onClick={handleRefresh} variant="outline" size="icon" disabled={loading}><RefreshCw className={cn("h-4 w-4", loading && "animate-spin")}/></Button>
+            <Button onClick={() => handleOpenDialog()} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
+            <PlusCircle /> إضافة مستخدم جديد
+            </Button>
+        </div>
       </div>
 
        <Tabs value={activeTab} onValueChange={setActiveTab} dir="rtl">
@@ -421,14 +430,14 @@ export default function AdminUsersPage() {
 
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={isSubmitting || dataLoading} className="rounded-lg font-black">{isSubmitting ? <Loader2 className="animate-spin"/> : 'حفظ'}</Button>
+              <Button type="submit" disabled={isSubmitting || loading} className="rounded-lg font-black">{isSubmitting ? <Loader2 className="animate-spin"/> : 'حفظ'}</Button>
               <DialogClose asChild><Button type="button" variant="secondary" className="rounded-lg font-bold">إلغاء</Button></DialogClose>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
       
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
             <AlertDialogHeader><AlertDialogTitle>هل أنت متأكد تماماً؟</AlertDialogTitle>
             <AlertDialogDescription>سيتم حذف حساب "{userToDelete?.full_name}" بشكل نهائي.</AlertDialogDescription>
