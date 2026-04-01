@@ -1,7 +1,7 @@
 'use client';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useFirestore, useUser, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, query, orderBy, updateDoc, arrayUnion, getDocs, where, writeBatch, limit } from 'firebase/firestore';
 import type { Order, User, Store, OrderStatus, OrderHistoryItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -60,10 +60,17 @@ export default function ConfirmOrdersPage() {
   const firestore = useFirestore();
   const { userData: adminUser } = useUser();
 
+  // Data state
+  const [orders, setOrders] = useState<Order[] | null>(null);
+  const [users, setUsers] = useState<User[] | null>(null);
+  const [stores, setStores] = useState<Store[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState<Error | null>(null);
+
+  // UI State
   const [activeTab, setActiveTab] = useState<OrderStatus | 'all'>('pending');
   const [searchQuery, setSearchQuery] = useState('');
-  const [refreshKey, setRefreshKey] = useState(0);
-
+  
   // Modals state
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setDetailsOpen] = useState(false);
@@ -71,16 +78,80 @@ export default function ConfirmOrdersPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Data fetching
-  const ordersQuery = useMemo(() => firestore ? query(collection(firestore, 'orders'), orderBy('created_at', 'desc'), limit(15)) : null, [firestore, refreshKey]);
-  const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore, refreshKey]);
-  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore, refreshKey]);
+  // --- Data Fetching and Caching Logic ---
+  const fetchDataFromFirestore = useCallback(async () => {
+    if (!firestore) return;
+    setLoading(true);
+    setDbError(null);
 
-  const { data: orders, loading: ordersLoading, error: ordersError } = useCollection<Order>(ordersQuery, { fetchOnce: true, collectionPath: 'orders' });
-  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(usersQuery, { fetchOnce: true, collectionPath: 'users' });
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, { fetchOnce: true, collectionPath: 'stores' });
+    try {
+        const ordersQuery = query(collection(firestore, 'orders'), orderBy('created_at', 'desc'), limit(15));
+        const usersQuery = collection(firestore, 'users');
+        const storesQuery = collection(firestore, 'stores');
+
+        const [ordersSnapshot, usersSnapshot, storesSnapshot] = await Promise.all([
+            getDocs(ordersQuery),
+            getDocs(usersQuery),
+            getDocs(storesQuery),
+        ]);
+
+        const ordersData = ordersSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as Order));
+        const usersData = usersSnapshot.docs.map(d => ({ ...d.data(), id: d.id, uid: d.id } as User));
+        const storesData = storesSnapshot.docs.map(d => ({ ...d.data(), id: d.id } as Store));
+
+        setOrders(ordersData);
+        setUsers(usersData);
+        setStores(storesData);
+
+        // Cache the data in localStorage
+        const now = new Date().getTime();
+        localStorage.setItem('cachedOrders', JSON.stringify({ timestamp: now, data: ordersData }));
+        localStorage.setItem('cachedUsers', JSON.stringify({ timestamp: now, data: usersData }));
+        localStorage.setItem('cachedStores', JSON.stringify({ timestamp: now, data: storesData }));
+        
+        toast({ title: "تم تحديث البيانات بنجاح" });
+
+    } catch (err: any) {
+        setDbError(err);
+        console.error("Firestore fetch error:", err);
+    } finally {
+        setLoading(false);
+    }
+  }, [firestore, toast]);
   
-  const dataLoading = ordersLoading || usersLoading || storesLoading;
+  // On initial mount, try to load from cache
+  useEffect(() => {
+    if (!firestore) {
+        setLoading(false);
+        return;
+    };
+    try {
+        const cachedOrders = localStorage.getItem('cachedOrders');
+        const cachedUsers = localStorage.getItem('cachedUsers');
+        const cachedStores = localStorage.getItem('cachedStores');
+
+        if (cachedOrders && cachedUsers && cachedStores) {
+            setOrders(JSON.parse(cachedOrders).data);
+            setUsers(JSON.parse(cachedUsers).data);
+            setStores(JSON.parse(cachedStores).data);
+            setLoading(false);
+            toast({ title: 'تم تحميل البيانات من الذاكرة المؤقتة' });
+        } else {
+            fetchDataFromFirestore();
+        }
+    } catch (e) {
+        console.error("Failed to read from localStorage, fetching fresh data.", e);
+        handleRefresh(); // Clear potentially corrupted cache and fetch fresh
+    }
+  }, [firestore, fetchDataFromFirestore]);
+
+  const handleRefresh = useCallback(() => {
+    localStorage.removeItem('cachedOrders');
+    localStorage.removeItem('cachedUsers');
+    localStorage.removeItem('cachedStores');
+    fetchDataFromFirestore();
+  }, [fetchDataFromFirestore]);
+
 
   // Create maps for efficient lookups
   const userMap = useMemo(() => new Map(users?.map(u => [u.uid, u])), [users]);
@@ -144,7 +215,7 @@ export default function ConfirmOrdersPage() {
           });
           toast({ title: "تم تحديث حالة الطلب بنجاح" });
           if(isCancelOpen) setCancelOpen(false);
-          setRefreshKey(prev => prev + 1); // Manually trigger a refresh
+          handleRefresh(); // Refresh data after update
       } catch(err: any) {
           toast({ variant: 'destructive', title: "خطأ", description: "فشل تحديث حالة الطلب" });
           if (err.code === 'permission-denied') {
@@ -156,7 +227,6 @@ export default function ConfirmOrdersPage() {
       }
   }
 
-  const dbError = ordersError || usersError || storesError;
   if (dbError) {
     if (dbError.message.includes('database (default) does not exist') || dbError.message.includes('permission-denied')) {
         return <SetupFirestoreMessage />;
@@ -172,8 +242,8 @@ export default function ConfirmOrdersPage() {
             <h1 className="text-2xl font-black text-gray-900">إدارة وتأكيد الطلبات</h1>
             <p className="text-gray-400 text-sm font-bold mt-1">متابعة وقبول الطلبات الجديدة وتمريرها للمتاجر.</p>
         </div>
-        <Button variant="outline" size="icon" onClick={() => setRefreshKey(prev => prev + 1)} disabled={dataLoading}>
-            <RefreshCw className={cn("h-4 w-4", dataLoading && "animate-spin")} />
+        <Button variant="outline" size="icon" onClick={handleRefresh} disabled={loading}>
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
       </div>
 
@@ -206,7 +276,7 @@ export default function ConfirmOrdersPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {dataLoading ? Array.from({length: 5}).map((_, i) => <RowSkeleton key={i} />)
+                        {loading ? Array.from({length: 5}).map((_, i) => <RowSkeleton key={i} />)
                         : filteredOrders.length > 0 ? filteredOrders.map(order => (
                             <TableRow key={order.id}>
                                 <TableCell className="font-mono text-xs">#{order.id?.slice(-6)}</TableCell>
@@ -335,3 +405,5 @@ export default function ConfirmOrdersPage() {
     </div>
   );
 }
+
+    
