@@ -7,7 +7,7 @@ export const mockMasterUser1: User = {
   phone: '775258830',
   full_name: 'محمود حساني',
   email: 'mahmoud@absher.com',
-  profile_image: 'https://picsum.photos/seed/mahmoud/200/200',
+  profile_image: '/profile.png',
   roles: { is_admin: true, is_driver: true, is_store_owner: true, is_user: true },
   created_at: new Date().toISOString(),
   last_login_at: new Date().toISOString(),
