@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { collection, query, orderBy, updateDoc, doc, arrayUnion } from 'firebase/firestore';
+import { collection, query, orderBy, updateDoc, doc, arrayUnion, getDocs, limit } from 'firebase/firestore';
 import type { Appointment, User, Store, AppointmentStatus, AppointmentHistoryItem } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Calendar as CalendarIcon, CheckCircle, Clock, Send, Pencil, Loader2, Info, User as UserIcon, ShoppingBag, MapPin, Tag, X, History } from 'lucide-react';
+import { Calendar as CalendarIcon, CheckCircle, Clock, Send, Pencil, Loader2, Info, User as UserIcon, ShoppingBag, MapPin, Tag, X, History, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -66,6 +66,7 @@ export default function AppointmentsPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
   const { userData: adminUser } = useUser();
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [timeFilter, setTimeFilter] = useState<'today' | 'tomorrow' | 'this_month' | 'completed'>('today');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,13 +78,13 @@ export default function AppointmentsPage() {
   const [cancelReason, setCancelReason] = useState('');
 
   // Data Fetching
-  const appointmentsQuery = useMemo(() => firestore ? query(collection(firestore, 'appointments'), orderBy('appointmentDate', 'asc')) : null, [firestore]);
-  const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]);
+  const appointmentsQuery = useMemo(() => firestore ? query(collection(firestore, 'appointments'), orderBy('appointmentDate', 'asc'), limit(50)) : null, [firestore, refreshKey]);
+  const usersQuery = useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore, refreshKey]);
+  const storesQuery = useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore, refreshKey]);
 
-  const { data: appointments, loading: appointmentsLoading, error: appointmentsError } = useCollection<Appointment>(appointmentsQuery);
-  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(usersQuery);
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery);
+  const { data: appointments, loading: appointmentsLoading, error: appointmentsError } = useCollection<Appointment>(appointmentsQuery, {fetchOnce: true});
+  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(usersQuery, {fetchOnce: true});
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(storesQuery, {fetchOnce: true});
   
   const dataLoading = appointmentsLoading || usersLoading || storesLoading;
 
@@ -93,8 +94,8 @@ export default function AppointmentsPage() {
   const filteredAppointments = useMemo(() => {
     if (!appointments) return [];
     return appointments.filter(app => {
-        if (app.status === 'completed' && timeFilter !== 'completed') return false;
         if (timeFilter === 'completed') return app.status === 'completed';
+        if (app.status === 'completed') return false;
 
         const appDate = parseISO(app.appointmentDate);
         if (timeFilter === 'today') return isToday(appDate);
@@ -105,25 +106,11 @@ export default function AppointmentsPage() {
     }).sort((a, b) => new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime());
   }, [appointments, timeFilter]);
   
-  const appointmentsRef = useRef<Appointment[] | null>(null);
-  const newAppointmentSound = useMemo(() => typeof Audio !== 'undefined' ? new Audio('/sounds/notification.mp3') : null, []);
 
-  useEffect(() => {
-    if (newAppointmentSound && appointments && appointmentsRef.current) {
-      if (appointments.length > appointmentsRef.current.length) {
-        const newScheduled = appointments.filter(app => !appointmentsRef.current!.some(prev => prev.id === app.id) && app.status === 'scheduled');
-        if (newScheduled.length > 0) {
-          newAppointmentSound.play().catch(e => console.log("Audio playback failed. User interaction might be required."));
-          toast({
-            title: `موعد جديد (${newScheduled.length})`,
-            description: `تم استلام موعد جديد من العميل ${newScheduled[0].clientName}`,
-          });
-        }
-      }
-    }
-    appointmentsRef.current = appointments;
-  }, [appointments, newAppointmentSound, toast]);
-  
+  const handleRefresh = () => {
+      setRefreshKey(prev => prev + 1);
+      toast({title: "جاري تحديث البيانات..."});
+  }
 
   const handleStatusUpdate = async (appointmentId: string, newStatus: AppointmentStatus, reason?: string) => {
       if (!firestore || !adminUser) return;
@@ -143,6 +130,7 @@ export default function AppointmentsPage() {
               history: arrayUnion(historyEntry)
            });
           toast({ title: "تم تحديث حالة الموعد" });
+          handleRefresh();
       } catch(err: any) {
           toast({ variant: 'destructive', title: "خطأ", description: "فشل تحديث حالة الموعد" });
           if (err.code === 'permission-denied') {
@@ -181,6 +169,7 @@ export default function AppointmentsPage() {
 
         toast({ title: "تم تعديل الموعد بنجاح" });
         setEditOpen(false);
+        handleRefresh();
     } catch (err: any) {
         toast({ variant: 'destructive', title: "خطأ في التعديل", description: err.message });
     } finally {
@@ -197,9 +186,14 @@ export default function AppointmentsPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black text-gray-900">إدارة المواعيد والطلبات المجدولة</h1>
-        <p className="text-gray-400 text-sm font-bold mt-1">تأكيد وتوزيع الطلبات المجدولة على المناديب.</p>
+      <div className="flex justify-between items-start">
+        <div>
+            <h1 className="text-2xl font-black text-gray-900">إدارة المواعيد والطلبات المجدولة</h1>
+            <p className="text-gray-400 text-sm font-bold mt-1">تأكيد وتوزيع الطلبات المجدولة على المناديب.</p>
+        </div>
+        <Button onClick={handleRefresh} variant="ghost" size="icon" disabled={dataLoading}>
+            <RefreshCw className={cn("h-5 w-5", dataLoading && "animate-spin")} />
+        </Button>
       </div>
 
       <Tabs value={timeFilter} onValueChange={(value) => setTimeFilter(value as any)} dir="rtl">

@@ -69,7 +69,7 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
         shouldBeCollapsed ? 'lg:w-20' : 'lg:w-64'
     )}>
         <div className={cn("flex items-center h-20 border-b shrink-0 px-4 gap-3 overflow-hidden", shouldBeCollapsed && "justify-center")}>
-             <Image src="/logo-app.png" alt="أبشر Logo" width={48} height={48} className="transition-all duration-300 object-contain flex-shrink-0 rounded-2xl shadow-md"/>
+             <Image src="/logo-app.png" alt="أبشر Logo" width={48} height={48} className="transition-all duration-300 object-contain flex-shrink-0 rounded-lg shadow-md"/>
              {!shouldBeCollapsed && 
                 <div>
                     <h2 className="font-black text-lg text-foreground whitespace-nowrap">إدارة أبشر</h2>
