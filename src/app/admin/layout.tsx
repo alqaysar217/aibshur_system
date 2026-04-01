@@ -2,6 +2,7 @@
 import { ReactNode, useState, useEffect } from "react";
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { AdminTopBar } from "@/components/admin/top-bar";
+import { cn } from "@/lib/utils";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -28,8 +29,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // The main layout is no longer a flex container.
+  // The sidebar is fixed, and the main content has a margin to avoid overlap.
   return (
-    <div className="flex h-screen w-full bg-background font-body overflow-hidden" dir="rtl">
+    <div className="h-screen w-full bg-background font-body overflow-hidden" dir="rtl">
       {isMobileOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-[100] lg:hidden backdrop-blur-sm animate-in fade-in duration-300"
@@ -42,9 +45,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         setIsMobileOpen={setIsMobileOpen}
         isCollapsed={isCollapsed}
       />
-
-      {/* This div no longer needs dynamic margins as flexbox handles the layout */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      
+      {/* Main content with dynamic margin-right. `relative` is needed for some children positioning */}
+      <div className={cn(
+        "h-full flex flex-col overflow-hidden transition-all duration-300 ease-in-out relative",
+        "lg:mr-64", // Default margin for expanded sidebar
+        isCollapsed && "lg:mr-20" // Margin for collapsed sidebar
+      )}>
         <AdminTopBar 
           toggleMobile={() => setIsMobileOpen(!isMobileOpen)} 
           toggleCollapse={() => setIsCollapsed(!isCollapsed)}

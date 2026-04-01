@@ -63,10 +63,14 @@ export function AdminSidebar({ isMobileOpen, setIsMobileOpen, isCollapsed }) {
   return (
     <aside
       className={cn(
-      "absher-sidebar-new fixed top-0 right-0 h-screen z-[101] bg-white flex flex-col transition-all duration-300 ease-in-out",
-      "lg:relative lg:translate-x-0",
-      isMobileOpen ? 'translate-x-0 shadow-2xl w-64' : 'translate-x-full',
-      isCollapsed ? 'lg:w-20' : 'lg:w-64'
+        // Always fixed, positioned on the right
+        "fixed top-0 right-0 h-screen z-[101] bg-white flex flex-col transition-all duration-300 ease-in-out border-l",
+        
+        // Desktop state (always visible)
+        isCollapsed ? 'lg:w-20' : 'lg:w-64',
+
+        // Mobile state (slides in and out)
+        isMobileOpen ? 'translate-x-0 shadow-2xl w-64' : 'translate-x-full lg:translate-x-0'
     )}>
         {/* Header */}
         <div className={cn("flex items-center h-20 border-b shrink-0 px-4 gap-3 overflow-hidden", isCollapsed && "justify-center")}>
