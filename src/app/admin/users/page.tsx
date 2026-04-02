@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
-import type { User, Store } from '@/lib/types';
+import type { User, Store, City } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -61,6 +61,7 @@ export default function AdminUsersPage() {
 
   const [users, setUsers] = useState<User[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState<Error | null>(null);
 
@@ -129,12 +130,14 @@ export default function AdminUsersPage() {
         setLoading(true);
         setDbError(null);
         try {
-            const [usersSnapshot, storesSnapshot] = await Promise.all([
+            const [usersSnapshot, storesSnapshot, citiesSnapshot] = await Promise.all([
                 getDocs(collection(firestore, 'users')),
                 getDocs(collection(firestore, 'stores')),
+                getDocs(collection(firestore, 'cities')),
             ]);
             setUsers(usersSnapshot.docs.map(d => ({...d.data(), id: d.id, uid: d.id } as User)));
             setStores(storesSnapshot.docs.map(d => ({...d.data(), id: d.id } as Store)));
+            setCities(citiesSnapshot.docs.map(d => ({...d.data(), id: d.id } as City)));
         } catch (err: any) {
             setDbError(err);
         } finally {
@@ -466,7 +469,40 @@ export default function AdminUsersPage() {
                 {currentUser?.roles?.is_user && !currentUser.roles.is_admin && !currentUser.roles.is_driver && !currentUser.roles.is_store_owner && (
                      <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
                         <Label className="font-bold">بيانات العميل</Label>
-                        <div className="space-y-2"><Label>المحافظة</Label><Input name="province" defaultValue={currentUser?.location?.province} className="rounded-lg bg-gray-50"/></div>
+                        <div className="space-y-2">
+                            <Label>المحافظة</Label>
+                            <select
+                                name="province"
+                                value={currentUser?.location?.province || ''}
+                                onChange={(e) =>
+                                    setCurrentUser((prev) => {
+                                        if (!prev) return null;
+                                        const newLocation = {
+                                            lat: prev.location?.lat,
+                                            lng: prev.location?.lng,
+                                            address_text: prev.location?.address_text,
+                                            province: e.target.value
+                                        };
+                                        return { ...prev, location: newLocation };
+                                    })
+                                }
+                                className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
+                                dir="rtl"
+                            >
+                                <option value="" disabled>اختر المحافظة</option>
+                                {loading ? (
+                                    <option value="loading" disabled>جاري جلب قائمة المدن...</option>
+                                ) : cities && cities.length > 0 ? (
+                                    cities.map((city) => (
+                                        <option key={city.id} value={city.name_ar}>
+                                            {city.name_ar}
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option disabled>لا توجد مدن مضافة حالياً.</option>
+                                )}
+                            </select>
+                        </div>
                         <div className="space-y-2"><Label>العنوان الوصفي</Label><Input name="address_text" defaultValue={currentUser?.location?.address_text} className="rounded-lg bg-gray-50"/></div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
