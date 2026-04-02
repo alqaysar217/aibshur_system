@@ -1,6 +1,6 @@
 'use client';
 
-import { Menu, Bell, PanelRightClose, PanelLeftClose, ChevronDown } from 'lucide-react';
+import { Menu, Bell, PanelRightClose, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
