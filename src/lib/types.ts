@@ -48,7 +48,8 @@ export interface VipPlan {
 
 export interface User {
   uid: string;
-  phone: string; // Primary identifier for OTP auth
+  phone: string;
+  password?: string;
   roles: {
     is_user?: boolean;
     is_admin?: boolean;
@@ -58,13 +59,22 @@ export interface User {
   full_name?: string;
   email?: string;
   profile_image?: string;
-  city_id?: string; // ref to City
-  store_id?: string; // For store owners
-  created_at: string; // ISO 8601
-  last_login_at: string; // ISO 8601
-  order_history?: string[]; // Array of orderIds
+  store_id?: string;
+  created_at: string;
+  last_login_at: string;
   wallet_balance?: number;
   loyalty_points?: number;
+  location?: {
+      lat?: number;
+      lng?: number;
+      province?: string;
+      address_text?: string;
+  };
+  auth_docs?: {
+      self_img?: string;
+      id_front?: string;
+      id_back?: string;
+  };
   account_status: {
     is_blocked: boolean;
     reason?: string;
@@ -72,26 +82,21 @@ export interface User {
   driver_details?: {
     vehicle_type: string;
     license_plate: string;
-    id_card_image: string;
     status: 'pending' | 'approved' | 'rejected';
     is_online: boolean;
     rating: number;
     wallet_balance: number;
-    current_location?: GeoPoint;
-    total_orders?: number;
-    outstanding_commission?: number;
-    debt?: number;
   };
   vip_details?: {
     isActive: boolean;
     planId: string;
     planName: string;
-    startDate: string; // ISO 8601
-    expiryDate: string; // ISO 8601
+    startDate: string;
+    expiryDate: string;
     amountPaid?: number;
     receiptNumber?: string;
     receiptImageUrl?: string;
-    activatedBy?: string; // Admin UID
+    activatedBy?: string;
   };
   isMock?: boolean;
 }
@@ -393,5 +398,7 @@ export interface CategoryFilter {
     name_en: string;
     type: 'restaurant' | 'pharmacy' | 'market' | 'other';
 }
+
+    
 
     

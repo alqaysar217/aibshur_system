@@ -22,6 +22,7 @@
       "properties": {
         "uid": { "type": "string", "description": "Firebase Auth User ID." },
         "phone": { "type": "string", "format": "phone", "description": "Primary phone number for OTP." },
+        "password": { "type": "string", "description": "Password for email/password auth, typically handled by Firebase Auth." },
         "roles": {
             "type": "object",
             "properties": {
@@ -34,13 +35,28 @@
         "full_name": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "profile_image": { "type": "string", "format": "uri" },
-        "city_id": { "type": "string", "description": "Reference to the City entity." },
         "store_id": { "type": "string", "description": "For store owners, reference to the Store entity." },
         "created_at": { "type": "string", "format": "date-time" },
         "last_login_at": { "type": "string", "format": "date-time" },
-        "order_history": { "type": "array", "items": { "type": "string" } },
         "wallet_balance": { "type": "number", "description": "The user's current wallet balance, managed by admins." },
         "loyalty_points": { "type": "number", "description": "Total loyalty points accumulated by the user." },
+        "location": {
+            "type": "object",
+            "properties": {
+                "lat": { "type": "number" },
+                "lng": { "type": "number" },
+                "province": { "type": "string", "description": "The province or governorate." },
+                "address_text": { "type": "string", "description": "Descriptive address." }
+            }
+        },
+        "auth_docs": {
+            "type": "object",
+            "properties": {
+                "self_img": { "type": "string", "format": "uri", "description": "URL to the user's personal photo." },
+                "id_front": { "type": "string", "format": "uri", "description": "URL to the front of the ID card." },
+                "id_back": { "type": "string", "format": "uri", "description": "URL to the back of the ID card." }
+            }
+        },
         "account_status": {
           "type": "object",
           "properties": {
@@ -53,12 +69,10 @@
           "properties": {
             "vehicle_type": { "type": "string" },
             "license_plate": { "type": "string" },
-            "id_card_image": { "type": "string", "format": "uri" },
             "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
             "is_online": { "type": "boolean" },
             "rating": { "type": "number" },
-            "wallet_balance": { "type": "number" },
-            "current_location": { "$ref": "#/entities/GeoPoint" }
+            "wallet_balance": { "type": "number" }
           }
         },
         "vip_details": {

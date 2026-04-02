@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
@@ -33,7 +34,7 @@ import {
     AlertDialogTitle,
   } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Users, Search, X, ShieldCheck, Truck, User as UserIcon, Store as StoreIcon, Crown, RefreshCw } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Users, Search, X, ShieldCheck, Truck, User as UserIcon, Store as StoreIcon, Crown, RefreshCw, Eye, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -48,7 +49,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 const RowSkeleton = () => (
     <TableRow>
-        <TableCell colSpan={5} className="p-0">
+        <TableCell colSpan={6} className="p-0">
             <Skeleton className="w-full h-[70px]"/>
         </TableCell>
     </TableRow>
@@ -68,10 +69,12 @@ export default function AdminUsersPage() {
  
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isDocsViewerOpen, setDocsViewerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<Partial<User> | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToViewDocs, setUserToViewDocs] = useState<User | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -130,8 +133,13 @@ export default function AdminUsersPage() {
   
   const handleOpenDeleteDialog = (user: User) => {
     setUserToDelete(user);
-    setIsDeleteDialogOpen(true);
+    setDeleteDialogOpen(true);
   };
+
+  const handleOpenDocsViewer = (user: User) => {
+    setUserToViewDocs(user);
+    setDocsViewerOpen(true);
+  }
   
   const handleToggleBlock = async (user: User) => {
     if (!firestore) return;
@@ -169,7 +177,16 @@ export default function AdminUsersPage() {
         full_name: formData.get('full_name') as string,
         email: formData.get('email') as string,
         phone: formData.get('phone') as string,
-        roles: currentUser.roles
+        roles: currentUser.roles,
+        location: {
+            province: formData.get('province') as string,
+            address_text: formData.get('address_text') as string,
+        },
+        auth_docs: {
+            self_img: formData.get('self_img') as string,
+            id_front: formData.get('id_front') as string,
+            id_back: formData.get('id_back') as string,
+        }
     };
 
     if(currentUser.roles?.is_store_owner && !currentUser.store_id) {
@@ -249,7 +266,6 @@ export default function AdminUsersPage() {
   const handleRoleChange = (role: keyof User['roles'], checked: boolean) => {
     setCurrentUser(prev => {
         const newRoles = { ...prev?.roles, [role]: checked };
-        // Ensure a user is always at least a 'user'
         if (role !== 'is_user' && !newRoles.is_user && !newRoles.is_admin && !newRoles.is_driver && !newRoles.is_store_owner) {
             newRoles.is_user = true;
         }
@@ -267,7 +283,7 @@ export default function AdminUsersPage() {
                 {type === 'store_owner' && <TableHead className="text-center">المتجر المرتبط</TableHead>}
                 {type === 'driver' && <TableHead className="text-center">حالة القبول</TableHead>}
                 <TableHead className="text-center">الحالة</TableHead>
-                <TableHead className="text-center w-[150px]">إجراءات</TableHead>
+                <TableHead className="text-center w-[200px]">إجراءات</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-gray-50">
@@ -275,9 +291,12 @@ export default function AdminUsersPage() {
                 : userData.map((user) => (
                     <TableRow key={user.uid} className="hover:bg-muted/50">
                         <TableCell className="font-bold text-xs text-gray-700">
-                          <div className="flex items-center gap-2">
-                           {user.vip_details?.isActive && <Crown className="w-4 h-4 text-yellow-500 fill-yellow-400" />}
-                           <span>{user.full_name}</span>
+                          <div className="flex items-center gap-3">
+                            <div className='flex items-center gap-1'>
+                                {user.vip_details?.isActive && <Crown className="w-4 h-4 text-yellow-500 fill-yellow-400" />}
+                                <span>{user.full_name}</span>
+                            </div>
+                            {user.location?.lat && <MapPin className="w-4 h-4 text-gray-400 cursor-pointer hover:text-primary"/>}
                           </div>
                         </TableCell>
                         <TableCell className="text-center font-mono text-xs text-gray-500" dir="ltr">{user.phone}</TableCell>
@@ -295,11 +314,14 @@ export default function AdminUsersPage() {
                             </TableCell>
                         )}
                         <TableCell className="text-center align-middle">
-                            <Switch checked={!user.account_status.is_blocked} onCheckedChange={() => handleToggleBlock(user)} />
-                             <span className="text-xs font-bold ml-2">{!user.account_status.is_blocked ? 'فعال' : 'محظور'}</span>
+                            <div className='flex items-center justify-center'>
+                                <Switch checked={!user.account_status.is_blocked} onCheckedChange={() => handleToggleBlock(user)} />
+                                <span className="text-xs font-bold mr-2">{!user.account_status.is_blocked ? 'فعال' : 'محظور'}</span>
+                            </div>
                         </TableCell>
                         <TableCell className="align-middle">
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center justify-center gap-1">
+                                {type === 'driver' && <Button variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => handleOpenDocsViewer(user)}><Eye className="w-4 h-4"/></Button>}
                                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenDialog(user)}><Edit className="w-4 h-4 text-gray-400" /></Button>
                                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:text-red-500 hover:bg-red-50" onClick={() => handleOpenDeleteDialog(user)}><Trash2 className="w-4 h-4" /></Button>
                             </div>
@@ -373,7 +395,7 @@ export default function AdminUsersPage() {
             <DialogHeader>
               <DialogTitle className="font-black text-gray-900">{currentUser?.uid ? 'تعديل مستخدم' : 'إضافة مستخدم جديد'}</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 py-6">
+            <div className="grid gap-4 py-6 max-h-[70vh] overflow-y-auto pr-4">
               
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2"><Label>الاسم الكامل</Label><Input name="full_name" defaultValue={currentUser?.full_name} required className="rounded-lg bg-gray-50"/></div>
@@ -389,12 +411,30 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-2"><Checkbox id="role-admin" checked={currentUser?.roles?.is_admin} onCheckedChange={checked => handleRoleChange('is_admin', !!checked)} /><Label htmlFor="role-admin">مدير</Label></div>
                     </div>
                 </div>
+
+                {currentUser?.roles?.is_user && !currentUser.roles.is_admin && !currentUser.roles.is_driver && !currentUser.roles.is_store_owner && (
+                     <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
+                        <Label className="font-bold">بيانات العميل</Label>
+                        <div className="space-y-2"><Label>المحافظة</Label><Input name="province" defaultValue={currentUser?.location?.province} className="rounded-lg bg-gray-50"/></div>
+                        <div className="space-y-2"><Label>العنوان الوصفي</Label><Input name="address_text" defaultValue={currentUser?.location?.address_text} className="rounded-lg bg-gray-50"/></div>
+                        <Button type="button" variant="outline">تحديد الموقع من الخريطة <MapPin className="mr-2 h-4 w-4"/></Button>
+                    </div>
+                )}
+                
+                {currentUser?.roles?.is_driver && (
+                     <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
+                        <Label className="font-bold">بيانات توثيق المندوب</Label>
+                        <div className="space-y-2"><Label>رابط الصورة الشخصية</Label><Input name="self_img" defaultValue={currentUser?.auth_docs?.self_img} className="rounded-lg bg-gray-50" dir="ltr"/></div>
+                        <div className="space-y-2"><Label>رابط صورة الهوية (وجه)</Label><Input name="id_front" defaultValue={currentUser?.auth_docs?.id_front} className="rounded-lg bg-gray-50" dir="ltr"/></div>
+                        <div className="space-y-2"><Label>رابط صورة الهوية (ظهر)</Label><Input name="id_back" defaultValue={currentUser?.auth_docs?.id_back} className="rounded-lg bg-gray-50" dir="ltr"/></div>
+                    </div>
+                )}
                 
                  {currentUser?.roles?.is_store_owner && (
-                     <div className="p-4 border rounded-xl space-y-4">
+                     <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
                         <Label className="font-bold">ربط بمتجر</Label>
                          {!currentUser?.store_id ? (
-                            <div ref={pickerRef} className="space-y-2 animate-in fade-in duration-300 relative">
+                            <div ref={pickerRef} className="space-y-2 relative">
                                 <Label>ابحث عن المتجر</Label>
                                 <div className="relative">
                                     <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -412,7 +452,7 @@ export default function AdminUsersPage() {
                                 )}
                             </div>
                         ) : (
-                            <div className="p-3 border rounded-lg bg-primary/5 flex items-center justify-between animate-in fade-in duration-300">
+                            <div className="p-3 border rounded-lg bg-primary/5 flex items-center justify-between">
                                  <div className="flex items-center gap-3">
                                     <Image src={stores.find(s=>s.id === currentUser.store_id)?.logo_url || ''} alt="Selected item" width={40} height={40} className="w-10 h-10 rounded-md object-cover bg-gray-100" />
                                     <div>
@@ -436,6 +476,28 @@ export default function AdminUsersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+       <Dialog open={isDocsViewerOpen} onOpenChange={setDocsViewerOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>وثائق المندوب: {userToViewDocs?.full_name}</DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-6">
+                    <div className="space-y-2 text-center">
+                        <Label>الصورة الشخصية</Label>
+                        <Image src={userToViewDocs?.auth_docs?.self_img || '/placeholder.png'} alt="Personal" width={200} height={200} className="rounded-lg border object-cover w-full aspect-square" />
+                    </div>
+                    <div className="space-y-2 text-center">
+                        <Label>الهوية (وجه)</Label>
+                        <Image src={userToViewDocs?.auth_docs?.id_front || '/placeholder.png'} alt="ID Front" width={200} height={200} className="rounded-lg border object-cover w-full aspect-square" />
+                    </div>
+                    <div className="space-y-2 text-center">
+                        <Label>الهوية (ظهر)</Label>
+                        <Image src={userToViewDocs?.auth_docs?.id_back || '/placeholder.png'} alt="ID Back" width={200} height={200} className="rounded-lg border object-cover w-full aspect-square" />
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
       
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -452,3 +514,6 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+
+    
