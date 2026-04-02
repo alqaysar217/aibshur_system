@@ -80,6 +80,48 @@ export default function AdminUsersPage() {
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const handleRefresh = () => setRefreshKey(prev => prev + 1);
+  
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+        toast({
+            variant: "destructive",
+            title: "خاصية غير مدعومة",
+            description: "متصفحك لا يدعم تحديد الموقع الجغرافي.",
+        });
+        return;
+    }
+
+    toast({ title: "جاري تحديد الموقع...", description: "الرجاء الانتظار..." });
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const { latitude, longitude } = position.coords;
+            setCurrentUser(prev => {
+                if (!prev) return null;
+                return {
+                    ...prev,
+                    location: {
+                        ...prev.location,
+                        lat: latitude,
+                        lng: longitude,
+                    }
+                }
+            });
+            toast({
+                title: "نجاح",
+                description: "تم تحديث إحداثيات الموقع بنجاح.",
+            });
+        },
+        (error) => {
+            toast({
+                variant: "destructive",
+                title: "خطأ في تحديد الموقع",
+                description: "لا يمكن الحصول على الموقع الحالي. تأكد من منح الأذونات اللازمة للمتصفح.",
+            });
+            console.error("Geolocation error:", error);
+        }
+    );
+  };
+
 
   useEffect(() => {
     if (!firestore) return;
@@ -180,6 +222,8 @@ export default function AdminUsersPage() {
         location: {
             province: formData.get('province') as string,
             address_text: formData.get('address_text') as string,
+            lat: currentUser.location?.lat,
+            lng: currentUser.location?.lng,
         },
         auth_docs: {
             self_img: formData.get('self_img') as string,
@@ -424,7 +468,25 @@ export default function AdminUsersPage() {
                         <Label className="font-bold">بيانات العميل</Label>
                         <div className="space-y-2"><Label>المحافظة</Label><Input name="province" defaultValue={currentUser?.location?.province} className="rounded-lg bg-gray-50"/></div>
                         <div className="space-y-2"><Label>العنوان الوصفي</Label><Input name="address_text" defaultValue={currentUser?.location?.address_text} className="rounded-lg bg-gray-50"/></div>
-                        <Button type="button" variant="outline">تحديد الموقع من الخريطة <MapPin className="mr-2 h-4 w-4"/></Button>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="lat">خط العرض (Latitude)</Label>
+                                <Input id="lat" name="lat" type="number" step="any" placeholder="15.3694" dir="ltr"
+                                    value={currentUser?.location?.lat || ''} 
+                                    onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lat: e.target.valueAsNumber}}) : null)}
+                                    className="rounded-lg bg-gray-50"
+                                />
+                            </div>
+                             <div className="space-y-2">
+                                <Label htmlFor="lng">خط الطول (Longitude)</Label>
+                                <Input id="lng" name="lng" type="number" step="any" placeholder="44.1910" dir="ltr"
+                                    value={currentUser?.location?.lng || ''} 
+                                    onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lng: e.target.valueAsNumber}}) : null)}
+                                    className="rounded-lg bg-gray-50"
+                                />
+                            </div>
+                        </div>
+                        <Button type="button" variant="outline" onClick={handleGetLocation}>تحديد الموقع من الخريطة <MapPin className="mr-2 h-4 w-4"/></Button>
                     </div>
                 )}
                 
