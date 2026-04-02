@@ -1,6 +1,9 @@
 'use client';
 
-import { Menu, Bell, PanelRightClose, PanelLeftClose } from 'lucide-react';
+import Menu from 'lucide-react/dist/esm/icons/menu';
+import Bell from 'lucide-react/dist/esm/icons/bell';
+import PanelRightClose from 'lucide-react/dist/esm/icons/panel-right-close';
+import PanelLeftClose from 'lucide-react/dist/esm/icons/panel-left-close';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
