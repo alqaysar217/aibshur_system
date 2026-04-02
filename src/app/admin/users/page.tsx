@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useFirestore, FirestorePermissionError, errorEmitter } from '@/firebase';
@@ -314,10 +313,18 @@ export default function AdminUsersPage() {
                             </TableCell>
                         )}
                         <TableCell className="text-center align-middle">
-                            <div className='flex items-center justify-center'>
-                                <Switch checked={!user.account_status.is_blocked} onCheckedChange={() => handleToggleBlock(user)} />
-                                <span className="text-xs font-bold mr-2">{!user.account_status.is_blocked ? 'فعال' : 'محظور'}</span>
-                            </div>
+                            <Badge
+                                onClick={() => handleToggleBlock(user)}
+                                variant={"outline"}
+                                className={cn(
+                                    "cursor-pointer font-bold transition-colors",
+                                    !user.account_status.is_blocked
+                                        ? "border-green-500 bg-green-50 text-green-700 hover:bg-green-100"
+                                        : "border-red-500 bg-red-50 text-red-700 hover:bg-red-100"
+                                )}
+                            >
+                                {!user.account_status.is_blocked ? 'فعال' : 'محظور'}
+                            </Badge>
                         </TableCell>
                         <TableCell className="align-middle">
                             <div className="flex items-center justify-center gap-1">
@@ -514,6 +521,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-
-    
