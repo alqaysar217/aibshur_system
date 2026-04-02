@@ -503,19 +503,19 @@ export default function AdminUsersPage() {
                                 )}
                             </select>
                         </div>
-                        <div className="space-y-2"><Label>العنوان الوصفي</Label><Input name="address_text" defaultValue={currentUser?.location?.address_text} className="rounded-lg bg-gray-50"/></div>
+                        <div className="space-y-2"><Label>العنوان الوصفي</Label><Input name="address_text" value={currentUser?.location?.address_text || ''} onChange={e => setCurrentUser(p => p ? ({ ...p, location: { ...(p.location as any), address_text: e.target.value } }) : null)} className="rounded-lg bg-gray-50"/></div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="lat">خط العرض (Latitude)</Label>
-                                <Input id="lat" name="lat" type="number" step="any" placeholder="15.3694" dir="ltr"
+                                <Label htmlFor="lat-client">خط العرض (Latitude)</Label>
+                                <Input id="lat-client" name="lat" type="number" step="any" placeholder="15.3694" dir="ltr"
                                     value={currentUser?.location?.lat || ''} 
                                     onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lat: e.target.valueAsNumber}}) : null)}
                                     className="rounded-lg bg-gray-50"
                                 />
                             </div>
                              <div className="space-y-2">
-                                <Label htmlFor="lng">خط الطول (Longitude)</Label>
-                                <Input id="lng" name="lng" type="number" step="any" placeholder="44.1910" dir="ltr"
+                                <Label htmlFor="lng-client">خط الطول (Longitude)</Label>
+                                <Input id="lng-client" name="lng" type="number" step="any" placeholder="44.1910" dir="ltr"
                                     value={currentUser?.location?.lng || ''} 
                                     onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lng: e.target.valueAsNumber}}) : null)}
                                     className="rounded-lg bg-gray-50"
@@ -527,12 +527,83 @@ export default function AdminUsersPage() {
                 )}
                 
                 {currentUser?.roles?.is_driver && (
-                     <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
-                        <Label className="font-bold">بيانات توثيق المندوب</Label>
-                        <div className="space-y-2"><Label>رابط الصورة الشخصية</Label><Input name="self_img" defaultValue={currentUser?.auth_docs?.self_img} className="rounded-lg bg-gray-50" dir="ltr"/></div>
-                        <div className="space-y-2"><Label>رابط صورة الهوية (وجه)</Label><Input name="id_front" defaultValue={currentUser?.auth_docs?.id_front} className="rounded-lg bg-gray-50" dir="ltr"/></div>
-                        <div className="space-y-2"><Label>رابط صورة الهوية (ظهر)</Label><Input name="id_back" defaultValue={currentUser?.auth_docs?.id_back} className="rounded-lg bg-gray-50" dir="ltr"/></div>
-                    </div>
+                    <>
+                        <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
+                            <Label className="font-bold">بيانات توثيق المندوب</Label>
+                            <div className="space-y-2">
+                                <Label>رابط الصورة الشخصية</Label>
+                                <Input name="self_img" value={currentUser?.auth_docs?.self_img || ''} onChange={(e) => setCurrentUser(p => p ? ({ ...p, auth_docs: { ...(p.auth_docs as any), self_img: e.target.value } }) : null)} className="rounded-lg bg-gray-50" dir="ltr"/>
+                                {currentUser?.auth_docs?.self_img && <div className="flex justify-center p-2 mt-2 border rounded-xl"><Image src={currentUser.auth_docs.self_img} alt="معاينة" width={100} height={100} className="rounded-lg object-contain h-24"/></div>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label>رابط صورة الهوية (وجه)</Label>
+                                <Input name="id_front" value={currentUser?.auth_docs?.id_front || ''} onChange={(e) => setCurrentUser(p => p ? ({ ...p, auth_docs: { ...(p.auth_docs as any), id_front: e.target.value } }) : null)} className="rounded-lg bg-gray-50" dir="ltr"/>
+                                {currentUser?.auth_docs?.id_front && <div className="flex justify-center p-2 mt-2 border rounded-xl"><Image src={currentUser.auth_docs.id_front} alt="معاينة" width={150} height={100} className="rounded-lg object-contain h-24"/></div>}
+                            </div>
+                            <div className="space-y-2">
+                                <Label>رابط صورة الهوية (ظهر)</Label>
+                                <Input name="id_back" value={currentUser?.auth_docs?.id_back || ''} onChange={(e) => setCurrentUser(p => p ? ({ ...p, auth_docs: { ...(p.auth_docs as any), id_back: e.target.value } }) : null)} className="rounded-lg bg-gray-50" dir="ltr"/>
+                                {currentUser?.auth_docs?.id_back && <div className="flex justify-center p-2 mt-2 border rounded-xl"><Image src={currentUser.auth_docs.id_back} alt="معاينة" width={150} height={100} className="rounded-lg object-contain h-24"/></div>}
+                            </div>
+                        </div>
+                         <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
+                            <Label className="font-bold">موقع المندوب</Label>
+                            <div className="space-y-2">
+                                <Label>المحافظة</Label>
+                                <select
+                                    name="province"
+                                    value={currentUser?.location?.province || ''}
+                                    onChange={(e) =>
+                                        setCurrentUser((prev) => {
+                                            if (!prev) return null;
+                                            const newLocation = {
+                                                lat: prev.location?.lat,
+                                                lng: prev.location?.lng,
+                                                address_text: prev.location?.address_text,
+                                                province: e.target.value
+                                            };
+                                            return { ...prev, location: newLocation };
+                                        })
+                                    }
+                                    className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
+                                    dir="rtl"
+                                >
+                                    <option value="" disabled>اختر المحافظة</option>
+                                    {loading ? (
+                                        <option value="loading" disabled>جاري جلب قائمة المدن...</option>
+                                    ) : cities && cities.length > 0 ? (
+                                        cities.map((city) => (
+                                            <option key={city.id} value={city.name_ar}>
+                                                {city.name_ar}
+                                            </option>
+                                        ))
+                                    ) : (
+                                        <option disabled>لا توجد مدن مضافة حالياً.</option>
+                                    )}
+                                </select>
+                            </div>
+                            <div className="space-y-2"><Label>العنوان الوصفي</Label><Input name="address_text" value={currentUser?.location?.address_text || ''} onChange={e => setCurrentUser(p => p ? ({ ...p, location: { ...(p.location as any), address_text: e.target.value } }) : null)} className="rounded-lg bg-gray-50"/></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="lat-driver">خط العرض (Latitude)</Label>
+                                    <Input id="lat-driver" name="lat" type="number" step="any" placeholder="15.3694" dir="ltr"
+                                        value={currentUser?.location?.lat || ''} 
+                                        onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lat: e.target.valueAsNumber}}) : null)}
+                                        className="rounded-lg bg-gray-50"
+                                    />
+                                </div>
+                                 <div className="space-y-2">
+                                    <Label htmlFor="lng-driver">خط الطول (Longitude)</Label>
+                                    <Input id="lng-driver" name="lng" type="number" step="any" placeholder="44.1910" dir="ltr"
+                                        value={currentUser?.location?.lng || ''} 
+                                        onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lng: e.target.valueAsNumber}}) : null)}
+                                        className="rounded-lg bg-gray-50"
+                                    />
+                                </div>
+                            </div>
+                            <Button type="button" variant="outline" onClick={handleGetLocation}>تحديد الموقع الحالي <MapPin className="mr-2 h-4 w-4"/></Button>
+                        </div>
+                    </>
                 )}
                 
                  {currentUser?.roles?.is_store_owner && (
