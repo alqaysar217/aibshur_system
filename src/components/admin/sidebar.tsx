@@ -2,28 +2,30 @@
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard';
-import Calendar from 'lucide-react/dist/esm/icons/calendar';
-import ShoppingCart from 'lucide-react/dist/esm/icons/shopping-cart';
-import Users from 'lucide-react/dist/esm/icons/users';
-import Building from 'lucide-react/dist/esm/icons/building';
-import Truck from 'lucide-react/dist/esm/icons/truck';
-import BarChart2 from 'lucide-react/dist/esm/icons/bar-chart-2';
-import Package from 'lucide-react/dist/esm/icons/package';
-import Shapes from 'lucide-react/dist/esm/icons/shapes';
-import MapPin from 'lucide-react/dist/esm/icons/map-pin';
-import Wallet from 'lucide-react/dist/esm/icons/wallet';
-import Banknote from 'lucide-react/dist/esm/icons/banknote';
-import Crown from 'lucide-react/dist/esm/icons/crown';
-import Star from 'lucide-react/dist/esm/icons/star';
-import TicketPercent from 'lucide-react/dist/esm/icons/ticket-percent';
-import GalleryHorizontal from 'lucide-react/dist/esm/icons/gallery-horizontal';
-import HeartHandshake from 'lucide-react/dist/esm/icons/heart-handshake';
-import TrendingUp from 'lucide-react/dist/esm/icons/trending-up';
-import Settings from 'lucide-react/dist/esm/icons/settings';
-import MessageSquare from 'lucide-react/dist/esm/icons/message-square';
-import Wrench from 'lucide-react/dist/esm/icons/wrench';
-import LogOut from 'lucide-react/dist/esm/icons/log-out';
+import {
+    LayoutDashboard,
+    Calendar,
+    ShoppingCart,
+    Users,
+    Building,
+    Truck,
+    BarChart2,
+    Package,
+    Shapes,
+    MapPin,
+    Wallet,
+    Banknote,
+    Crown,
+    Star,
+    TicketPercent,
+    GalleryHorizontal,
+    HeartHandshake,
+    TrendingUp,
+    Settings,
+    MessageSquare,
+    Wrench,
+    LogOut
+} from 'lucide-react';
 import Image from 'next/image';
 
 const navLinks = [
