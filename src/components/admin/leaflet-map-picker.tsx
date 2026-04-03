@@ -3,7 +3,7 @@
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
 import L, { LatLngExpression } from 'leaflet';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
 // Fix for default marker icon issue
@@ -22,7 +22,7 @@ interface MapPickerProps {
 }
 
 // Search control component
-const SearchControl = ({ onPositionChange }: { onPositionChange: (pos: { lat: number; lng: number }) => void }) => {
+const SearchControl = (props: { onPositionChange: (pos: { lat: number, lng: number }) => void }) => {
     const map = useMap();
   
     useEffect(() => {
@@ -37,10 +37,10 @@ const SearchControl = ({ onPositionChange }: { onPositionChange: (pos: { lat: nu
       });
   
       map.addControl(searchControl);
-      
+
       const onResult = (e: any) => {
-        onPositionChange({ lat: e.location.y, lng: e.location.x });
-      }
+        props.onPositionChange({ lat: e.location.y, lng: e.location.x });
+      };
       map.on('geosearch/showlocation', onResult);
 
       return () => {
@@ -48,10 +48,10 @@ const SearchControl = ({ onPositionChange }: { onPositionChange: (pos: { lat: nu
             map.removeControl(searchControl);
             map.off('geosearch/showlocation', onResult);
         } catch (error) {
-            // Ignore errors on cleanup. This can happen if the map container is removed before the cleanup function runs.
+            // Ignore errors on cleanup.
         }
       };
-    }, [map, onPositionChange]);
+    }, [map, props]);
   
     return null;
 };
@@ -70,11 +70,10 @@ const MapEvents = ({ onPositionChange }: { onPositionChange: (pos: { lat: number
 const MapUpdater = ({ position }: { position: { lat: number; lng: number } }) => {
     const map = useMap();
     useEffect(() => {
-        // Only set view if position is valid and different from current center
         if (position && typeof position.lat === 'number' && typeof position.lng === 'number') {
             const currentCenter = map.getCenter();
             if (currentCenter.lat.toFixed(5) !== position.lat.toFixed(5) || currentCenter.lng.toFixed(5) !== position.lng.toFixed(5)) {
-                map.setView([position.lat, position.lng], map.getZoom());
+                map.setView([position.lat, position.lng], map.getZoom() < 13 ? 13 : map.getZoom());
             }
         }
     }, [position, map]);
@@ -82,16 +81,12 @@ const MapUpdater = ({ position }: { position: { lat: number; lng: number } }) =>
 }
 
 export default function LeafletMapPicker({ position, onPositionChange }: MapPickerProps) {
+    const defaultCenter: LatLngExpression = [14.536, 49.126]; // Mukalla
     
-    // This state is initialized only once per component mount.
-    const [initialView] = useState(() => {
-        const defaultCenter: LatLngExpression = [14.536, 49.126]; // Mukalla
-        const hasPosition = position && typeof position.lat === 'number' && typeof position.lng === 'number';
-        return {
-            center: hasPosition ? [position.lat, position.lng] as LatLngExpression : defaultCenter,
-            zoom: hasPosition ? 15 : 13
-        };
-    });
+    // Check if a valid position is passed, otherwise use default
+    const center = (position && typeof position.lat === 'number' && typeof position.lng === 'number')
+        ? [position.lat, position.lng] as LatLngExpression
+        : defaultCenter;
 
     const placeholder = (
         <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
@@ -102,10 +97,11 @@ export default function LeafletMapPicker({ position, onPositionChange }: MapPick
 
     return (
         <MapContainer
-            center={initialView.center}
-            zoom={initialView.zoom}
+            center={center}
+            zoom={13}
             style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}
             placeholder={placeholder}
+            scrollWheelZoom={true}
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -114,7 +110,7 @@ export default function LeafletMapPicker({ position, onPositionChange }: MapPick
             <SearchControl onPositionChange={onPositionChange} />
             <MapEvents onPositionChange={onPositionChange} />
             <MapUpdater position={position} />
-            {position && typeof position.lat === 'number' && typeof position.lng === 'number' && <Marker position={[position.lat, position.lng]} />}
+            <Marker position={center} />
         </MapContainer>
     );
 }

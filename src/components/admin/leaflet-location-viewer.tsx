@@ -1,8 +1,9 @@
 'use client';
 
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L, { LatLngExpression } from 'leaflet';
 import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 
 // Fix for default marker icon issue
 // @ts-ignore
@@ -16,6 +17,17 @@ L.Icon.Default.mergeOptions({
 interface LocationViewerProps {
   position: { lat: number; lng: number };
 }
+
+const MapUpdater = ({ position }: { position: { lat: number; lng: number } }) => {
+    const map = useMap();
+    useEffect(() => {
+        if (position?.lat && position?.lng) {
+            map.setView([position.lat, position.lng], 15);
+        }
+    }, [position, map]);
+    return null;
+};
+
 
 export default function LeafletLocationViewer({ position }: LocationViewerProps) {
   if (!position || typeof position.lat !== 'number' || typeof position.lng !== 'number') {
@@ -38,14 +50,15 @@ export default function LeafletLocationViewer({ position }: LocationViewerProps)
         style={{ height: '400px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}
         placeholder={placeholder}
         scrollWheelZoom={false}
-        dragging={false}
-        zoomControl={false}
+        dragging={true}
+        zoomControl={true}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <Marker position={markerPosition}></Marker>
+      <MapUpdater position={position} />
     </MapContainer>
   );
 }
