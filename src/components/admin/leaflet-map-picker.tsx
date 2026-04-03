@@ -43,8 +43,12 @@ const SearchControl = ({ onPositionChange }: { onPositionChange: (pos: { lat: nu
       map.on('geosearch/showlocation', onResult);
 
       return () => {
-        map.removeControl(searchControl);
-        map.off('geosearch/showlocation', onResult);
+        try {
+            map.removeControl(searchControl);
+            map.off('geosearch/showlocation', onResult);
+        } catch (error) {
+            // Ignore errors on cleanup. This can happen if the map container is removed before the cleanup function runs.
+        }
       };
     }, [map, onPositionChange]);
   
@@ -61,31 +65,35 @@ const MapEvents = ({ onPositionChange }: { onPositionChange: (pos: { lat: number
     return null;
 };
 
-// Component to change map view dynamically
-const ChangeView = ({ center, zoom }: { center: LatLngExpression, zoom: number }) => {
+// Component to change map view dynamically when props change
+const MapUpdater = ({ position }: { position: { lat: number; lng: number } }) => {
     const map = useMap();
     useEffect(() => {
-        map.setView(center, zoom);
-    }, [center, zoom, map]);
+        if (position && position.lat && position.lng) {
+            const currentCenter = map.getCenter();
+            if (currentCenter.lat !== position.lat || currentCenter.lng !== position.lng) {
+                map.setView([position.lat, position.lng], 15);
+            }
+        }
+    }, [position, map]);
     return null;
 }
 
 export default function LeafletMapPicker({ position, onPositionChange }: MapPickerProps) {
-    const defaultCenter: LatLngExpression = [14.536, 49.126]; // Mukalla
-    const defaultZoom = 13;
-
-    const [markerPosition, setMarkerPosition] = useState<LatLngExpression | null>(null);
-
-    useEffect(() => {
-        if(position && position.lat && position.lng) {
-            setMarkerPosition([position.lat, position.lng]);
-        }
-    }, [position]);
-
-    const center = markerPosition || defaultCenter;
+    
+    // Initialize the view state ONCE using useState's initializer function.
+    // This prevents MapContainer from re-rendering with new props.
+    const [initialView] = useState(() => {
+        const defaultCenter: LatLngExpression = [14.536, 49.126]; // Mukalla
+        const hasPosition = position && position.lat && position.lng;
+        return {
+            center: hasPosition ? [position.lat, position.lng] as LatLngExpression : defaultCenter,
+            zoom: hasPosition ? 15 : 13
+        };
+    });
 
     return (
-        <MapContainer center={center} zoom={defaultZoom} style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}>
+        <MapContainer center={initialView.center} zoom={initialView.zoom} style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}>
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -93,9 +101,11 @@ export default function LeafletMapPicker({ position, onPositionChange }: MapPick
             <SearchControl onPositionChange={onPositionChange} />
             <MapEvents onPositionChange={onPositionChange} />
 
-            <ChangeView center={center} zoom={markerPosition ? 15 : defaultZoom} />
+            {/* This component handles view updates if the `position` prop changes */}
+            <MapUpdater position={position} />
 
-            {markerPosition && <Marker position={markerPosition}></Marker>}
+            {/* The Marker is updated based on the `position` prop */}
+            {position && position.lat && position.lng && <Marker position={[position.lat, position.lng]}></Marker>}
         </MapContainer>
     );
 }
