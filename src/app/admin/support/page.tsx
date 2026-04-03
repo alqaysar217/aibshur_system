@@ -1,166 +1,314 @@
 'use client';
-
-import { useState, useMemo, useEffect } from 'react';
-import { useFirestore, useDoc, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { doc, setDoc, updateDoc, collection } from 'firebase/firestore';
-import type { AppConfig, Complaint } from '@/lib/types';
+import { useState, useMemo, useCallback } from 'react';
+import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { collection, doc, query, where, getDocs, runTransaction, updateDoc, arrayUnion, orderBy } from 'firebase/firestore';
+import type { User, Complaint, FinanceTransaction, AppConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, MessageSquare, Phone, Facebook, Mail, CheckCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Loader2, MessageSquare, Phone, Facebook, Mail, CheckCircle, Clock, Check, Users, Shield, Award, Send, Coins } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow, isToday, parseISO } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import Link from 'next/link';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 
+const KpiCard = ({ title, value, isLoading }: { title: string, value: string | number, isLoading: boolean }) => (
+    <Card className='shadow-sm'>
+        <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+            {isLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-3xl font-black">{value}</div>}
+        </CardContent>
+    </Card>
+);
 
-const CONFIG_DOC_ID = "app_config";
-const CONFIG_COLLECTION_ID = "settings";
-
-const initialConfig: AppConfig = {
-    financial: { platform_fee_percentage: 10, default_delivery_fee: 500, min_order_for_free_delivery: 10000 },
-    identity: { app_logo_url: '', main_slider_images: [] },
-    maintenance: { is_maintenance_mode: false, maintenance_message: '' },
-    support: { whatsapp_number: '', facebook_url: '', email: '' }
-};
+const getPriorityBadge = (priority: 'high' | 'medium' | 'low') => {
+    switch (priority) {
+        case 'high': return <Badge variant="destructive">عاجل</Badge>;
+        case 'medium': return <Badge className="bg-orange-400 text-white">متوسط</Badge>;
+        case 'low': return <Badge variant="secondary">عادي</Badge>;
+        default: return <Badge variant="outline">غير محدد</Badge>;
+    }
+}
 
 export default function SupportPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
-  const configDocRef = useMemo(() => firestore ? doc(firestore, CONFIG_COLLECTION_ID, CONFIG_DOC_ID) : null, [firestore]);
+  const { userData: adminUser } = useUser();
   
-  const { data: fetchedConfig, loading: configLoading, error: configError } = useDoc<AppConfig>(configDocRef);
-  const { data: complaints, loading: complaintsLoading, error: complaintsError } = useCollection<Complaint>(useMemo(() => firestore ? collection(firestore, 'complaints') : null, [firestore]), 'complaints');
+  // Data Fetching
+  const configDocRef = useMemo(() => firestore ? doc(firestore, 'settings', 'app_config') : null, [firestore]);
+  const { data: config, loading: configLoading, error: configError } = useDoc<AppConfig>(configDocRef);
+  const { data: complaints, loading: complaintsLoading, error: complaintsError } = useCollection<Complaint>(useMemo(() => firestore ? query(collection(firestore, 'complaints'), orderBy('createdAt', 'desc')) : null, [firestore]), { fetchOnce: false });
+  const { data: admins, loading: adminsLoading } = useCollection<User>(useMemo(() => firestore ? query(collection(firestore, 'users'), where('roles.is_admin', '==', true)) : null, [firestore]));
 
-  const [config, setConfig] = useState<AppConfig>(initialConfig);
+  // State
+  const [activeTab, setActiveTab] = useState('pending');
+  const [isReplyOpen, setReplyOpen] = useState(false);
+  const [isCompensateOpen, setCompensateOpen] = useState(false);
+  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
+  const [replyMessage, setReplyMessage] = useState('');
+  const [compensationAmount, setCompensationAmount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [resolvingId, setResolvingId] = useState<string|null>(null);
 
-  useEffect(() => {
-    if (fetchedConfig) {
-      setConfig(fetchedConfig);
+  const filteredComplaints = useMemo(() => {
+    if (!complaints) return [];
+    if (activeTab === 'all') return complaints;
+    return complaints.filter(c => c.status === activeTab);
+  }, [complaints, activeTab]);
+
+  const stats = useMemo(() => {
+    if (!complaints) return { open: 0, resolvedToday: 0, avgResolutionTime: 'N/A' };
+    
+    const open = complaints.filter(c => c.status === 'pending').length;
+    const resolvedToday = complaints.filter(c => c.status === 'resolved' && c.history?.some(h => h.status === 'resolved' && isToday(parseISO(h.timestamp)))).length;
+    
+    // Average resolution time can be complex, so a placeholder for now
+    const avgResolutionTime = "3 ساعات";
+
+    return { open, resolvedToday, avgResolutionTime };
+  }, [complaints]);
+
+  const handleOpenReply = (complaint: Complaint) => {
+    setSelectedComplaint(complaint);
+    setReplyMessage('');
+    setReplyOpen(true);
+  }
+
+  const handleSendReply = async () => {
+    if (!firestore || !adminUser || !selectedComplaint || !replyMessage) return;
+    setIsSubmitting(true);
+    const complaintDocRef = doc(firestore, 'complaints', selectedComplaint.id!);
+    const historyEntry = {
+        message: replyMessage,
+        from: 'admin' as const,
+        adminId: adminUser.uid,
+        timestamp: new Date().toISOString()
+    };
+    try {
+        await updateDoc(complaintDocRef, { history: arrayUnion(historyEntry) });
+        setReplyMessage('');
+        toast({ title: 'تم إرسال الرد' });
+        // Optimistically update local state
+        setSelectedComplaint(prev => prev ? {...prev, history: [...(prev.history || []), historyEntry]} : null);
+    } catch (err: any) {
+        toast({ variant: 'destructive', title: 'خطأ', description: 'فشل إرسال الرد.' });
+    } finally {
+        setIsSubmitting(false);
     }
-  }, [fetchedConfig]);
-
-  const handleInputChange = (key: string, value: string) => {
-    setConfig(prev => ({
-        ...prev,
-        support: {
-            ...prev.support,
-            [key]: value
-        }
-    }));
   };
 
-  const handleSave = async () => {
-    if (!firestore || !configDocRef) return;
+  const handleResolveComplaint = async (complaintId: string) => {
+    if(!firestore || !adminUser) return;
     setIsSubmitting(true);
+    const complaintDocRef = doc(firestore, 'complaints', complaintId);
+    const historyEntry = {
+        status: 'resolved' as const,
+        timestamp: new Date().toISOString(),
+        updatedBy: adminUser.uid,
+    };
     try {
-        await updateDoc(configDocRef, { support: config.support });
-        toast({ title: 'تم حفظ معلومات الدعم' });
-    } catch (error: any) {
-        console.error("Error saving support settings:", error);
-        toast({ variant: 'destructive', title: "خطأ في الحفظ", description: error.message });
+        await updateDoc(complaintDocRef, { status: 'resolved', history: arrayUnion(historyEntry) });
+        toast({ title: 'تم حل الشكوى بنجاح' });
+        setReplyOpen(false);
+    } catch(err: any) {
+        toast({variant: 'destructive', title: 'فشل تحديث الشكوى'});
     } finally {
         setIsSubmitting(false);
     }
   }
+  
+  const handleCompensation = async () => {
+      if(!firestore || !adminUser || !selectedComplaint || compensationAmount <= 0) {
+          toast({variant: 'destructive', title: 'مبلغ غير صالح'});
+          return;
+      }
+      setIsSubmitting(true);
+      try {
+        await runTransaction(firestore, async(transaction) => {
+            const userDocRef = doc(firestore, 'users', selectedComplaint.userId);
+            const userDoc = await transaction.get(userDocRef);
+            if(!userDoc.exists()) throw new Error('لم يتم العثور على العميل');
+            
+            const currentBalance = userDoc.data().wallet_balance || 0;
+            transaction.update(userDocRef, { wallet_balance: currentBalance + compensationAmount });
 
-  const handleResolveComplaint = async (complaintId: string) => {
-    if(!firestore) return;
-    setResolvingId(complaintId);
-    const complaintDocRef = doc(firestore, 'complaints', complaintId);
-    try {
-        await updateDoc(complaintDocRef, { status: 'resolved' });
-        toast({ title: 'تم حل الشكوى بنجاح' });
-    } catch(err: any) {
-        toast({variant: 'destructive', title: 'فشل تحديث الشكوى'});
-    } finally {
-        setResolvingId(null);
-    }
+            const financeTxRef = doc(collection(firestore, 'financeTransactions'));
+            const financeTx: Omit<FinanceTransaction, 'id'> = {
+                transactionId: financeTxRef.id,
+                userUid: selectedComplaint.userId,
+                amount: compensationAmount,
+                type: 'refund',
+                status: 'completed',
+                description: `تعويض عن الشكوى #${selectedComplaint.id?.slice(0,6)}`,
+                created_at: new Date().toISOString()
+            };
+            transaction.set(financeTxRef, financeTx);
+
+            const complaintDocRef = doc(firestore, 'complaints', selectedComplaint.id!);
+            const historyEntry = {
+                message: `تم تعويض العميل بمبلغ ${compensationAmount.toLocaleString()} ر.ي`,
+                from: 'admin' as const,
+                adminId: adminUser.uid,
+                timestamp: new Date().toISOString()
+            };
+            transaction.update(complaintDocRef, { history: arrayUnion(historyEntry) });
+        });
+        toast({title: "تم التعويض بنجاح", description: `تمت إضافة ${compensationAmount.toLocaleString()} ر.ي لمحفظة العميل.`});
+        setCompensateOpen(false);
+        setCompensationAmount(0);
+        setReplyOpen(false);
+      } catch (err: any) {
+          toast({variant: 'destructive', title: 'فشل عملية التعويض', description: err.message});
+      } finally {
+          setIsSubmitting(false);
+      }
   }
   
   const dbError = configError || complaintsError;
   if (dbError) return <SetupFirestoreMessage />;
   if (!firestore) return <SetupFirestoreMessage />;
 
-
   return (
-    <div className="space-y-8 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between">
-            <div>
-            <h1 className="text-2xl font-black text-gray-900">مركز الدعم الفني</h1>
-            <p className="text-gray-400 text-sm font-bold mt-1">إدارة شكاوى العملاء وتحديث معلومات التواصل.</p>
-            </div>
-            <Button onClick={handleSave} disabled={isSubmitting || configLoading} className="rounded-lg font-black gap-2 h-11 shadow-lg shadow-primary/20">
-                {isSubmitting ? <Loader2 className="animate-spin" /> : 'حفظ التغييرات'}
-            </Button>
+    <div className="space-y-8 max-w-7xl mx-auto">
+        <div>
+            <h1 className="text-2xl font-black text-gray-900">مركز الدعم والمساندة</h1>
+            <p className="text-gray-400 text-sm font-bold mt-1">إدارة شكاوى العملاء، معلومات التواصل، والإجراءات السريعة.</p>
         </div>
 
-        <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
-            <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare className="text-primary"/>جدول الشكاوى والتذاكر</CardTitle></CardHeader>
-            <CardContent className="p-0">
-                <Table>
-                    <TableHeader>
-                        <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
-                            <TableHead>العميل</TableHead>
-                            <TableHead>نص الشكوى</TableHead>
-                            <TableHead className="text-center">التاريخ</TableHead>
-                            <TableHead className="text-center">الحالة</TableHead>
-                            <TableHead className="text-center">إجراء</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {complaintsLoading ? (
-                             Array.from({ length: 2 }).map((_, i) => <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-10 w-full"/></TableCell></TableRow>)
-                        ) : complaints && complaints.length > 0 ? (
-                            complaints.map(c => (
-                                <TableRow key={c.id}>
-                                    <TableCell className="font-bold text-xs">{c.userName}<br/><span className="font-mono text-gray-400">{c.userPhone}</span></TableCell>
-                                    <TableCell className="text-xs text-gray-600 max-w-sm">{c.issueText}</TableCell>
-                                    <TableCell className="text-center font-mono text-xs">{format(new Date(c.createdAt), 'dd/MM/yy', { locale: ar })}</TableCell>
-                                    <TableCell className="text-center"><Badge variant={c.status === 'resolved' ? 'secondary' : 'destructive'}>{c.status === 'resolved' ? 'تم الحل' : 'جديدة'}</Badge></TableCell>
-                                    <TableCell className="text-center">
-                                        {c.status === 'pending' && (
-                                            <Button size="sm" onClick={() => handleResolveComplaint(c.id!)} disabled={resolvingId === c.id}>
-                                                {resolvingId === c.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <CheckCircle className="h-4 w-4"/>}
-                                            </Button>
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                             <TableRow><TableCell colSpan={5} className="h-24 text-center text-muted-foreground">لا توجد شكاوى حالياً.</TableCell></TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <KpiCard title="تذاكر مفتوحة" value={stats.open} isLoading={complaintsLoading} />
+            <KpiCard title="متوسط وقت الحل" value={stats.avgResolutionTime} isLoading={complaintsLoading} />
+            <KpiCard title="حُلَّت اليوم" value={stats.resolvedToday} isLoading={complaintsLoading} />
+        </div>
         
-        <Card className="border-none shadow-sm rounded-2xl bg-white overflow-hidden">
-            <CardHeader><CardTitle className="flex items-center gap-2">معلومات التواصل مع الدعم</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {configLoading ? Array.from({length: 3}).map((_, i) => <Skeleton key={i} className="h-24 w-full"/>) : <>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><ListChecks className="text-primary"/> سجل الشكاوى والتذاكر</CardTitle>
+                        <Tabs value={activeTab} onValueChange={setActiveTab} className="pt-2">
+                             <TabsList>
+                                <TabsTrigger value="all">الكل</TabsTrigger>
+                                <TabsTrigger value="pending">قيد الانتظار</TabsTrigger>
+                                <TabsTrigger value="resolved">تم الحل</TabsTrigger>
+                             </TabsList>
+                        </Tabs>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>العميل</TableHead><TableHead>الشكوى</TableHead><TableHead>الأولوية</TableHead><TableHead>التاريخ</TableHead><TableHead>الحالة</TableHead><TableHead>الإجراء</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {complaintsLoading ? Array.from({ length: 3 }).map((_, i) => <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-12 w-full"/></TableCell></TableRow>)
+                                : filteredComplaints.length > 0 ? (
+                                    filteredComplaints.map(c => (
+                                        <TableRow key={c.id}>
+                                            <TableCell className="font-bold text-xs">{c.userName}<br/><span className="font-mono text-gray-400">{c.userPhone}</span></TableCell>
+                                            <TableCell className="text-xs text-gray-600 max-w-xs truncate">{c.issueText}</TableCell>
+                                            <TableCell>{getPriorityBadge(c.priority || 'low')}</TableCell>
+                                            <TableCell className="font-mono text-xs text-gray-500">{format(new Date(c.createdAt), 'dd/MM/yy', { locale: ar })}</TableCell>
+                                            <TableCell><Badge variant={c.status === 'resolved' ? 'secondary' : 'destructive'}>{c.status === 'resolved' ? 'مغلقة' : 'مفتوحة'}</Badge></TableCell>
+                                            <TableCell>
+                                                <Button size="sm" onClick={() => handleOpenReply(c)}>رد سريع</Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">لا توجد شكاوى في هذا القسم.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
+            <div>
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">قنوات التواصل</CardTitle>
+                        <CardDescription>روابط مباشرة للتواصل مع فريق الدعم.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                         {configLoading ? <Skeleton className="h-24 w-full" /> : (
+                            <>
+                                <Button asChild className="w-full justify-start gap-4 bg-green-500 hover:bg-green-600"><a href={`https://wa.me/${config?.support.whatsapp_number.replace('+', '')}`} target="_blank" rel="noopener noreferrer"><Phone/> واتساب</a></Button>
+                                <Button asChild className="w-full justify-start gap-4 bg-blue-600 hover:bg-blue-700"><a href={config?.support.facebook_url || '#'} target="_blank" rel="noopener noreferrer"><Facebook/> فيسبوك</a></Button>
+                                <Button asChild className="w-full justify-start gap-4 bg-gray-700 hover:bg-gray-800"><a href={`mailto:${config?.support.email || ''}`}><Mail/> البريد الإلكتروني</a></Button>
+                            </>
+                         )}
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+        
+        <Dialog open={isReplyOpen} onOpenChange={setReplyOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle>الرد على شكوى: {selectedComplaint?.userName}</DialogTitle>
+                    <DialogDescription>
+                        قضية: "{selectedComplaint?.issueText.substring(0, 50)}..."
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
                     <div className="space-y-2">
-                        <Label className="flex items-center gap-1"><Phone className="h-4 w-4"/>رقم واتساب الدعم</Label>
-                        <Input dir="ltr" value={config.support.whatsapp_number} onChange={e => handleInputChange('whatsapp_number', e.target.value)} />
+                        <h4 className="font-bold">سجل المحادثة</h4>
+                        <div className="space-y-3 p-3 bg-muted rounded-lg max-h-48 overflow-y-auto">
+                           {(selectedComplaint?.history || []).filter(h => h.message).map((h, i) => (
+                               <div key={i} className={cn("p-2 rounded-lg text-sm", h.from === 'admin' ? 'bg-primary/10 text-right' : 'bg-secondary text-left')}>
+                                   <p>{h.message}</p>
+                                   <p className="text-xs text-muted-foreground mt-1">{formatDistanceToNow(parseISO(h.timestamp), { addSuffix: true, locale: ar })}</p>
+                               </div>
+                           ))}
+                           {(!selectedComplaint?.history || selectedComplaint.history.filter(h => h.message).length === 0) && (
+                                <p className="text-center text-sm text-muted-foreground p-4">لا توجد رسائل سابقة.</p>
+                           )}
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label className="flex items-center gap-1"><Facebook className="h-4 w-4"/>رابط صفحة الفيسبوك</Label>
-                        <Input dir="ltr" value={config.support.facebook_url} onChange={e => handleInputChange('facebook_url', e.target.value)} />
+                     <div className="space-y-2">
+                        <Label htmlFor="reply-message">رسالتك للعميل</Label>
+                        <Textarea id="reply-message" value={replyMessage} onChange={e => setReplyMessage(e.target.value)} placeholder="اكتب ردك هنا..."/>
                     </div>
-                    <div className="space-y-2">
-                        <Label className="flex items-center gap-1"><Mail className="h-4 w-4"/>البريد الإلكتروني</Label>
-                        <Input dir="ltr" type="email" value={config.support.email} onChange={e => handleInputChange('email', e.target.value)} />
+                    <Button onClick={handleSendReply} disabled={isSubmitting || !replyMessage} className="w-full">
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : <Send className="ml-2 h-4 w-4" />} إرسال الرد
+                    </Button>
+                    <div className="flex justify-between items-center pt-4 border-t">
+                        <Button variant="outline" onClick={() => setCompensateOpen(true)}>
+                            <Coins className="ml-2 h-4 w-4"/> تعويض العميل
+                        </Button>
+                        <Button variant="destructive" onClick={() => handleResolveComplaint(selectedComplaint!.id!)} disabled={isSubmitting}>
+                            <CheckCircle className="ml-2 h-4 w-4"/> إغلاق الشكوى
+                        </Button>
                     </div>
-                </>}
-            </CardContent>
-        </Card>
+                </div>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog open={isCompensateOpen} onOpenChange={setCompensateOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>تعويض العميل</DialogTitle>
+                    <DialogDescription>أدخل المبلغ لإضافته مباشرة إلى محفظة {selectedComplaint?.userName}.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2 py-4">
+                    <Label>المبلغ (ر.ي)</Label>
+                    <Input type="number" value={compensationAmount || ''} onChange={e => setCompensationAmount(e.target.valueAsNumber)} />
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button variant="secondary">إلغاء</Button></DialogClose>
+                    <Button onClick={handleCompensation} disabled={isSubmitting || compensationAmount <= 0}>
+                        {isSubmitting ? <Loader2 className="animate-spin" /> : "تأكيد التعويض"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }

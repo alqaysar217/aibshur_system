@@ -10,6 +10,7 @@ export type CouponScope = 'global' | 'store' | 'product';
 export type DonationType = 'siquia' | 'itiam' | 'jariyah' | 'general';
 export type LoyaltyTransactionType = 'earn' | 'redeem' | 'manual_adjustment';
 export type AppointmentStatus = 'scheduled' | 'confirmed' | 'dispatched' | 'completed' | 'cancelled';
+export type ComplaintPriority = 'low' | 'medium' | 'high';
 
 
 // Using a generic GeoPoint type as Firestore GeoPoint is a class instance.
@@ -386,6 +387,8 @@ export interface AppConfig {
         whatsapp_number: string;
         facebook_url: string;
         email: string;
+        telegram_url?: string;
+        instagram_url?: string;
     };
     order_control?: {
         max_delivery_distance: number;
@@ -410,6 +413,15 @@ export interface Complaint {
     issueText: string;
     createdAt: string; // ISO 8601
     status: 'pending' | 'resolved';
+    priority?: ComplaintPriority;
+    assignedTo?: string; // Admin UID
+    history?: {
+        message: string;
+        from: 'admin' | 'user';
+        timestamp: string;
+        adminId?: string; // UID of admin who replied
+        status?: 'resolved' // can be added to history
+    }[];
 }
 
 // This is a legacy type, do not use.

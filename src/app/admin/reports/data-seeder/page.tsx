@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { User, Store, Order, WalletTopupRequest, City, OrderStatus, Appointment, AppBank, Donation, LoyaltyTransaction, LoyaltyPointsConfig, FinanceTransaction } from '@/lib/types';
-import { mockUsers, mockStores, mockBanks, mockDonations, mockLoyaltyTransactions, mockLoyaltyConfig, mockAppointments } from '@/lib/mock-data';
+import type { User, Store, Order, WalletTopupRequest, City, OrderStatus, Appointment, AppBank, Donation, LoyaltyTransaction, LoyaltyPointsConfig, FinanceTransaction, Complaint } from '@/lib/types';
+import { mockUsers, mockStores, mockBanks, mockDonations, mockLoyaltyTransactions, mockLoyaltyConfig, mockAppointments, mockComplaints } from '@/lib/mock-data';
 
 function getRandomElement<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -17,7 +17,7 @@ function getRandomNumber(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-const COLLECTIONS_TO_PURGE = ['users', 'stores', 'orders', 'wallet_transactions', 'appointments', 'app_banks', 'donations', 'financeTransactions', 'loyalty_transactions', 'settings'];
+const COLLECTIONS_TO_PURGE = ['users', 'stores', 'orders', 'wallet_transactions', 'appointments', 'app_banks', 'donations', 'financeTransactions', 'loyalty_transactions', 'settings', 'complaints'];
 
 export default function DataSeederPage() {
     const { toast } = useToast();
@@ -57,7 +57,7 @@ export default function DataSeederPage() {
                     orderId: orderRef.id, clientUid: client.uid, storeId: store.storeId,
                     items: [{ productId: 'mockProd', productName_ar: 'منتج تجريبي', quantity: 1, price: getRandomNumber(1500, 25000) }],
                     subtotal_price: getRandomNumber(1500, 25000), delivery_fee: 500, total_price: 0, status: status,
-                    payment_method: getRandomElement(['cash', 'wallet']), delivery_location: { latitude: 0, longitude: 0 },
+                    payment_method: getRandomElement(['cash', 'wallet']), delivery_location: { lat: 0, lng: 0 },
                     delivery_address_text: 'عنوان تجريبي', created_at: new Date(Date.now() - i * 86400000).toISOString(),
                     updated_at: new Date().toISOString(), storeOwnerUid: store.storeOwnerUid, isMock: true
                 };
@@ -95,6 +95,12 @@ export default function DataSeederPage() {
                  });
             }
 
+            // --- 7. Seed Complaints ---
+            mockComplaints.forEach(complaint => {
+                const complaintRef = doc(collection(firestore, 'complaints'));
+                batch.set(complaintRef, { ...complaint, complaintId: complaintRef.id, isMock: true });
+            });
+
             await batch.commit();
             toast({ title: 'نجاح', description: 'تم حقن جميع البيانات التجريبية بنجاح!' });
         } catch (error: any) {
@@ -113,9 +119,17 @@ export default function DataSeederPage() {
             const batch = writeBatch(firestore);
             
             for(const col of COLLECTIONS_TO_PURGE) {
+                // Special handling for the single config document
                 if (col === 'settings') {
-                    const configDocRef = doc(firestore, 'settings', 'points_config');
-                    batch.delete(configDocRef);
+                    const configDocRef = doc(firestore, 'settings', 'app_config');
+                    const pointsConfigDocRef = doc(firestore, 'settings', 'points_config');
+                    try {
+                        // It's okay if these don't exist, so we don't need to check existence first
+                        batch.delete(configDocRef);
+                        batch.delete(pointsConfigDocRef);
+                    } catch (e) {
+                         // Ignore if doc doesn't exist
+                    }
                     continue;
                 }
                 const q = query(collection(firestore, col), where('isMock', '==', true));
@@ -155,7 +169,7 @@ export default function DataSeederPage() {
                            <li>تعبئة واجهة الطلبات بطلبات ذات حالات مختلفة.</li>
                            <li>تعبئة واجهة المواعيد بـ 5 طلبات مجدولة واقعية (عزومة، هدية، إلخ).</li>
                            <li>تعبئة تقرير أداء المناديب ببيانات مالية (عمولات ومديونية).</li>
-                           <li>تعبئة واجهات التبرعات ونقاط الولاء بسجلات تجريبية.</li>
+                           <li>تعبئة واجهات التبرعات ونقاط الولاء وسجل الشكاوى بسجلات تجريبية.</li>
                         </ul>
                     </div>
                      <Button 

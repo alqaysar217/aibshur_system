@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Settings, DollarSign, Palette, Shield, Image as ImageIcon, Link as LinkIcon, Users, SlidersHorizontal, Bell, KeyRound, Search, PlusCircle } from 'lucide-react';
+import { Loader2, Settings, DollarSign, Palette, Shield, Image as ImageIcon, Link as LinkIcon, Users, SlidersHorizontal, Bell, KeyRound, Search, PlusCircle, MessageCircle, Instagram } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -42,6 +42,8 @@ const initialConfig: AppConfig = {
         whatsapp_number: '+967777123456',
         facebook_url: 'https://facebook.com/absher',
         email: 'support@absher.com',
+        telegram_url: 'https://t.me/absher',
+        instagram_url: 'https://instagram.com/absher'
     },
     order_control: {
         max_delivery_distance: 25,
@@ -208,7 +210,8 @@ export default function SettingsPage() {
     }
   }
   
-  if (configError || adminsError) return <SetupFirestoreMessage />;
+  const dbError = configError || adminsError;
+  if (dbError) return <SetupFirestoreMessage />;
   if (!firestore || !adminUser) return <SetupFirestoreMessage />;
 
   return (
@@ -223,8 +226,9 @@ export default function SettingsPage() {
             </Button>
         </div>
         
-        <Tabs defaultValue="permissions" dir="rtl">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-6 mb-6">
+        <Tabs defaultValue="support" dir="rtl">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:grid-cols-7 mb-6">
+                <TabsTrigger value="support"><MessageSquare className="ml-1 h-4 w-4"/>الدعم</TabsTrigger>
                 <TabsTrigger value="permissions"><Users className="ml-1 h-4 w-4"/>الصلاحيات</TabsTrigger>
                 <TabsTrigger value="order_control"><SlidersHorizontal className="ml-1 h-4 w-4"/>الطلبات</TabsTrigger>
                 <TabsTrigger value="financial"><DollarSign className="ml-1 h-4 w-4"/>المالية</TabsTrigger>
@@ -233,6 +237,33 @@ export default function SettingsPage() {
                 <TabsTrigger value="maintenance"><Shield className="ml-1 h-4 w-4"/>الصيانة</TabsTrigger>
             </TabsList>
             
+            <TabsContent value="support">
+                 <SectionCard icon={MessageSquare} title="معلومات التواصل والدعم" description="تحديث روابط وقنوات التواصل التي تظهر للعملاء." isLoading={configLoading}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <Label>رقم واتساب الدعم</Label>
+                            <Input dir="ltr" value={config.support?.whatsapp_number || ''} onChange={e => handleInputChange('support', 'whatsapp_number', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label>رابط صفحة الفيسبوك</Label>
+                            <Input dir="ltr" value={config.support?.facebook_url || ''} onChange={e => handleInputChange('support', 'facebook_url', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>البريد الإلكتروني للدعم</Label>
+                            <Input dir="ltr" type="email" value={config.support?.email || ''} onChange={e => handleInputChange('support', 'email', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label>رابط قناة التليجرام</Label>
+                            <Input dir="ltr" value={config.support?.telegram_url || ''} onChange={e => handleInputChange('support', 'telegram_url', e.target.value)} />
+                        </div>
+                         <div className="space-y-2">
+                            <Label>رابط حساب انستقرام</Label>
+                            <Input dir="ltr" value={config.support?.instagram_url || ''} onChange={e => handleInputChange('support', 'instagram_url', e.target.value)} />
+                        </div>
+                    </div>
+                </SectionCard>
+            </TabsContent>
+
             <TabsContent value="permissions">
                 <SectionCard icon={Users} title="إدارة الصلاحيات" description="إدارة صلاحيات مدراء لوحة التحكم." isLoading={adminsLoading}>
                      <div className="space-y-4">
@@ -282,12 +313,20 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 </SectionCard>
-                <SectionCard icon={DollarSign} title="إعدادات التسعير الديناميكي" description="تفعيل التسعير المعتمد على المسافة بدلاً من السعر الثابت." isLoading={configLoading} >
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                        <Label htmlFor="is_dynamic_pricing_enabled" className="font-bold text-lg">تفعيل التسعير حسب المسافة</Label>
-                        <Switch id="is_dynamic_pricing_enabled" checked={config.pricing?.is_dynamic_pricing_enabled} onCheckedChange={c => handleInputChange('pricing', 'is_dynamic_pricing_enabled', c)} dir="ltr"/>
-                    </div>
-                </SectionCard>
+                <Card className="mt-6 border-none shadow-sm rounded-2xl bg-white overflow-hidden">
+                    <CardHeader>
+                       <CardTitle className="flex items-center gap-3 font-black text-lg"><div className="bg-primary/10 p-2 rounded-lg"><DollarSign className="h-5 w-5 text-primary" /></div>إعدادات التسعير الديناميكي</CardTitle>
+                       <CardDescription>تفعيل التسعير المعتمد على المسافة بدلاً من السعر الثابت.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                       {configLoading ? <Skeleton className="h-12 w-full" /> : (
+                         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                           <Label htmlFor="is_dynamic_pricing_enabled" className="font-bold text-lg">تفعيل التسعير حسب المسافة</Label>
+                           <Switch id="is_dynamic_pricing_enabled" checked={config.pricing?.is_dynamic_pricing_enabled} onCheckedChange={c => handleInputChange('pricing', 'is_dynamic_pricing_enabled', c)} dir="ltr"/>
+                         </div>
+                       )}
+                    </CardContent>
+                </Card>
             </TabsContent>
             
             <TabsContent value="financial">
@@ -318,11 +357,11 @@ export default function SettingsPage() {
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label>مفتاح خرائط جوجل (Google Maps API Key)</Label>
-                            <Input type="password" dir="ltr" value={config.integrations?.google_maps_api_key} onChange={e => handleInputChange('integrations', 'google_maps_api_key', e.target.value)} />
+                            <Input type="password" dir="ltr" value={config.integrations?.google_maps_api_key || ''} onChange={e => handleInputChange('integrations', 'google_maps_api_key', e.target.value)} />
                         </div>
                         <div className="space-y-2">
                             <Label>مفتاح بوابة الرسائل (SMS Gateway API Key)</Label>
-                            <Input type="password" dir="ltr" value={config.integrations?.sms_gateway_api_key} onChange={e => handleInputChange('integrations', 'sms_gateway_api_key', e.target.value)} />
+                            <Input type="password" dir="ltr" value={config.integrations?.sms_gateway_api_key || ''} onChange={e => handleInputChange('integrations', 'sms_gateway_api_key', e.target.value)} />
                         </div>
                     </div>
                 </SectionCard>
