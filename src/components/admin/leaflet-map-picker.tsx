@@ -1,7 +1,5 @@
 'use client';
 
-// CSS imports are moved to the app layout to prevent build errors.
-
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
 import L, { LatLngExpression } from 'leaflet';
@@ -72,23 +70,22 @@ const ChangeView = ({ center, zoom }: { center: LatLngExpression, zoom: number }
 }
 
 export default function LeafletMapPicker({ position, onPositionChange }: MapPickerProps) {
-    // These are the initial, immutable props for MapContainer
     const initialCenter: LatLngExpression = [15.3694, 44.1910]; // Default to Sana'a
     const initialZoom = 8;
 
-    // These props will change and be passed to our child components
-    const currentCenter: LatLngExpression = (position.lat !== 0 && position.lng !== 0) 
+    const hasPosition = position && position.lat !== 0 && position.lng !== 0 && !(position.lat === 15.3694 && position.lng === 44.1910);
+
+    const currentCenter: LatLngExpression = hasPosition
         ? [position.lat, position.lng]
         : initialCenter;
     
-    const currentZoom = (position.lat !== 0 && position.lng !== 0) ? 14 : initialZoom;
+    const currentZoom = hasPosition ? 14 : initialZoom;
 
-    const markerPosition: LatLngExpression | null = (position.lat !== 0 && position.lng !== 0)
+    const markerPosition: LatLngExpression | null = hasPosition
         ? [position.lat, position.lng]
         : null;
 
     return (
-        // MapContainer gets only the initial, unchanging props
         <MapContainer center={initialCenter} zoom={initialZoom} style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}>
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -97,7 +94,6 @@ export default function LeafletMapPicker({ position, onPositionChange }: MapPick
             <SearchControl onPositionChange={onPositionChange} />
             <MapEvents onPositionChange={onPositionChange} />
 
-            {/* This component will handle all view changes after initialization */}
             <ChangeView center={currentCenter} zoom={currentZoom} />
 
             {markerPosition && <Marker position={markerPosition}></Marker>}

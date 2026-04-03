@@ -1,6 +1,6 @@
 'use client';
-import { useState, useMemo, useCallback, useRef } from 'react';
-import { useFirestore, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useState, useMemo, useCallback } from 'react';
+import { useFirestore, FirestorePermissionError, errorEmitter, useCollection } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Plus, X, RefreshCw } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Plus, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -86,10 +86,10 @@ export default function AdminStoresPage() {
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]), { fetchOnce: false });
-  const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]), { fetchOnce: false });
-  const { data: storeCategories, loading: categoriesLoading, error: categoriesError } = useCollection<StoreCategory>(useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]), { fetchOnce: false });
-  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]), { fetchOnce: false });
+  const { data: stores, loading: storesLoading, error: storesError } = useCollection<Store>(useMemo(() => firestore ? collection(firestore, 'stores') : null, [firestore]));
+  const { data: cities, loading: citiesLoading, error: citiesError } = useCollection<City>(useMemo(() => firestore ? collection(firestore, 'cities') : null, [firestore]));
+  const { data: storeCategories, loading: categoriesLoading, error: categoriesError } = useCollection<StoreCategory>(useMemo(() => firestore ? collection(firestore, 'store_categories') : null, [firestore]));
+  const { data: users, loading: usersLoading, error: usersError } = useCollection<User>(useMemo(() => firestore ? collection(firestore, 'users') : null, [firestore]));
 
   const loading = storesLoading || citiesLoading || categoriesLoading || usersLoading;
   const dbError = storesError || citiesError || categoriesError || usersError;
@@ -104,6 +104,8 @@ export default function AdminStoresPage() {
 
   const cityMap = useMemo(() => new Map(cities?.map(c => [c.id, c.name_ar])), [cities]);
   const userMap = useMemo(() => new Map(users?.map(u => [u.uid, u.full_name])), [users]);
+  const storeOwners = useMemo(() => users?.filter(u => u.roles.is_store_owner), [users]);
+
 
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
     if (store) {
@@ -116,10 +118,10 @@ export default function AdminStoresPage() {
           is_active: true,
           is_open: true,
           rating: 4.5,
-          ownerUid: mockAdminUser.uid,
-          storeOwnerUid: mockAdminUser.uid,
+          ownerUid: '', // Will be selected from dropdown
+          storeOwnerUid: '', // Will be selected from dropdown
           logo_url: '',
-          location: { lat: 0, lng: 0 }
+          location: { lat: 15.3694, lng: 44.1910 } // Default to Sana'a
       });
       setSchedule(initialSchedule);
       setLogoPreview('');
@@ -188,13 +190,17 @@ export default function AdminStoresPage() {
         const formData = new FormData(e.currentTarget);
         
         if (!currentStore.city_id) throw new Error("الرجاء اختيار مدينة صحيحة.");
+        if (!currentStore.ownerUid) throw new Error("الرجاء اختيار صاحب المتجر.");
         if (!currentStore.filter_ids || currentStore.filter_ids.length === 0) throw new Error("الرجاء اختيار فئة صحيحة.");
         
         const lat = currentStore.location?.lat;
         const lon = currentStore.location?.lng;
 
-        if (lat === undefined || lon === undefined || isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) {
-            throw new Error("الرجاء تحديد موقع المتجر على الخريطة.");
+        if (lat === undefined || lon === undefined || isNaN(lat) || isNaN(lon) || (lat === 15.3694 && lon === 44.1910) ) {
+             if (!confirm("لم يتم تحديد موقع المتجر على الخريطة. هل تريد المتابعة بالموقع الافتراضي (صنعاء)؟")) {
+                setIsSubmitting(false);
+                return;
+            }
         }
 
         const selectedCity = cities?.find(c => c.id === currentStore.city_id);
@@ -209,7 +215,9 @@ export default function AdminStoresPage() {
             description_en: currentStore.description_en || 'A store specializing in everything new',
             city_id: currentStore.city_id,
             filter_ids: currentStore.filter_ids,
-            location: { lat: lat, lng: lon },
+            ownerUid: currentStore.ownerUid,
+            storeOwnerUid: currentStore.ownerUid,
+            location: { lat: lat!, lng: lon! },
             address_text: currentStore.address_text || `${selectedCity.name_ar} - بالقرب من...`,
             rating: parseFloat(formData.get('rating') as string) || 4.5,
             preparation_time: formData.get('preparation_time') as string,
@@ -374,6 +382,24 @@ export default function AdminStoresPage() {
                         <Label htmlFor="name_ar" className="font-bold text-gray-700">اسم المتجر</Label>
                         <Input id="name_ar" name="name_ar" required className="rounded-lg bg-gray-50" defaultValue={currentStore?.name_ar || ''} />
                     </div>
+                     <div className="space-y-2">
+                        <Label htmlFor="ownerUid" className="font-bold text-gray-700">صاحب المتجر</Label>
+                        <select
+                            id="ownerUid"
+                            required
+                            value={currentStore?.ownerUid || ''}
+                            onChange={(e) => setCurrentStore(prev => ({...prev, ownerUid: e.target.value, storeOwnerUid: e.target.value}))}
+                            disabled={loading}
+                            className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 font-bold"
+                        >
+                            <option value="" disabled>اختر صاحب المتجر...</option>
+                            {storeOwners && storeOwners.length > 0 ? (
+                                storeOwners.map(owner => <option key={owner.uid} value={owner.uid}>{owner.full_name}</option>)
+                            ) : (
+                                <option disabled>لا يوجد مستخدمون بصلاحية "صاحب متجر".</option>
+                            )}
+                        </select>
+                    </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="logo_url" className="font-bold text-gray-700">رابط شعار المتجر (Logo URL)</Label>
@@ -395,8 +421,7 @@ export default function AdminStoresPage() {
                                 value={currentStore?.city_id || ''}
                                 onChange={(e) => setCurrentStore(prev => ({...prev, city_id: e.target.value}))}
                                 disabled={loading}
-                                className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
-                                dir="rtl"
+                                className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 font-bold"
                             >
                                 <option value="" disabled>اختر المحافظة</option>
                                 {loading ? (
@@ -416,8 +441,7 @@ export default function AdminStoresPage() {
                                 value={currentStore?.filter_ids?.[0] || ''}
                                 onChange={(e) => setCurrentStore(prev => ({...prev, filter_ids: [e.target.value]}))}
                                 disabled={loading}
-                                className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
-                                dir="rtl"
+                                className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 font-bold"
                             >
                                 <option value="" disabled>اختر الفئة</option>
                                 {loading ? (
@@ -440,11 +464,13 @@ export default function AdminStoresPage() {
                             <Input id="preparation_time" name="preparation_time" required className="rounded-lg bg-gray-50" placeholder="مثال: 30-45 دقيقة" defaultValue={currentStore?.preparation_time || ''}/>
                         </div>
                     </div>
-                    
-                    <div className="md:col-span-2 space-y-2 p-4 border-2 border-dashed rounded-lg bg-gray-50/50">
+                </div>
+
+                <div className="space-y-4 border-r pr-8">
+                     <div className="space-y-2 p-4 border-2 border-dashed rounded-lg bg-gray-50/50">
                         <Label className="font-black text-gray-700">موقع المتجر على الخريطة</Label>
                          <LeafletMapPicker
-                            position={currentStore?.location || { lat: 0, lng: 0 }}
+                            position={currentStore?.location || { lat: 15.3694, lng: 44.1910 }}
                             onPositionChange={(newPos) => {
                                 setCurrentStore(prev => ({
                                     ...prev,
@@ -466,10 +492,7 @@ export default function AdminStoresPage() {
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div className="space-y-4 border-r pr-8">
-                     <Label className="font-bold text-gray-700 text-lg">ساعات العمل المتقدمة</Label>
+                     <Label className="font-bold text-gray-700 text-lg pt-4">ساعات العمل</Label>
                      <div className="space-y-3">
                         {Object.keys(dayNames).map(dayKey => (
                             <div key={dayKey} className="p-3 bg-gray-50 rounded-lg space-y-2">
