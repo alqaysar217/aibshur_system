@@ -3,12 +3,11 @@
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
 import L, { LatLngExpression } from 'leaflet';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-// Fix for default marker icon issue in some bundlers
+// Fix for default marker icon issue
 // @ts-ignore
 delete L.Icon.Default.prototype._getIconUrl;
-
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -21,12 +20,12 @@ interface MapPickerProps {
   onPositionChange: (position: { lat: number; lng: number }) => void;
 }
 
+// Search control component
 const SearchControl = ({ onPositionChange }: { onPositionChange: (pos: { lat: number; lng: number }) => void }) => {
     const map = useMap();
   
     useEffect(() => {
       const provider = new OpenStreetMapProvider();
-      
       // @ts-ignore
       const searchControl = new GeoSearchControl({
         provider: provider,
@@ -52,6 +51,7 @@ const SearchControl = ({ onPositionChange }: { onPositionChange: (pos: { lat: nu
     return null;
 };
   
+// Component to handle map clicks
 const MapEvents = ({ onPositionChange }: { onPositionChange: (pos: { lat: number; lng: number }) => void }) => {
     useMapEvents({
       click(e) {
@@ -61,6 +61,7 @@ const MapEvents = ({ onPositionChange }: { onPositionChange: (pos: { lat: number
     return null;
 };
 
+// Component to change map view dynamically
 const ChangeView = ({ center, zoom }: { center: LatLngExpression, zoom: number }) => {
     const map = useMap();
     useEffect(() => {
@@ -70,23 +71,21 @@ const ChangeView = ({ center, zoom }: { center: LatLngExpression, zoom: number }
 }
 
 export default function LeafletMapPicker({ position, onPositionChange }: MapPickerProps) {
-    const initialCenter: LatLngExpression = [15.3694, 44.1910]; // Default to Sana'a
-    const initialZoom = 8;
+    const defaultCenter: LatLngExpression = [14.536, 49.126]; // Mukalla
+    const defaultZoom = 13;
 
-    const hasPosition = position && position.lat !== 0 && position.lng !== 0 && !(position.lat === 15.3694 && position.lng === 44.1910);
+    const [markerPosition, setMarkerPosition] = useState<LatLngExpression | null>(null);
 
-    const currentCenter: LatLngExpression = hasPosition
-        ? [position.lat, position.lng]
-        : initialCenter;
-    
-    const currentZoom = hasPosition ? 14 : initialZoom;
+    useEffect(() => {
+        if(position && position.lat && position.lng) {
+            setMarkerPosition([position.lat, position.lng]);
+        }
+    }, [position]);
 
-    const markerPosition: LatLngExpression | null = hasPosition
-        ? [position.lat, position.lng]
-        : null;
+    const center = markerPosition || defaultCenter;
 
     return (
-        <MapContainer center={initialCenter} zoom={initialZoom} style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}>
+        <MapContainer center={center} zoom={defaultZoom} style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}>
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -94,7 +93,7 @@ export default function LeafletMapPicker({ position, onPositionChange }: MapPick
             <SearchControl onPositionChange={onPositionChange} />
             <MapEvents onPositionChange={onPositionChange} />
 
-            <ChangeView center={currentCenter} zoom={currentZoom} />
+            <ChangeView center={center} zoom={markerPosition ? 15 : defaultZoom} />
 
             {markerPosition && <Marker position={markerPosition}></Marker>}
         </MapContainer>

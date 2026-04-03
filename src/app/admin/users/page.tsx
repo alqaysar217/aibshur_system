@@ -44,6 +44,17 @@ import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import dynamic from 'next/dynamic';
+
+
+const LeafletMapPicker = dynamic(() => import('@/components/admin/leaflet-map-picker'), {
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center h-[300px] w-full bg-muted rounded-lg"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+});
+const LeafletLocationViewer = dynamic(() => import('@/components/admin/leaflet-location-viewer'), {
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center h-[400px] w-full bg-muted rounded-lg"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>
+});
 
 
 const RowSkeleton = () => (
@@ -70,68 +81,19 @@ export default function AdminUsersPage() {
   const [isDialogOpen, setDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDocsViewerOpen, setDocsViewerOpen] = useState(false);
+  const [isLocationViewerOpen, setLocationViewerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<Partial<User> | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userToViewDocs, setUserToViewDocs] = useState<User | null>(null);
+  const [userToViewLocation, setUserToViewLocation] = useState<User | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const handleRefresh = () => setRefreshKey(prev => prev + 1);
-  
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-        toast({
-            variant: "destructive",
-            title: "خاصية غير مدعومة",
-            description: "متصفحك لا يدعم تحديد الموقع الجغرافي.",
-        });
-        return;
-    }
-
-    toast({ title: "جاري تحديد الموقع...", description: "الرجاء الانتظار..." });
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const { latitude, longitude } = position.coords;
-            setCurrentUser(prev => {
-                if (!prev) return null;
-                return {
-                    ...prev,
-                    location: {
-                        ...prev.location,
-                        lat: latitude,
-                        lng: longitude,
-                    }
-                }
-            });
-            toast({
-                title: "نجاح",
-                description: "تم تحديث إحداثيات الموقع بنجاح.",
-            });
-        },
-        (error) => {
-            toast({
-                variant: "destructive",
-                title: "خطأ في تحديد الموقع",
-                description: "لا يمكن الحصول على الموقع الحالي. تأكد من منح الأذونات اللازمة للمتصفح.",
-            });
-            console.error("Geolocation error:", error);
-        }
-    );
-  };
-  
-    const handleLocationAction = () => {
-        if (currentUser?.location?.lat && currentUser?.location?.lng) {
-            const url = `https://www.google.com/maps?q=${currentUser.location.lat},${currentUser.location.lng}`;
-            window.open(url, '_blank');
-        } else {
-            handleGetLocation();
-        }
-    };
-
 
   useEffect(() => {
     if (!firestore) return;
@@ -178,7 +140,7 @@ export default function AdminUsersPage() {
   }, [pickerRef]);
 
   const handleOpenDialog = (user: Partial<User> | null = null) => {
-    setCurrentUser(user ? { ...user } : { account_status: { is_blocked: false }, roles: { is_user: true } });
+    setCurrentUser(user ? { ...user } : { account_status: { is_blocked: false }, roles: { is_user: true }, location: { lat: 14.536, lng: 49.126 } });
     setSearchQuery('');
     setIsPickerOpen(false);
     setDialogOpen(true);
@@ -193,6 +155,19 @@ export default function AdminUsersPage() {
     setUserToViewDocs(user);
     setDocsViewerOpen(true);
   }
+
+  const handleOpenLocationViewer = (user: User) => {
+    if (user.location?.lat && user.location?.lng) {
+        setUserToViewLocation(user);
+        setLocationViewerOpen(true);
+    } else {
+        toast({
+            variant: "default",
+            title: "لا يوجد موقع",
+            description: "هذا المستخدم ليس لديه موقع مسجل."
+        });
+    }
+}
   
   const handleToggleBlock = async (user: User) => {
     if (!firestore) return;
@@ -359,7 +334,11 @@ export default function AdminUsersPage() {
                                 {user.vip_details?.isActive && <Crown className="w-4 h-4 text-yellow-500 fill-yellow-400" />}
                                 <span>{user.full_name}</span>
                             </div>
-                            {user.location?.lat && <MapPin className="w-4 h-4 text-gray-400 cursor-pointer hover:text-primary"/>}
+                            {user.location?.lat && 
+                                <MapPin 
+                                    className="w-4 h-4 text-gray-400 cursor-pointer hover:text-primary"
+                                    onClick={() => handleOpenLocationViewer(user)}
+                                />}
                           </div>
                         </TableCell>
                         <TableCell className="text-center font-mono text-xs text-gray-500" dir="ltr">{user.phone}</TableCell>
@@ -500,146 +479,45 @@ export default function AdminUsersPage() {
                     </RadioGroup>
                 </div>
 
-                {currentUser?.roles?.is_user && !currentUser.roles.is_admin && !currentUser.roles.is_driver && !currentUser.roles.is_store_owner && (
+                {(currentUser?.roles?.is_user || currentUser?.roles?.is_driver) && !currentUser.roles.is_admin && (
                      <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
-                        <Label className="font-bold">بيانات العميل</Label>
-                        <div className="space-y-2">
-                            <Label>المحافظة</Label>
-                            <select
-                                value={currentUser?.location?.province || ''}
-                                onChange={(e) =>
-                                    setCurrentUser((prev) => {
-                                        if (!prev) return null;
-                                        const newLocation = {
-                                            lat: prev.location?.lat,
-                                            lng: prev.location?.lng,
-                                            address_text: prev.location?.address_text,
-                                            province: e.target.value
-                                        };
-                                        return { ...prev, location: newLocation };
-                                    })
-                                }
-                                className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
-                                dir="rtl"
-                            >
-                                <option value="" disabled>اختر المحافظة</option>
-                                {loading ? (
-                                    <option value="loading" disabled>جاري جلب قائمة المدن...</option>
-                                ) : cities && cities.length > 0 ? (
-                                    cities.map((city) => (
-                                        <option key={city.id} value={city.name_ar}>
-                                            {city.name_ar}
-                                        </option>
-                                    ))
-                                ) : (
-                                    <option disabled>لا توجد مدن مضافة حالياً.</option>
-                                )}
-                            </select>
-                        </div>
+                        <Label className="font-bold">بيانات الموقع</Label>
+                         <LeafletMapPicker
+                            position={currentUser?.location || { lat: 14.536, lng: 49.126 }}
+                            onPositionChange={(newPos) => {
+                                setCurrentUser(prev => ({
+                                    ...prev,
+                                    location: {
+                                        ...prev?.location,
+                                        lat: newPos.lat,
+                                        lng: newPos.lng,
+                                    },
+                                }));
+                            }}
+                        />
                         <div className="space-y-2"><Label>العنوان الوصفي</Label><Input name="address_text" value={currentUser?.location?.address_text || ''} onChange={e => setCurrentUser(p => p ? ({ ...p, location: { ...(p.location as any), address_text: e.target.value } }) : null)} className="rounded-lg bg-gray-50"/></div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="lat-client">خط العرض (Latitude)</Label>
-                                <Input id="lat-client" name="lat" type="number" step="any" placeholder="15.3694" dir="ltr"
-                                    value={currentUser?.location?.lat || ''} 
-                                    onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lat: e.target.valueAsNumber}}) : null)}
-                                    className="rounded-lg bg-gray-50"
-                                />
-                            </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="lng-client">خط الطول (Longitude)</Label>
-                                <Input id="lng-client" name="lng" type="number" step="any" placeholder="44.1910" dir="ltr"
-                                    value={currentUser?.location?.lng || ''} 
-                                    onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lng: e.target.valueAsNumber}}) : null)}
-                                    className="rounded-lg bg-gray-50"
-                                />
-                            </div>
-                        </div>
-                        <Button type="button" variant="outline" onClick={handleLocationAction}>
-                            {currentUser?.location?.lat && currentUser?.location?.lng ? 'عرض الموقع على الخريطة' : 'تحديد الموقع من الخريطة'} <MapPin className="mr-2 h-4 w-4"/>
-                        </Button>
                     </div>
                 )}
                 
                 {currentUser?.roles?.is_driver && (
-                    <>
-                        <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
-                            <Label className="font-bold">بيانات توثيق المندوب</Label>
-                            <div className="space-y-2">
-                                <Label>رابط الصورة الشخصية</Label>
-                                <Input name="self_img" value={currentUser?.auth_docs?.self_img || ''} onChange={(e) => setCurrentUser(p => p ? ({ ...p, auth_docs: { ...(p.auth_docs as any), self_img: e.target.value } }) : null)} className="rounded-lg bg-gray-50" dir="ltr"/>
-                                {currentUser?.auth_docs?.self_img && <div className="flex justify-center p-2 mt-2 border rounded-xl"><Image src={currentUser.auth_docs.self_img} alt="معاينة" width={100} height={100} className="rounded-lg object-contain h-24"/></div>}
-                            </div>
-                            <div className="space-y-2">
-                                <Label>رابط صورة الهوية (وجه)</Label>
-                                <Input name="id_front" value={currentUser?.auth_docs?.id_front || ''} onChange={(e) => setCurrentUser(p => p ? ({ ...p, auth_docs: { ...(p.auth_docs as any), id_front: e.target.value } }) : null)} className="rounded-lg bg-gray-50" dir="ltr"/>
-                                {currentUser?.auth_docs?.id_front && <div className="flex justify-center p-2 mt-2 border rounded-xl"><Image src={currentUser.auth_docs.id_front} alt="معاينة" width={150} height={100} className="rounded-lg object-contain h-24"/></div>}
-                            </div>
-                            <div className="space-y-2">
-                                <Label>رابط صورة الهوية (ظهر)</Label>
-                                <Input name="id_back" value={currentUser?.auth_docs?.id_back || ''} onChange={(e) => setCurrentUser(p => p ? ({ ...p, auth_docs: { ...(p.auth_docs as any), id_back: e.target.value } }) : null)} className="rounded-lg bg-gray-50" dir="ltr"/>
-                                {currentUser?.auth_docs?.id_back && <div className="flex justify-center p-2 mt-2 border rounded-xl"><Image src={currentUser.auth_docs.id_back} alt="معاينة" width={150} height={100} className="rounded-lg object-contain h-24"/></div>}
-                            </div>
+                    <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
+                        <Label className="font-bold">بيانات توثيق المندوب</Label>
+                        <div className="space-y-2">
+                            <Label>رابط الصورة الشخصية</Label>
+                            <Input name="self_img" defaultValue={currentUser?.auth_docs?.self_img || ''} onChange={(e) => setCurrentUser(p => p ? ({ ...p, auth_docs: { ...(p.auth_docs as any), self_img: e.target.value } }) : null)} className="rounded-lg bg-gray-50" dir="ltr"/>
+                            {currentUser?.auth_docs?.self_img && <div className="flex justify-center p-2 mt-2 border rounded-xl"><Image src={currentUser.auth_docs.self_img} alt="معاينة" width={100} height={100} className="rounded-lg object-contain h-24"/></div>}
                         </div>
-                         <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
-                            <Label className="font-bold">موقع المندوب</Label>
-                            <div className="space-y-2">
-                                <Label>المحافظة</Label>
-                                <select
-                                    value={currentUser?.location?.province || ''}
-                                    onChange={(e) =>
-                                        setCurrentUser((prev) => {
-                                            if (!prev) return null;
-                                            const newLocation = {
-                                                lat: prev.location?.lat,
-                                                lng: prev.location?.lng,
-                                                address_text: prev.location?.address_text,
-                                                province: e.target.value
-                                            };
-                                            return { ...prev, location: newLocation };
-                                        })
-                                    }
-                                    className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-bold"
-                                    dir="rtl"
-                                >
-                                    <option value="" disabled>اختر المحافظة</option>
-                                    {loading ? (
-                                        <option value="loading" disabled>جاري جلب قائمة المدن...</option>
-                                    ) : cities && cities.length > 0 ? (
-                                        cities.map((city) => (
-                                            <option key={city.id} value={city.name_ar}>
-                                                {city.name_ar}
-                                            </option>
-                                        ))
-                                    ) : (
-                                        <option disabled>لا توجد مدن مضافة حالياً.</option>
-                                    )}
-                                </select>
-                            </div>
-                            <div className="space-y-2"><Label>العنوان الوصفي</Label><Input name="address_text" value={currentUser?.location?.address_text || ''} onChange={e => setCurrentUser(p => p ? ({ ...p, location: { ...(p.location as any), address_text: e.target.value } }) : null)} className="rounded-lg bg-gray-50"/></div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="lat-driver">خط العرض (Latitude)</Label>
-                                    <Input id="lat-driver" name="lat" type="number" step="any" placeholder="15.3694" dir="ltr"
-                                        value={currentUser?.location?.lat || ''} 
-                                        onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lat: e.target.valueAsNumber}}) : null)}
-                                        className="rounded-lg bg-gray-50"
-                                    />
-                                </div>
-                                 <div className="space-y-2">
-                                    <Label htmlFor="lng-driver">خط الطول (Longitude)</Label>
-                                    <Input id="lng-driver" name="lng" type="number" step="any" placeholder="44.1910" dir="ltr"
-                                        value={currentUser?.location?.lng || ''} 
-                                        onChange={(e) => setCurrentUser(p => p ? ({...p, location: {...p.location, lng: e.target.valueAsNumber}}) : null)}
-                                        className="rounded-lg bg-gray-50"
-                                    />
-                                </div>
-                            </div>
-                            <Button type="button" variant="outline" onClick={handleLocationAction}>
-                               {currentUser?.location?.lat && currentUser?.location?.lng ? 'عرض الموقع على الخريطة' : 'تحديد الموقع الحالي'} <MapPin className="mr-2 h-4 w-4"/>
-                            </Button>
+                        <div className="space-y-2">
+                            <Label>رابط صورة الهوية (وجه)</Label>
+                            <Input name="id_front" defaultValue={currentUser?.auth_docs?.id_front || ''} onChange={(e) => setCurrentUser(p => p ? ({ ...p, auth_docs: { ...(p.auth_docs as any), id_front: e.target.value } }) : null)} className="rounded-lg bg-gray-50" dir="ltr"/>
+                            {currentUser?.auth_docs?.id_front && <div className="flex justify-center p-2 mt-2 border rounded-xl"><Image src={currentUser.auth_docs.id_front} alt="معاينة" width={150} height={100} className="rounded-lg object-contain h-24"/></div>}
                         </div>
-                    </>
+                        <div className="space-y-2">
+                            <Label>رابط صورة الهوية (ظهر)</Label>
+                            <Input name="id_back" defaultValue={currentUser?.auth_docs?.id_back || ''} onChange={(e) => setCurrentUser(p => p ? ({ ...p, auth_docs: { ...(p.auth_docs as any), id_back: e.target.value } }) : null)} className="rounded-lg bg-gray-50" dir="ltr"/>
+                            {currentUser?.auth_docs?.id_back && <div className="flex justify-center p-2 mt-2 border rounded-xl"><Image src={currentUser.auth_docs.id_back} alt="معاينة" width={150} height={100} className="rounded-lg object-contain h-24"/></div>}
+                        </div>
+                    </div>
                 )}
                 
                  {currentUser?.roles?.is_store_owner && (
@@ -707,6 +585,19 @@ export default function AdminUsersPage() {
                         <Label>الهوية (ظهر)</Label>
                         <Image src={userToViewDocs?.auth_docs?.id_back || '/placeholder.png'} alt="ID Back" width={200} height={200} className="rounded-lg border object-cover w-full aspect-square" />
                     </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+
+         <Dialog open={isLocationViewerOpen} onOpenChange={setLocationViewerOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                <DialogTitle>موقع: {userToViewLocation?.full_name}</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                {userToViewLocation?.location && (
+                    <LeafletLocationViewer position={userToViewLocation.location as { lat: number; lng: number; }} />
+                )}
                 </div>
             </DialogContent>
         </Dialog>

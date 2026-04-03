@@ -121,7 +121,7 @@ export default function AdminStoresPage() {
           ownerUid: '', // Will be selected from dropdown
           storeOwnerUid: '', // Will be selected from dropdown
           logo_url: '',
-          location: { lat: 15.3694, lng: 44.1910 } // Default to Sana'a
+          location: { lat: 14.536, lng: 49.126 } // Default to Mukalla
       });
       setSchedule(initialSchedule);
       setLogoPreview('');
@@ -194,10 +194,10 @@ export default function AdminStoresPage() {
         if (!currentStore.filter_ids || currentStore.filter_ids.length === 0) throw new Error("الرجاء اختيار فئة صحيحة.");
         
         const lat = currentStore.location?.lat;
-        const lon = currentStore.location?.lng;
+        const lng = currentStore.location?.lng;
 
-        if (lat === undefined || lon === undefined || isNaN(lat) || isNaN(lon) || (lat === 15.3694 && lon === 44.1910) ) {
-             if (!confirm("لم يتم تحديد موقع المتجر على الخريطة. هل تريد المتابعة بالموقع الافتراضي (صنعاء)؟")) {
+        if (!lat || !lng || (lat === 14.536 && lng === 49.126 && !currentStore.id) ) {
+             if (!confirm("لم يتم تغيير موقع المتجر عن الموقع الافتراضي (المكلا). هل تريد المتابعة؟")) {
                 setIsSubmitting(false);
                 return;
             }
@@ -217,7 +217,7 @@ export default function AdminStoresPage() {
             filter_ids: currentStore.filter_ids,
             ownerUid: currentStore.ownerUid,
             storeOwnerUid: currentStore.ownerUid,
-            location: { lat: lat!, lng: lon! },
+            location: { lat: lat!, lng: lng! },
             address_text: currentStore.address_text || `${selectedCity.name_ar} - بالقرب من...`,
             rating: parseFloat(formData.get('rating') as string) || 4.5,
             preparation_time: formData.get('preparation_time') as string,
@@ -470,7 +470,7 @@ export default function AdminStoresPage() {
                      <div className="space-y-2 p-4 border-2 border-dashed rounded-lg bg-gray-50/50">
                         <Label className="font-black text-gray-700">موقع المتجر على الخريطة</Label>
                          <LeafletMapPicker
-                            position={currentStore?.location || { lat: 15.3694, lng: 44.1910 }}
+                            position={currentStore?.location || { lat: 14.536, lng: 49.126 }}
                             onPositionChange={(newPos) => {
                                 setCurrentStore(prev => ({
                                     ...prev,
