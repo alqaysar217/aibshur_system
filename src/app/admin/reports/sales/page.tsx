@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRange } from "react-day-picker";
 import { format, isWithinInterval, parseISO, startOfDay, subDays, addDays } from "date-fns";
-import { TrendingUp, ShoppingBag, XCircle, DollarSign, FileDown, Printer, RefreshCw } from 'lucide-react';
+import { TrendingUp, ShoppingBag, XCircle, DollarSign, FileDown, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 import { cn } from '@/lib/utils';
@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import KpiCard from '@/components/admin/reports/kpi-card';
 import { DateRangePickerWithPresets } from '@/components/admin/reports/date-range-picker-with-presets';
 import EmptyState from '@/components/admin/reports/empty-state';
-import { exportToExcel, exportToPdf } from '@/lib/export-utils';
+import { exportToExcel } from '@/lib/export-utils';
 import { useToast } from '@/hooks/use-toast';
 
 const KpiSkeleton = () => <Skeleton className="h-32 w-full rounded-3xl bg-white/10" />;
@@ -168,30 +168,6 @@ export default function SalesReportPage() {
         }));
         exportToExcel(dataToExport, "Sales_Report", "Sales");
     }
-
-    const handleExportPdf = () => {
-        if(filteredOrders.length === 0) {
-            toast({ variant: "destructive", title: "لا توجد بيانات للطباعة"});
-            return;
-        }
-        const headers = ["التاريخ", "طريقة الدفع", "الحالة", "الإجمالي", "المتجر", "العميل", "رقم الطلب"];
-        const body = filteredOrders.map(o => [
-            format(parseISO(o.created_at), 'yy/MM/dd'),
-            paymentMethodMap[o.payment_method],
-            statusMap[o.status] || o.status,
-            o.total_price.toLocaleString(),
-            storeMap.get(o.storeId)?.name_ar || 'N/A',
-            userMap.get(o.clientUid) || 'N/A',
-            o.id?.slice(-6),
-        ]);
-         const kpis = [
-            { label: 'Total Sales', value: kpiData.totalSales.toLocaleString() + ' YER' },
-            { label: 'Net Profit', value: kpiData.netProfit.toLocaleString() + ' YER' },
-            { label: 'Completed Orders', value: String(kpiData.completedOrdersCount) },
-        ];
-        const dateRangeStr = date?.from && date?.to ? `${format(date.from, 'yyyy/MM/dd')} - ${format(date.to, 'yyyy/MM/dd')}` : 'N/A';
-        exportToPdf('Sales Report', headers.reverse(), body.map(row => row.reverse()), kpis, dateRangeStr);
-    }
     
     if (error) return <SetupFirestoreMessage />;
     if (!firestore) return <SetupFirestoreMessage />;
@@ -205,7 +181,6 @@ export default function SalesReportPage() {
                 </div>
                 <div className="flex items-center gap-2">
                     <Button onClick={handleExportExcel} variant="outline" className="bg-transparent border-green-500 text-green-400 hover:bg-green-500/10 hover:text-green-300"><FileDown className="ml-2 h-4 w-4"/>تصدير Excel</Button>
-                    <Button onClick={handleExportPdf} variant="outline" className="bg-transparent border-red-500 text-red-400 hover:bg-red-500/10 hover:text-red-300"><Printer className="ml-2 h-4 w-4"/>طباعة التقرير</Button>
                     <Button onClick={fetchData} variant="ghost" size="icon" disabled={loading}><RefreshCw className={cn("h-4 w-4", loading && 'animate-spin')}/></Button>
                 </div>
             </header>
