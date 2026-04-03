@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRange } from "react-day-picker";
-import { format, isWithinInterval, parseISO, startOfDay, subDays } from "date-fns";
+import { format, isWithinInterval, parseISO, startOfDay, subDays, addDays } from "date-fns";
 import { TrendingUp, ShoppingBag, XCircle, DollarSign, FileDown, Printer, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 

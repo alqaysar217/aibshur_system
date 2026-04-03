@@ -82,10 +82,14 @@ export interface User {
   driver_details?: {
     vehicle_type: string;
     license_plate: string;
+    id_card_image?: string;
     status: 'pending' | 'approved' | 'rejected';
     is_online: boolean;
     rating: number;
     wallet_balance: number;
+    total_orders?: number;
+    outstanding_commission?: number;
+    debt?: number;
   };
   vip_details?: {
     isActive: boolean;
@@ -148,6 +152,7 @@ export interface Store {
   is_open: boolean; // Manual override
   is_active: boolean; // Admin approval
   rating?: number;
+  platform_fee_percentage?: number;
   // Denormalized for security rules
   storeOwnerUid: string;
   isMock?: boolean;
@@ -253,6 +258,7 @@ export interface FinanceTransaction {
   status: TransactionStatus;
   description: string;
   created_at: string; // ISO 8601
+  isMock?: boolean;
 }
 
 export interface AppInfoSetting {
@@ -305,6 +311,7 @@ export interface AppBank {
     iban?: string;
     bank_logo: string;
     is_active: boolean;
+    isMock?: boolean;
 }
     
 export interface WalletTopupRequest {
@@ -338,6 +345,7 @@ export interface Donation {
     receiptNumber?: string;
     receiptImage?: string;
     timestamp: string;
+    isMock?: boolean;
 }
 
 export interface LoyaltyPointsConfig {
@@ -356,6 +364,7 @@ export interface LoyaltyTransaction {
     related_finance_tx_id?: string;
     description: string;
     timestamp: string;
+    isMock?: boolean;
 }
 
 export interface AppConfig {
@@ -398,7 +407,3 @@ export interface CategoryFilter {
     name_en: string;
     type: 'restaurant' | 'pharmacy' | 'market' | 'other';
 }
-
-    
-
-    
