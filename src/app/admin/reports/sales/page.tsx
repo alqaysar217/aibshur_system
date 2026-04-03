@@ -1,13 +1,14 @@
 'use client';
 
+import * as React from 'react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { DateRange } from "react-day-picker";
-import { format, isWithinInterval, parseISO, startOfDay, subDays, addDays, endOfDay } from "date-fns";
-import { TrendingUp, ShoppingBag, XCircle, DollarSign, FileDown, RefreshCw, Printer } from 'lucide-react';
+import { format, isWithinInterval, parseISO, startOfDay, subDays, addDays, endOfDay, startOfMonth } from "date-fns";
+import { TrendingUp, ShoppingBag, XCircle, DollarSign, FileDown, RefreshCw, Printer, FileSearch } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, BarChart, Bar } from "recharts";
 
 import { cn } from '@/lib/utils';
@@ -20,21 +21,9 @@ import { DateRangePickerWithPresets } from '@/components/admin/reports/date-rang
 import { exportToExcel, exportToPdf } from '@/lib/export-utils';
 import { useToast } from '@/hooks/use-toast';
 
-const KpiSkeleton = () => <Skeleton className="h-32 w-full rounded-3xl bg-white/10" />;
-const ChartSkeleton = () => <Skeleton className="h-80 w-full rounded-3xl bg-white/10" />;
-const TableRowSkeleton = () => <TableRow><TableCell colSpan={6} className="p-2"><Skeleton className="h-12 w-full bg-white/10"/></TableCell></TableRow>;
-const EmptyState = () => (
-    <div className="flex flex-col items-center justify-center min-h-[300px] p-8 text-center bg-white/5 border-2 border-dashed border-white/10 rounded-3xl">
-      <TrendingUp className="w-20 h-20 text-white/20" />
-      <h3 className="mt-6 text-xl font-bold text-white">لا توجد بيانات</h3>
-      <p className="mt-2 text-sm text-gray-400">
-        لم يتم العثور على أي بيانات تطابق الفلاتر الحالية.
-        <br />
-        حاول تغيير النطاق الزمني أو معايير الفلترة.
-      </p>
-    </div>
-  );
-
+const KpiSkeleton = () => <Skeleton className="h-32 w-full rounded-lg" />;
+const ChartSkeleton = () => <Skeleton className="h-80 w-full rounded-lg" />;
+const TableRowSkeleton = () => <TableRow><TableCell colSpan={6} className="p-2"><Skeleton className="h-12 w-full"/></TableCell></TableRow>;
 
 const statusMap: { [key in OrderStatus]?: string } = {
   pending: "قيد الانتظار",
@@ -47,12 +36,13 @@ const statusMap: { [key in OrderStatus]?: string } = {
 };
 
 const statusColors: { [key in OrderStatus]?: string } = {
-    delivered: '#22c55e',      // green-500
-    pending: '#a0aec0',        // gray-400
-    preparing: '#f59e0b',     // amber-500
-    out_for_delivery: '#3b82f6',// blue-500
-    cancelled: '#ef4444',      // red-500
-    rejected: '#b91c1c',       // red-700
+    delivered: 'hsl(var(--primary))',
+    pending: '#A0AEC0',        // gray-400
+    preparing: '#F59E0B',     // amber-500
+    out_for_delivery: '#3B82F6',// blue-500
+    cancelled: 'hsl(var(--destructive))',
+    rejected: 'hsl(var(--destructive))',
+    accepted: '#6366F1', // indigo-500
 };
 
 const paymentMethodMap: { [key in PaymentMethod]: string } = {
@@ -64,21 +54,30 @@ const paymentMethodMap: { [key in PaymentMethod]: string } = {
 const KpiCard = ({ title, value, description, Icon, iconColorClass, isLoading }: { title:string, value:string, description:string, Icon: any, iconColorClass:string, isLoading: boolean }) => {
     if (isLoading) return <KpiSkeleton />;
     return (
-      <Card className="bg-white/5 border-white/10 backdrop-blur-sm rounded-3xl shadow-lg text-white">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-          <CardTitle className="text-sm font-medium text-gray-300">{title}</CardTitle>
-          <Icon 
-            className={cn('w-6 h-6', iconColorClass)} 
-            style={{ filter: `drop-shadow(0 0 8px currentColor)` }}
-          />
+          <CardTitle className="text-sm font-bold text-muted-foreground">{title}</CardTitle>
+          <Icon className={cn('w-5 h-5', iconColorClass)} />
         </CardHeader>
         <CardContent>
           <div className="text-3xl font-black">{value}</div>
-          <p className="text-xs text-gray-400">{description}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
         </CardContent>
       </Card>
     );
 };
+
+const EmptyState = () => (
+    <div className="flex flex-col items-center justify-center min-h-[300px] p-8 text-center bg-gray-50 rounded-lg">
+      <FileSearch className="w-16 h-16 text-gray-300" />
+      <h3 className="mt-4 text-xl font-bold text-gray-700">لا توجد بيانات</h3>
+      <p className="mt-1 text-sm text-gray-500">
+        لم يتم العثور على أي بيانات تطابق الفلاتر الحالية.
+        <br />
+        حاول تغيير النطاق الزمني أو معايير الفلترة.
+      </p>
+    </div>
+  );
 
 
 export default function SalesReportPage() {
@@ -116,7 +115,7 @@ export default function SalesReportPage() {
             setOrders(ordersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Order)));
             setStores(storesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Store)));
             setCities(citiesSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as City)));
-            setUsers(usersSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User)));
+            setUsers(usersSnapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as User)));
         } catch (e: any) {
             setError(e);
         } finally {
@@ -139,7 +138,7 @@ export default function SalesReportPage() {
         if (!orders) return [];
         return orders.filter(order => {
             const orderDate = parseISO(order.created_at);
-            const isInDateRange = date?.from && date?.to && isWithinInterval(orderDate, { start: startOfDay(date.from), end: endOfDay(date.to) });
+            const isInDateRange = date?.from && date?.to ? isWithinInterval(orderDate, { start: startOfDay(date.from), end: endOfDay(date.to) }) : true;
             const store = storeMap.get(order.storeId);
             
             const storeMatch = storeFilter === 'all' || order.storeId === storeFilter;
@@ -155,14 +154,14 @@ export default function SalesReportPage() {
         const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered');
         const totalSales = deliveredOrders.reduce((sum, order) => sum + order.total_price, 0);
         const netProfit = deliveredOrders.reduce((sum, order) => {
-            const feePercentage = storeMap.get(order.storeId)?.platform_fee_percentage || 10;
+            const feePercentage = 10; // Assuming a 10% fee for now
             return sum + (order.subtotal_price * (feePercentage / 100));
         }, 0);
         const completedOrdersCount = deliveredOrders.length;
         const cancelledOrdersCount = filteredOrders.filter(o => o.status === 'cancelled' || o.status === 'rejected').length;
         
         return { totalSales, netProfit, completedOrdersCount, cancelledOrdersCount };
-    }, [filteredOrders, storeMap]);
+    }, [filteredOrders]);
 
     const chartData = useMemo(() => {
         if (!date?.from || !date.to) return [];
@@ -185,6 +184,38 @@ export default function SalesReportPage() {
         });
         return Object.entries(dailySales).map(([day, sales]) => ({ name: format(parseISO(day), 'dd/MM'), sales: sales }));
     }, [filteredOrders, date]);
+
+    const statusChartData = useMemo(() => {
+        const statusCounts = filteredOrders.reduce((acc, order) => {
+            const status = order.status || 'pending';
+            acc[status] = (acc[status] || 0) + 1;
+            return acc;
+        }, {} as { [key: string]: number });
+    
+        return Object.entries(statusCounts)
+            .map(([name, value]) => ({
+                name: statusLabels[name] || name,
+                value,
+                color: statusColors[name] || '#cccccc'
+            }))
+            .sort((a, b) => b.value - a.value);
+
+    }, [filteredOrders]);
+
+     const storePerformanceData = useMemo(() => {
+        const storeAggregates = filteredOrders.reduce((acc, order) => {
+            if (order.status !== 'delivered') return acc;
+            const storeName = storeMap.get(order.storeId)?.name_ar || "متجر غير معروف";
+            acc[storeName] = (acc[storeName] || 0) + order.total_price;
+            return acc;
+        }, {} as { [key: string]: number });
+
+        return Object.entries(storeAggregates)
+            .map(([name, sales]) => ({ name, sales }))
+            .sort((a, b) => b.sales - a.sales)
+            .slice(0, 5);
+    }, [filteredOrders, storeMap]);
+    
     
     const handleExportExcel = () => {
         if(filteredOrders.length === 0) {
@@ -236,116 +267,115 @@ export default function SalesReportPage() {
     if (!firestore) return <SetupFirestoreMessage />;
     
     return (
-        <div className="space-y-8 futuristic-bg -m-8 p-8 text-white" dir="rtl">
+        <div className="space-y-6">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-white">تحليلات المبيعات</h1>
+                    <h1 className="text-2xl font-black text-gray-900">تحليلات المبيعات</h1>
                     <p className="text-gray-400 text-sm font-bold mt-1">نظرة شاملة ومباشرة على أداء المنصة المالي.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button onClick={handleExportExcel} variant="outline" className="bg-transparent border-green-500 text-green-400 hover:bg-green-500/10 hover:text-green-300 rounded-lg"><FileDown className="ml-2 h-4 w-4"/>تصدير Excel</Button>
-                    <Button onClick={handleExportPdf} variant="outline" className="bg-transparent border-red-500 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-lg"><Printer className="ml-2 h-4 w-4"/>طباعة التقرير</Button>
-                    <Button onClick={fetchData} variant="ghost" size="icon" disabled={loading} className="text-white hover:bg-white/10 hover:text-white rounded-lg"><RefreshCw className={cn("h-4 w-4", loading && 'animate-spin')}/></Button>
+                    <Button onClick={handleExportExcel} variant="outline" className="rounded-lg gap-2"><FileDown className="h-4 w-4"/>تصدير Excel</Button>
+                    <Button onClick={handleExportPdf} variant="outline" className="rounded-lg gap-2"><Printer className="h-4 w-4"/>طباعة التقرير</Button>
+                    <Button onClick={fetchData} variant="ghost" size="icon" disabled={loading} className="rounded-lg"><RefreshCw className={cn("h-4 w-4", loading && 'animate-spin')}/></Button>
                 </div>
             </header>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <KpiCard isLoading={loading} title="إجمالي المبيعات" value={`${kpiData.totalSales.toLocaleString()} ر.ي`} description="فقط من الطلبات المكتملة" Icon={DollarSign} iconColorClass="text-green-400" />
-                <KpiCard isLoading={loading} title="صافي الربح" value={`${kpiData.netProfit.toLocaleString()} ر.ي`} description="أرباح المنصة من العمولة" Icon={TrendingUp} iconColorClass="text-purple-400" />
-                <KpiCard isLoading={loading} title="الطلبات المكتملة" value={String(kpiData.completedOrdersCount)} description="الطلبات التي تم توصيلها بنجاح" Icon={ShoppingBag} iconColorClass="text-sky-400" />
-                <KpiCard isLoading={loading} title="الطلبات الملغاة" value={String(kpiData.cancelledOrdersCount)} description="الطلبات التي تم إلغاؤها أو رفضها" Icon={XCircle} iconColorClass="text-red-400" />
+                <KpiCard isLoading={loading} title="إجمالي المبيعات" value={`${kpiData.totalSales.toLocaleString()} ر.ي`} description="فقط من الطلبات المكتملة" Icon={DollarSign} iconColorClass="text-green-500" />
+                <KpiCard isLoading={loading} title="صافي الربح" value={`${kpiData.netProfit.toLocaleString()} ر.ي`} description="أرباح المنصة من العمولة (تقديري)" Icon={TrendingUp} iconColorClass="text-purple-500" />
+                <KpiCard isLoading={loading} title="الطلبات المكتملة" value={String(kpiData.completedOrdersCount)} description="الطلبات التي تم توصيلها بنجاح" Icon={ShoppingBag} iconColorClass="text-blue-500" />
+                <KpiCard isLoading={loading} title="الطلبات الملغاة" value={String(kpiData.cancelledOrdersCount)} description="الطلبات التي تم إلغاؤها أو رفضها" Icon={XCircle} iconColorClass="text-red-500" />
             </div>
             
-            <Card className="bg-white/5 border-white/10 backdrop-blur-sm rounded-3xl shadow-lg p-4">
+            <Card className="shadow-sm rounded-lg p-4">
                  <div className="flex flex-wrap items-center gap-3">
                     <DateRangePickerWithPresets date={date} setDate={setDate} />
-                    <Select value={storeFilter} onValueChange={setStoreFilter}><SelectTrigger className="w-[180px] bg-white/5 border-white/20 text-white"><SelectValue placeholder="فلترة بالمتجر" /></SelectTrigger><SelectContent className="bg-gray-900 text-white border-gray-700"><SelectItem value="all">كل المتاجر</SelectItem>{stores.map(s => <SelectItem key={s.id} value={s.id!}>{s.name_ar}</SelectItem>)}</SelectContent></Select>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-[180px] bg-white/5 border-white/20 text-white"><SelectValue placeholder="فلترة بالحالة" /></SelectTrigger><SelectContent className="bg-gray-900 text-white border-gray-700">{Object.entries(statusMap).map(([key, value]) => <SelectItem key={key} value={key}>{value}</SelectItem>)}<SelectItem value="all">كل الحالات</SelectItem></SelectContent></Select>
-                    <Select value={cityFilter} onValueChange={setCityFilter}><SelectTrigger className="w-[180px] bg-white/5 border-white/20 text-white"><SelectValue placeholder="فلترة بالمدينة" /></SelectTrigger><SelectContent className="bg-gray-900 text-white border-gray-700"><SelectItem value="all">كل المدن</SelectItem>{cities.map(c => <SelectItem key={c.id} value={c.id!}>{c.name_ar}</SelectItem>)}</SelectContent></Select>
-                    <Select value={paymentFilter} onValueChange={setPaymentFilter}><SelectTrigger className="w-[180px] bg-white/5 border-white/20 text-white"><SelectValue placeholder="طريقة الدفع" /></SelectTrigger><SelectContent className="bg-gray-900 text-white border-gray-700"><SelectItem value="all">الكل</SelectItem>{Object.entries(paymentMethodMap).map(([key, value]) => <SelectItem key={key} value={key}>{value}</SelectItem>)}</SelectContent></Select>
+                    <Select value={storeFilter} onValueChange={setStoreFilter}><SelectTrigger className="w-[160px] rounded-lg"><SelectValue placeholder="فلترة بالمتجر" /></SelectTrigger><SelectContent><SelectItem value="all">كل المتاجر</SelectItem>{stores.map(s => <SelectItem key={s.id} value={s.id!}>{s.name_ar}</SelectItem>)}</SelectContent></Select>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-[160px] rounded-lg"><SelectValue placeholder="فلترة بالحالة" /></SelectTrigger><SelectContent><SelectItem value="all">كل الحالات</SelectItem>{Object.entries(statusMap).map(([key, value]) => <SelectItem key={key} value={key}>{value}</SelectItem>)}</SelectContent></Select>
+                    <Select value={cityFilter} onValueChange={setCityFilter}><SelectTrigger className="w-[160px] rounded-lg"><SelectValue placeholder="فلترة بالمدينة" /></SelectTrigger><SelectContent><SelectItem value="all">كل المدن</SelectItem>{cities.map(c => <SelectItem key={c.id} value={c.id!}>{c.name_ar}</SelectItem>)}</SelectContent></Select>
+                    <Select value={paymentFilter} onValueChange={setPaymentFilter}><SelectTrigger className="w-[160px] rounded-lg"><SelectValue placeholder="طريقة الدفع" /></SelectTrigger><SelectContent><SelectItem value="all">الكل</SelectItem>{Object.entries(paymentMethodMap).map(([key, value]) => <SelectItem key={key} value={key}>{value}</SelectItem>)}</SelectContent></Select>
                  </div>
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <Card className="lg:col-span-3 bg-white/5 border-white/10 backdrop-blur-sm rounded-3xl shadow-lg">
-                    <CardHeader><CardTitle className="text-white">منحنى المبيعات اليومي</CardTitle></CardHeader>
+                <Card className="lg:col-span-3 shadow-sm rounded-lg">
+                    <CardHeader><CardTitle>منحنى المبيعات اليومي</CardTitle></CardHeader>
                     <CardContent className="h-80 pr-6">
-                        {loading ? <ChartSkeleton/> : (
+                        {loading ? <ChartSkeleton/> : chartData.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                    <defs><linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient></defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false}/>
-                                    <XAxis dataKey="name" stroke="rgba(255,255,255,0.4)" fontSize={12} tickLine={false} axisLine={false} />
-                                    <YAxis stroke="rgba(255,255,255,0.4)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${(val/1000)}k`} />
-                                    <Tooltip contentStyle={{ backgroundColor: 'rgba(10,20,30,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '1rem', color: 'white' }} />
-                                    <Area type="monotone" dataKey="sales" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#salesGradient)" />
+                                    <defs><linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/><stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/></linearGradient></defs>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false}/>
+                                    <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                                    <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${(val/1000)}k`} />
+                                    <Tooltip contentStyle={{ borderRadius: 'var(--radius)', border: '1px solid hsl(var(--border))' }} />
+                                    <Area type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={2} fillOpacity={1} fill="url(#salesGradient)" />
                                 </AreaChart>
                             </ResponsiveContainer>
-                        )}
+                        ) : <EmptyState />}
                     </CardContent>
                 </Card>
-                <Card className="lg:col-span-2 bg-white/5 border-white/10 backdrop-blur-sm rounded-3xl shadow-lg">
-                    <CardHeader><CardTitle className="text-white">أحدث الطلبات</CardTitle></CardHeader>
-                    <CardContent className="space-y-3">
-                        {loading ? Array.from({length: 5}).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-md bg-white/10" />) :
-                         filteredOrders.slice(0, 5).map(order => (
-                             <div key={order.id} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-white/10">
-                                 <div>
-                                     <p className="font-bold">{userMap.get(order.clientUid) || 'عميل غير معروف'}</p>
-                                     <p className="text-xs text-gray-400">{storeMap.get(order.storeId)?.name_ar}</p>
-                                 </div>
-                                 <div className="text-left">
-                                      <p className="font-bold font-mono">{order.total_price.toLocaleString()} ر.ي</p>
-                                      <p className="text-xs text-gray-400">{format(parseISO(order.created_at), 'hh:mm a')}</p>
-                                 </div>
-                             </div>
-                         ))
-                        }
+                <Card className="lg:col-span-2 shadow-sm rounded-lg">
+                    <CardHeader><CardTitle>حالات الطلبات</CardTitle></CardHeader>
+                    <CardContent className="h-80 flex items-center justify-center">
+                        {loading ? <ChartSkeleton/> : statusDistribution.length > 0 ? (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie data={statusDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="50%" outerRadius="80%" paddingAngle={2}>
+                                        {statusDistribution.map((entry) => <Cell key={`cell-${entry.name}`} fill={entry.color} />)}
+                                    </Pie>
+                                    <Tooltip formatter={(value, name) => [`${value} طلب`, name]} />
+                                    <Legend iconType="circle" formatter={(value) => <span className="text-xs font-bold text-muted-foreground">{value}</span>} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ): <EmptyState />}
                     </CardContent>
                 </Card>
             </div>
 
-            <div className="bg-white/5 border border-white/10 backdrop-blur-sm rounded-3xl shadow-lg overflow-hidden">
-                <div className="p-4"><h3 className="font-bold text-white">سجل العمليات المفصل</h3></div>
-                <div className="overflow-auto max-h-[500px]">
-                <Table>
-                    <TableHeader className="sticky top-0 bg-black/30 backdrop-blur-xl z-10">
-                        <TableRow className="border-white/10 hover:bg-transparent">
-                            <TableHead className="text-right text-white">الطلب</TableHead>
-                            <TableHead className="text-center text-white">المتجر</TableHead>
-                            <TableHead className="text-center text-white">الإجمالي</TableHead>
-                            <TableHead className="text-center text-white">الحالة</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {loading ? Array.from({length: 7}).map((_, i) => <TableRowSkeleton key={i} />)
-                         : filteredOrders.length > 0 ? filteredOrders.map(order => (
-                            <TableRow key={order.id} className="border-white/10">
-                                <TableCell>
-                                    <div className="font-bold">{userMap.get(order.clientUid) || 'N/A'}</div>
-                                    <div className="text-xs text-gray-400 font-mono">{format(parseISO(order.created_at), 'dd/MM/yy hh:mm a')}</div>
-                                </TableCell>
-                                <TableCell className="text-center text-gray-300">{storeMap.get(order.storeId)?.name_ar}</TableCell>
-                                <TableCell className="text-center font-bold font-mono">{order.total_price.toLocaleString()} ر.ي</TableCell>
-                                <TableCell className="text-center">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <span className={cn('h-2.5 w-2.5 rounded-full', {
-                                            'bg-green-400': order.status === 'delivered',
-                                            'bg-yellow-400': order.status === 'pending' || order.status === 'preparing',
-                                            'bg-sky-400': order.status === 'out_for_delivery',
-                                            'bg-red-500': order.status === 'cancelled' || order.status === 'rejected',
-                                        })}></span>
-                                        <span>{statusMap[order.status] || order.status}</span>
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                         )) : (
-                           <TableRow className="border-none"><TableCell colSpan={6} className="p-0"><EmptyState /></TableCell></TableRow>
-                         )}
-                    </TableBody>
-                </Table>
-                </div>
-            </div>
+            <Card className="shadow-sm rounded-lg">
+                <CardHeader>
+                    <CardTitle>سجل العمليات المفصل</CardTitle>
+                    <CardDescription>قائمة بالطلبات التي تطابق الفلاتر المحددة.</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-auto max-h-[500px]">
+                  <Table>
+                      <TableHeader className="sticky top-0 bg-background z-10">
+                          <TableRow>
+                              <TableHead className="text-right">الطلب</TableHead>
+                              <TableHead className="text-center">المتجر</TableHead>
+                              <TableHead className="text-center">الإجمالي</TableHead>
+                              <TableHead className="text-center">الحالة</TableHead>
+                              <TableHead className="text-center">طريقة الدفع</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                          {loading ? Array.from({length: 7}).map((_, i) => <TableRowSkeleton key={i} />)
+                          : filteredOrders.length > 0 ? filteredOrders.map(order => (
+                              <TableRow key={order.id} className="hover:bg-muted/50">
+                                  <TableCell>
+                                      <div className="font-bold text-sm">{userMap.get(order.clientUid) || 'عميل غير معروف'}</div>
+                                      <div className="text-xs text-muted-foreground font-mono">{format(parseISO(order.created_at), 'dd/MM/yy hh:mm a', {locale: ar})}</div>
+                                  </TableCell>
+                                  <TableCell className="text-center text-sm font-medium text-muted-foreground">{storeMap.get(order.storeId)?.name_ar}</TableCell>
+                                  <TableCell className="text-center font-bold font-mono">{order.total_price.toLocaleString()} ر.ي</TableCell>
+                                  <TableCell className="text-center">
+                                      <div className="flex items-center justify-center gap-2">
+                                          <span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor: statusColors[order.status]}}></span>
+                                          <span className="text-sm font-semibold">{statusMap[order.status] || order.status}</span>
+                                      </div>
+                                  </TableCell>
+                                  <TableCell className="text-center text-sm">{paymentMethodMap[order.payment_method]}</TableCell>
+                              </TableRow>
+                          )) : (
+                            <TableRow className="border-none"><TableCell colSpan={5} className="p-0"><EmptyState /></TableCell></TableRow>
+                          )}
+                      </TableBody>
+                  </Table>
+                  </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

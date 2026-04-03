@@ -1,7 +1,7 @@
 import { utils, writeFile } from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { addAmiriFont } from './amiri-font'; // Assuming this file exists and is correct
+import { addAmiriFont } from './amiri-font';
 
 // Function to export data to Excel
 export const exportToExcel = (data: any[], fileName: string, sheetName: string) => {
@@ -46,35 +46,35 @@ export const exportToPdf = (
     doc.text("ملخص التقرير", doc.internal.pageSize.getWidth() - 20, summaryY, { align: 'right' });
     summaryY += 8;
     summary.forEach(item => {
-        // jsPDF with RTL plugin handles this better, but for basic RTL text:
-        const reversedTitle = item.title.split(' ').reverse().join('  ');
-        const reversedValue = String(item.value).split(' ').reverse().join('  ');
+        const titleText = item.title;
+        const valueText = String(item.value);
         
-        doc.text(reversedValue, 20, summaryY, { align: 'left' });
-        doc.text(reversedTitle, doc.internal.pageSize.getWidth() - 20, summaryY, { align: 'right' });
+        doc.text(valueText, 20, summaryY, { align: 'left' });
+        doc.text(titleText, doc.internal.pageSize.getWidth() - 20, summaryY, { align: 'right' });
         summaryY += 8;
     });
 
     // Table
     autoTable(doc, {
         startY: summaryY + 5,
-        head: [headers.reverse()], // Reverse headers for RTL
-        body: body.map(row => row.reverse()), // Reverse each row cell for RTL
+        head: [headers],
+        body: body,
         theme: 'grid',
         headStyles: {
             font: 'Amiri',
             fontStyle: 'bold',
             halign: 'right',
-            fillColor: [34, 197, 94], // A shade of green
+            fillColor: [22, 163, 74], // Tailwind's green-600
         },
         styles: {
             font: 'Amiri',
             halign: 'right',
+            cellPadding: 2,
         },
-        // The didParseCell hook is crucial for applying font to every cell
         didParseCell: (data) => {
             if (data.cell.section === 'body' || data.cell.section === 'head') {
                  data.cell.styles.font = 'Amiri';
+                 data.cell.styles.halign = 'right';
             }
         }
     });
