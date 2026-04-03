@@ -104,7 +104,7 @@ export default function AdminStoresPage() {
 
   const cityMap = useMemo(() => new Map(cities?.map(c => [c.id, c.name_ar])), [cities]);
   const userMap = useMemo(() => new Map(users?.map(u => [u.uid, u.full_name])), [users]);
-  const storeOwners = useMemo(() => users?.filter(u => u.roles.is_store_owner), [users]);
+  const storeOwners = useMemo(() => users?.filter(u => u.roles?.is_store_owner), [users]);
 
 
   const handleOpenFormDialog = (store: Partial<Store> | null = null) => {
