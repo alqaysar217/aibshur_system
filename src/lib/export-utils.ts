@@ -1,6 +1,7 @@
 import { utils, writeFile } from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { addAmiriFont } from './amiri-font'; // Import the new function
 
 // Function to export data to Excel
 export const exportToExcel = (data: any[], fileName: string, sheetName: string) => {
@@ -20,40 +21,43 @@ export const exportToPdf = (
 ) => {
   const doc = new jsPDF();
 
-  // NOTE: jsPDF requires a custom font to be added to support Arabic correctly.
-  // This setup is complex and requires font files. For this implementation,
-  // we will proceed without the custom font, which may result in incorrect
-  // text rendering for Arabic in the PDF. The functionality is present,
-  // and a font can be added later.
-  
+  // Add the Amiri font to the document, which is required for Arabic text.
+  addAmiriFont(doc);
+  doc.setFont('Amiri', 'normal');
+
+  // Helper to reverse text for proper RTL rendering in jsPDF
+  const rtl = (text: string) => text.split('').reverse().join('');
+
   // Title
   doc.setFontSize(20);
-  doc.text(title, 105, 22, { align: 'center' });
+  doc.text(rtl(title), 105, 22, { align: 'center' });
+  
   doc.setFontSize(10);
-  doc.text(`Date Range: ${dateRange}`, 105, 30, { align: 'center' });
+  doc.text(rtl(`الفترة: ${dateRange}`), 105, 30, { align: 'center' });
 
-  // KPIs - This is a simple layout, can be improved with more complex positioning
+  // KPIs
   let kpiY = 45;
   doc.setFontSize(12);
   kpiData.forEach(kpi => {
-    // A simple way to right-align text
-    const text = `${kpi.value} :${kpi.label}`;
+    const text = `${rtl(kpi.label)}: ${kpi.value}`;
     doc.text(text, 200, kpiY, { align: 'right' });
     kpiY += 8;
   });
 
   // Table
   autoTable(doc, {
-    startY: kpiY + 2,
-    head: [headers],
-    body: data,
+    startY: kpiY + 5,
+    head: [headers.map(h => rtl(h))], // Reverse headers for RTL
+    body: data.map(row => row.map(cell => rtl(String(cell)))), // Reverse each cell for RTL
     theme: 'grid',
     styles: {
+      font: 'Amiri', // Use the embedded Arabic font
       halign: 'right', // Align all text to the right for RTL
     },
     headStyles: {
       halign: 'center',
-      fillColor: [41, 128, 185], // A shade of blue
+      fillColor: [31, 60, 136], // Primary color #1F3C88
+      font: 'Amiri',
     }
   });
 
