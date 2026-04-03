@@ -34,7 +34,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           isCollapsed={isCollapsed}
         />
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 futuristic-bg">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 bg-background">
           <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
             {children}
           </div>

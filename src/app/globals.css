@@ -7,7 +7,7 @@
     --primary: 158 82% 30%; /* Emerald 600 */
     --primary-foreground: 0 0% 100%;
     
-    --background: 220 13% 97%;    /* #F5F7F6 Light Gray */
+    --background: 150 4% 97%;    /* #F5F7F6 Light Gray */
     --foreground: 222.2 84% 4.9%; /* slate-950 */
     
     --card: 0 0% 100%;             /* White */
@@ -71,7 +71,7 @@
 
 @layer utilities {
   .futuristic-bg {
-    background-color: #0c0a09; /* A very dark base */
+    background-color: #0a0a0a; /* A very dark base */
     background-image:
       radial-gradient(at 27% 37%, hsla(215, 98%, 61%, 0.1) 0px, transparent 50%),
       radial-gradient(at 97% 21%, hsla(158, 82%, 30%, 0.1) 0px, transparent 50%),

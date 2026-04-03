@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DateRange } from "react-day-picker";
-import { format, isWithinInterval, parseISO, startOfDay, subDays, addDays } from "date-fns";
-import { TrendingUp, ShoppingBag, XCircle, DollarSign, FileDown, RefreshCw } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import type { DateRange } from "react-day-picker";
+import { format, isWithinInterval, parseISO, startOfDay, subDays, addDays, endOfDay } from "date-fns";
+import { TrendingUp, ShoppingBag, XCircle, DollarSign, FileDown, RefreshCw, Printer } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell, BarChart, Bar } from "recharts";
 
 import { cn } from '@/lib/utils';
 import { useFirestore } from '@/firebase';
@@ -16,15 +16,25 @@ import type { Order, User, Store, City, OrderStatus, PaymentMethod } from '@/lib
 import { collection, getDocs } from 'firebase/firestore';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Skeleton } from '@/components/ui/skeleton';
-import KpiCard from '@/components/admin/reports/kpi-card';
 import { DateRangePickerWithPresets } from '@/components/admin/reports/date-range-picker-with-presets';
-import EmptyState from '@/components/admin/reports/empty-state';
-import { exportToExcel } from '@/lib/export-utils';
+import { exportToExcel, exportToPdf } from '@/lib/export-utils';
 import { useToast } from '@/hooks/use-toast';
 
 const KpiSkeleton = () => <Skeleton className="h-32 w-full rounded-3xl bg-white/10" />;
 const ChartSkeleton = () => <Skeleton className="h-80 w-full rounded-3xl bg-white/10" />;
 const TableRowSkeleton = () => <TableRow><TableCell colSpan={6} className="p-2"><Skeleton className="h-12 w-full bg-white/10"/></TableCell></TableRow>;
+const EmptyState = () => (
+    <div className="flex flex-col items-center justify-center min-h-[300px] p-8 text-center bg-white/5 border-2 border-dashed border-white/10 rounded-3xl">
+      <TrendingUp className="w-20 h-20 text-white/20" />
+      <h3 className="mt-6 text-xl font-bold text-white">لا توجد بيانات</h3>
+      <p className="mt-2 text-sm text-gray-400">
+        لم يتم العثور على أي بيانات تطابق الفلاتر الحالية.
+        <br />
+        حاول تغيير النطاق الزمني أو معايير الفلترة.
+      </p>
+    </div>
+  );
+
 
 const statusMap: { [key in OrderStatus]?: string } = {
   pending: "قيد الانتظار",
@@ -36,27 +46,53 @@ const statusMap: { [key in OrderStatus]?: string } = {
   accepted: "مقبول"
 };
 
+const statusColors: { [key in OrderStatus]?: string } = {
+    delivered: '#22c55e',      // green-500
+    pending: '#a0aec0',        // gray-400
+    preparing: '#f59e0b',     // amber-500
+    out_for_delivery: '#3b82f6',// blue-500
+    cancelled: '#ef4444',      // red-500
+    rejected: '#b91c1c',       // red-700
+};
+
 const paymentMethodMap: { [key in PaymentMethod]: string } = {
   cash: "عند الاستلام",
   wallet: "المحفظة",
   card: "بطاقة"
 };
 
+const KpiCard = ({ title, value, description, Icon, iconColorClass, isLoading }: { title:string, value:string, description:string, Icon: any, iconColorClass:string, isLoading: boolean }) => {
+    if (isLoading) return <KpiSkeleton />;
+    return (
+      <Card className="bg-white/5 border-white/10 backdrop-blur-sm rounded-3xl shadow-lg text-white">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+          <CardTitle className="text-sm font-medium text-gray-300">{title}</CardTitle>
+          <Icon 
+            className={cn('w-6 h-6', iconColorClass)} 
+            style={{ filter: `drop-shadow(0 0 8px currentColor)` }}
+          />
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-black">{value}</div>
+          <p className="text-xs text-gray-400">{description}</p>
+        </CardContent>
+      </Card>
+    );
+};
+
+
 export default function SalesReportPage() {
     const firestore = useFirestore();
     const { toast } = useToast();
     
-    // Data state
     const [orders, setOrders] = useState<Order[]>([]);
     const [stores, setStores] = useState<Store[]>([]);
     const [cities, setCities] = useState<City[]>([]);
     const [users, setUsers] = useState<User[]>([]);
 
-    // Loading and error state
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
-    // Filter state
     const [date, setDate] = useState<DateRange | undefined>({
       from: subDays(new Date(), 29),
       to: new Date(),
@@ -103,7 +139,7 @@ export default function SalesReportPage() {
         if (!orders) return [];
         return orders.filter(order => {
             const orderDate = parseISO(order.created_at);
-            const isInDateRange = date?.from && isWithinInterval(orderDate, { start: startOfDay(date.from), end: date.to || date.from });
+            const isInDateRange = date?.from && date?.to && isWithinInterval(orderDate, { start: startOfDay(date.from), end: endOfDay(date.to) });
             const store = storeMap.get(order.storeId);
             
             const storeMatch = storeFilter === 'all' || order.storeId === storeFilter;
@@ -119,8 +155,7 @@ export default function SalesReportPage() {
         const deliveredOrders = filteredOrders.filter(o => o.status === 'delivered');
         const totalSales = deliveredOrders.reduce((sum, order) => sum + order.total_price, 0);
         const netProfit = deliveredOrders.reduce((sum, order) => {
-            const store = storeMap.get(order.storeId);
-            const feePercentage = store?.platform_fee_percentage || 10;
+            const feePercentage = storeMap.get(order.storeId)?.platform_fee_percentage || 10;
             return sum + (order.subtotal_price * (feePercentage / 100));
         }, 0);
         const completedOrdersCount = deliveredOrders.length;
@@ -130,16 +165,16 @@ export default function SalesReportPage() {
     }, [filteredOrders, storeMap]);
 
     const chartData = useMemo(() => {
-        if (!date?.from) return [];
+        if (!date?.from || !date.to) return [];
         const dailySales: { [key: string]: number } = {};
-        const daysInRange = [];
-        let currentDate = date.from;
-        while(currentDate <= (date.to || date.from)) {
+        let currentDate = new Date(date.from);
+        
+        while(currentDate <= date.to) {
             const formattedDate = format(currentDate, 'yyyy-MM-dd');
-            daysInRange.push(formattedDate);
             dailySales[formattedDate] = 0;
             currentDate = addDays(currentDate, 1);
         }
+
         filteredOrders.forEach(order => {
             if (order.status === 'delivered') {
                 const day = format(parseISO(order.created_at), 'yyyy-MM-dd');
@@ -148,7 +183,7 @@ export default function SalesReportPage() {
                 }
             }
         });
-        return daysInRange.map(day => ({ name: format(parseISO(day), 'dd/MM'), sales: dailySales[day] }));
+        return Object.entries(dailySales).map(([day, sales]) => ({ name: format(parseISO(day), 'dd/MM'), sales: sales }));
     }, [filteredOrders, date]);
     
     const handleExportExcel = () => {
@@ -169,65 +204,92 @@ export default function SalesReportPage() {
         exportToExcel(dataToExport, "Sales_Report", "Sales");
     }
     
+    const handleExportPdf = () => {
+        if (filteredOrders.length === 0) {
+            toast({ variant: "destructive", title: "لا توجد بيانات للتصدير" });
+            return;
+        }
+        const title = `تقرير المبيعات من ${format(date?.from || new Date(), 'yyyy-MM-dd')} إلى ${format(date?.to || new Date(), 'yyyy-MM-dd')}`;
+        const headers = ["التاريخ", "طريقة الدفع", "الحالة", "الإجمالي", "المدينة", "المتجر", "العميل", "رقم الطلب"];
+        const body = filteredOrders.map(o => ([
+            format(parseISO(o.created_at), 'yy-MM-dd HH:mm'),
+            paymentMethodMap[o.payment_method],
+            statusMap[o.status] || o.status,
+            o.total_price.toLocaleString(),
+            cityMap.get(storeMap.get(o.storeId)?.city_id || '') || 'N/A',
+            storeMap.get(o.storeId)?.name_ar || 'N/A',
+            userMap.get(o.clientUid) || 'N/A',
+            o.id?.slice(-6) || 'N/A',
+        ]));
+        
+        const summary = [
+            { title: "إجمالي المبيعات", value: kpiData.totalSales.toLocaleString() + ' ر.ي' },
+            { title: "صافي الربح (تقديري)", value: kpiData.netProfit.toLocaleString() + ' ر.ي' },
+            { title: "الطلبات المكتملة", value: kpiData.completedOrdersCount.toString() },
+            { title: "الطلبات الملغاة", value: kpiData.cancelledOrdersCount.toString() },
+        ];
+
+        exportToPdf(title, summary, headers, body);
+    };
+
     if (error) return <SetupFirestoreMessage />;
     if (!firestore) return <SetupFirestoreMessage />;
     
     return (
-        <div className="space-y-8 text-white" dir="rtl">
+        <div className="space-y-8 futuristic-bg -m-8 p-8 text-white" dir="rtl">
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-black text-white">تحليلات المبيعات</h1>
                     <p className="text-gray-400 text-sm font-bold mt-1">نظرة شاملة ومباشرة على أداء المنصة المالي.</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button onClick={handleExportExcel} variant="outline" className="bg-transparent border-green-500 text-green-400 hover:bg-green-500/10 hover:text-green-300"><FileDown className="ml-2 h-4 w-4"/>تصدير Excel</Button>
-                    <Button onClick={fetchData} variant="ghost" size="icon" disabled={loading}><RefreshCw className={cn("h-4 w-4", loading && 'animate-spin')}/></Button>
+                    <Button onClick={handleExportExcel} variant="outline" className="bg-transparent border-green-500 text-green-400 hover:bg-green-500/10 hover:text-green-300 rounded-lg"><FileDown className="ml-2 h-4 w-4"/>تصدير Excel</Button>
+                    <Button onClick={handleExportPdf} variant="outline" className="bg-transparent border-red-500 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-lg"><Printer className="ml-2 h-4 w-4"/>طباعة التقرير</Button>
+                    <Button onClick={fetchData} variant="ghost" size="icon" disabled={loading} className="text-white hover:bg-white/10 hover:text-white rounded-lg"><RefreshCw className={cn("h-4 w-4", loading && 'animate-spin')}/></Button>
                 </div>
             </header>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {loading ? Array.from({length: 4}).map((_, i) => <KpiSkeleton key={i}/>) : <>
-                    <KpiCard title="إجمالي المبيعات" value={`${kpiData.totalSales.toLocaleString()} ر.ي`} description="فقط من الطلبات المكتملة" Icon={DollarSign} iconColorClass="text-green-400" />
-                    <KpiCard title="صافي الربح" value={`${kpiData.netProfit.toLocaleString()} ر.ي`} description="أرباح المنصة من العمولة" Icon={TrendingUp} iconColorClass="text-purple-400" />
-                    <KpiCard title="الطلبات المكتملة" value={String(kpiData.completedOrdersCount)} description="الطلبات التي تم توصيلها بنجاح" Icon={ShoppingBag} iconColorClass="text-sky-400" />
-                    <KpiCard title="الطلبات الملغاة" value={String(kpiData.cancelledOrdersCount)} description="الطلبات التي تم إلغاؤها أو رفضها" Icon={XCircle} iconColorClass="text-red-400" />
-                </>}
+                <KpiCard isLoading={loading} title="إجمالي المبيعات" value={`${kpiData.totalSales.toLocaleString()} ر.ي`} description="فقط من الطلبات المكتملة" Icon={DollarSign} iconColorClass="text-green-400" />
+                <KpiCard isLoading={loading} title="صافي الربح" value={`${kpiData.netProfit.toLocaleString()} ر.ي`} description="أرباح المنصة من العمولة" Icon={TrendingUp} iconColorClass="text-purple-400" />
+                <KpiCard isLoading={loading} title="الطلبات المكتملة" value={String(kpiData.completedOrdersCount)} description="الطلبات التي تم توصيلها بنجاح" Icon={ShoppingBag} iconColorClass="text-sky-400" />
+                <KpiCard isLoading={loading} title="الطلبات الملغاة" value={String(kpiData.cancelledOrdersCount)} description="الطلبات التي تم إلغاؤها أو رفضها" Icon={XCircle} iconColorClass="text-red-400" />
             </div>
             
-            <Card className="bg-white/5 border-white/20 backdrop-blur-sm rounded-3xl shadow-lg p-4">
+            <Card className="bg-white/5 border-white/10 backdrop-blur-sm rounded-3xl shadow-lg p-4">
                  <div className="flex flex-wrap items-center gap-3">
                     <DateRangePickerWithPresets date={date} setDate={setDate} />
-                    <Select value={storeFilter} onValueChange={setStoreFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="فلترة بالمتجر" /></SelectTrigger><SelectContent><SelectItem value="all">كل المتاجر</SelectItem>{stores.map(s => <SelectItem key={s.id} value={s.id!}>{s.name_ar}</SelectItem>)}</SelectContent></Select>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="فلترة بالحالة" /></SelectTrigger><SelectContent>{Object.entries(statusMap).map(([key, value]) => <SelectItem key={key} value={key}>{value}</SelectItem>)}<SelectItem value="all">كل الحالات</SelectItem></SelectContent></Select>
-                    <Select value={cityFilter} onValueChange={setCityFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="فلترة بالمدينة" /></SelectTrigger><SelectContent><SelectItem value="all">كل المدن</SelectItem>{cities.map(c => <SelectItem key={c.id} value={c.id!}>{c.name_ar}</SelectItem>)}</SelectContent></Select>
-                    <Select value={paymentFilter} onValueChange={setPaymentFilter}><SelectTrigger className="w-[180px]"><SelectValue placeholder="طريقة الدفع" /></SelectTrigger><SelectContent><SelectItem value="all">الكل</SelectItem>{Object.entries(paymentMethodMap).map(([key, value]) => <SelectItem key={key} value={key}>{value}</SelectItem>)}</SelectContent></Select>
+                    <Select value={storeFilter} onValueChange={setStoreFilter}><SelectTrigger className="w-[180px] bg-white/5 border-white/20 text-white"><SelectValue placeholder="فلترة بالمتجر" /></SelectTrigger><SelectContent className="bg-gray-900 text-white border-gray-700"><SelectItem value="all">كل المتاجر</SelectItem>{stores.map(s => <SelectItem key={s.id} value={s.id!}>{s.name_ar}</SelectItem>)}</SelectContent></Select>
+                    <Select value={statusFilter} onValueChange={setStatusFilter}><SelectTrigger className="w-[180px] bg-white/5 border-white/20 text-white"><SelectValue placeholder="فلترة بالحالة" /></SelectTrigger><SelectContent className="bg-gray-900 text-white border-gray-700">{Object.entries(statusMap).map(([key, value]) => <SelectItem key={key} value={key}>{value}</SelectItem>)}<SelectItem value="all">كل الحالات</SelectItem></SelectContent></Select>
+                    <Select value={cityFilter} onValueChange={setCityFilter}><SelectTrigger className="w-[180px] bg-white/5 border-white/20 text-white"><SelectValue placeholder="فلترة بالمدينة" /></SelectTrigger><SelectContent className="bg-gray-900 text-white border-gray-700"><SelectItem value="all">كل المدن</SelectItem>{cities.map(c => <SelectItem key={c.id} value={c.id!}>{c.name_ar}</SelectItem>)}</SelectContent></Select>
+                    <Select value={paymentFilter} onValueChange={setPaymentFilter}><SelectTrigger className="w-[180px] bg-white/5 border-white/20 text-white"><SelectValue placeholder="طريقة الدفع" /></SelectTrigger><SelectContent className="bg-gray-900 text-white border-gray-700"><SelectItem value="all">الكل</SelectItem>{Object.entries(paymentMethodMap).map(([key, value]) => <SelectItem key={key} value={key}>{value}</SelectItem>)}</SelectContent></Select>
                  </div>
             </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                <Card className="lg:col-span-3 bg-white/5 border-white/20 backdrop-blur-sm rounded-3xl shadow-lg">
+                <Card className="lg:col-span-3 bg-white/5 border-white/10 backdrop-blur-sm rounded-3xl shadow-lg">
                     <CardHeader><CardTitle className="text-white">منحنى المبيعات اليومي</CardTitle></CardHeader>
                     <CardContent className="h-80 pr-6">
                         {loading ? <ChartSkeleton/> : (
                             <ResponsiveContainer width="100%" height="100%">
                                 <AreaChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                                    <defs><linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1FAF9A" stopOpacity={0.6}/><stop offset="95%" stopColor="#1FAF9A" stopOpacity={0}/></linearGradient></defs>
+                                    <defs><linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient></defs>
                                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false}/>
                                     <XAxis dataKey="name" stroke="rgba(255,255,255,0.4)" fontSize={12} tickLine={false} axisLine={false} />
                                     <YAxis stroke="rgba(255,255,255,0.4)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `${(val/1000)}k`} />
                                     <Tooltip contentStyle={{ backgroundColor: 'rgba(10,20,30,0.8)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '1rem', color: 'white' }} />
-                                    <Area type="monotone" dataKey="sales" stroke="#1FAF9A" strokeWidth={2} fillOpacity={1} fill="url(#salesGradient)" />
+                                    <Area type="monotone" dataKey="sales" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#salesGradient)" />
                                 </AreaChart>
                             </ResponsiveContainer>
                         )}
                     </CardContent>
                 </Card>
-                <Card className="lg:col-span-2 bg-white/5 border-white/20 backdrop-blur-sm rounded-3xl shadow-lg">
+                <Card className="lg:col-span-2 bg-white/5 border-white/10 backdrop-blur-sm rounded-3xl shadow-lg">
                     <CardHeader><CardTitle className="text-white">أحدث الطلبات</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
-                        {loading ? Array.from({length: 5}).map((_, i) => <Skeleton key={i} className="h-10 w-full bg-white/10" />) :
+                        {loading ? Array.from({length: 5}).map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-md bg-white/10" />) :
                          filteredOrders.slice(0, 5).map(order => (
-                             <div key={order.id} className="flex items-center justify-between text-sm">
+                             <div key={order.id} className="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-white/10">
                                  <div>
                                      <p className="font-bold">{userMap.get(order.clientUid) || 'عميل غير معروف'}</p>
                                      <p className="text-xs text-gray-400">{storeMap.get(order.storeId)?.name_ar}</p>
@@ -243,12 +305,12 @@ export default function SalesReportPage() {
                 </Card>
             </div>
 
-            <div className="bg-white/5 border border-white/20 backdrop-blur-sm rounded-3xl shadow-lg overflow-hidden">
+            <div className="bg-white/5 border border-white/10 backdrop-blur-sm rounded-3xl shadow-lg overflow-hidden">
                 <div className="p-4"><h3 className="font-bold text-white">سجل العمليات المفصل</h3></div>
                 <div className="overflow-auto max-h-[500px]">
                 <Table>
                     <TableHeader className="sticky top-0 bg-black/30 backdrop-blur-xl z-10">
-                        <TableRow className="border-white/20 hover:bg-transparent">
+                        <TableRow className="border-white/10 hover:bg-transparent">
                             <TableHead className="text-right text-white">الطلب</TableHead>
                             <TableHead className="text-center text-white">المتجر</TableHead>
                             <TableHead className="text-center text-white">الإجمالي</TableHead>
@@ -268,7 +330,7 @@ export default function SalesReportPage() {
                                 <TableCell className="text-center">
                                     <div className="flex items-center justify-center gap-2">
                                         <span className={cn('h-2.5 w-2.5 rounded-full', {
-                                            'bg-green-400 animate-pulse': order.status === 'delivered',
+                                            'bg-green-400': order.status === 'delivered',
                                             'bg-yellow-400': order.status === 'pending' || order.status === 'preparing',
                                             'bg-sky-400': order.status === 'out_for_delivery',
                                             'bg-red-500': order.status === 'cancelled' || order.status === 'rejected',
@@ -278,7 +340,7 @@ export default function SalesReportPage() {
                                 </TableCell>
                             </TableRow>
                          )) : (
-                           <TableRow className="border-none"><TableCell colSpan={6}><EmptyState /></TableCell></TableRow>
+                           <TableRow className="border-none"><TableCell colSpan={6} className="p-0"><EmptyState /></TableCell></TableRow>
                          )}
                     </TableBody>
                 </Table>
