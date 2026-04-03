@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { useFirestore, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
-import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, deleteDoc, doc, setDoc } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory, User } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,102 +44,15 @@ import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import Image from 'next/image';
 import { Switch } from '@/components/ui/switch';
 import React from 'react';
-import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from '@react-google-maps/api';
+import dynamic from 'next/dynamic';
 
-const libraries: ("places")[] = ["places"];
-
-function MapPickerWithSearch({ location, onLocationChange }: { location: { latitude: number, longitude: number }, onLocationChange: (loc: { latitude: number, longitude: number }) => void }) {
-    const { isLoaded, loadError } = useJsApiLoader({
-        id: 'google-map-script',
-        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
-        libraries,
-    });
-
-    const [searchBox, setSearchBox] = React.useState<google.maps.places.SearchBox | null>(null);
-    const mapRef = React.useRef<google.maps.Map | null>(null);
-
-    const onSearchBoxLoad = (ref: google.maps.places.SearchBox) => {
-        setSearchBox(ref);
-    };
-
-    const onPlacesChanged = () => {
-        if (searchBox) {
-            const places = searchBox.getPlaces();
-            if (places && places.length > 0 && places[0].geometry?.location) {
-                const place = places[0];
-                const newLocation = {
-                    latitude: place.geometry.location.lat(),
-                    longitude: place.geometry.location.lng(),
-                };
-                onLocationChange(newLocation);
-                
-                const bounds = new google.maps.LatLngBounds();
-                if (place.geometry.viewport) {
-                    bounds.union(place.geometry.viewport);
-                } else {
-                    bounds.extend(place.geometry.location);
-                }
-                mapRef.current?.fitBounds(bounds);
-            }
-        }
-    };
-    
-    const handleMapClick = (event: google.maps.MapMouseEvent) => {
-        if (event.latLng) {
-            onLocationChange({
-                latitude: event.latLng.lat(),
-                longitude: event.latLng.lng(),
-            });
-        }
-    };
-
-    const center = (location.latitude !== 0 && location.longitude !== 0) 
-        ? { lat: location.latitude, lng: location.longitude } 
-        : { lat: 15.3694, lng: 44.1910 }; // Default to Sana'a
-
-    if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-        return (
-            <div className="text-destructive p-4 border-l-4 border-destructive bg-destructive/10 rounded-md">
-                <h4 className="font-bold">مفتاح Google Maps API غير موجود</h4>
-                <p>الرجاء إضافة مفتاح Google Maps API إلى ملف البيئة الخاص بك تحت اسم <code className="font-mono bg-destructive/20 px-1 rounded">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.</p>
-            </div>
-        );
-    }
-    
-    if (loadError) {
-        return <div className="text-destructive p-4 border-l-4 border-destructive bg-destructive/10 rounded-md">خطأ في تحميل الخريطة. يرجى مراجعة مفتاح API والاتصال بالإنترنت.</div>;
-    }
-
-    return isLoaded ? (
-        <div className="space-y-2">
-             <StandaloneSearchBox
-                onLoad={onSearchBoxLoad}
-                onPlacesChanged={onPlacesChanged}
-              >
-                <Input
-                  type="text"
-                  placeholder="ابحث عن عنوان أو مكان..."
-                  className="w-full rounded-lg bg-gray-50 pr-4"
-                />
-              </StandaloneSearchBox>
-
-            <GoogleMap
-                mapContainerStyle={{ width: '100%', height: '300px', borderRadius: 'var(--radius)' }}
-                center={center}
-                zoom={location.latitude !== 0 ? 15 : 8}
-                onLoad={ref => mapRef.current = ref}
-                onClick={handleMapClick}
-            >
-                {location.latitude !== 0 && <Marker position={{ lat: location.latitude, lng: location.longitude }} />}
-            </GoogleMap>
-        </div>
-    ) : (
-        <div className="flex items-center justify-center h-[300px] w-full bg-muted rounded-lg">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-            <p className="ml-2">جاري تحميل الخريطة...</p>
-        </div>
-    );
-}
+const LeafletMapPicker = dynamic(() => import('@/components/admin/leaflet-map-picker'), {
+    ssr: false,
+    loading: () => <div className="flex items-center justify-center h-[300px] w-full bg-muted rounded-lg">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <p className="ml-2">جاري تحميل الخريطة...</p>
+    </div>
+});
 
 const StoreRowSkeleton = () => (
     <TableRow>
@@ -206,7 +119,7 @@ export default function AdminStoresPage() {
           ownerUid: mockAdminUser.uid,
           storeOwnerUid: mockAdminUser.uid,
           logo_url: '',
-          location: { latitude: 0, longitude: 0 }
+          location: { lat: 0, lng: 0 }
       });
       setSchedule(initialSchedule);
       setLogoPreview('');
@@ -277,17 +190,17 @@ export default function AdminStoresPage() {
         if (!currentStore.city_id) throw new Error("الرجاء اختيار مدينة صحيحة.");
         if (!currentStore.filter_ids || currentStore.filter_ids.length === 0) throw new Error("الرجاء اختيار فئة صحيحة.");
         
-        const lat = currentStore.location?.latitude;
-        const lon = currentStore.location?.longitude;
+        const lat = currentStore.location?.lat;
+        const lon = currentStore.location?.lng;
 
-        if (lat === undefined || lon === undefined || isNaN(lat) || isNaN(lon)) {
-            throw new Error("الرجاء إدخال إحداثيات الموقع (خط العرض وخط الطول) كأرقام صالحة.");
+        if (lat === undefined || lon === undefined || isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) {
+            throw new Error("الرجاء تحديد موقع المتجر على الخريطة.");
         }
 
         const selectedCity = cities?.find(c => c.id === currentStore.city_id);
         if (!selectedCity) throw new Error("المدينة المختارة غير موجودة.");
 
-        const storeDataObject: Partial<Store> = {
+        const storeDataObject: Partial<Omit<Store, 'id'>> = {
             ...currentStore,
             name_ar: formData.get('name_ar') as string,
             name_en: (formData.get('name_ar') as string).toLowerCase().replace(/ /g, '-'),
@@ -296,7 +209,7 @@ export default function AdminStoresPage() {
             description_en: currentStore.description_en || 'A store specializing in everything new',
             city_id: currentStore.city_id,
             filter_ids: currentStore.filter_ids,
-            location: new GeoPoint(lat, lon),
+            location: { lat: lat, lng: lon },
             address_text: currentStore.address_text || `${selectedCity.name_ar} - بالقرب من...`,
             rating: parseFloat(formData.get('rating') as string) || 4.5,
             preparation_time: formData.get('preparation_time') as string,
@@ -311,7 +224,7 @@ export default function AdminStoresPage() {
             const storesCollection = collection(firestore, 'stores');
             docRef = doc(storesCollection);
             const newStoreData: Store = {
-                ...(storeDataObject as Store),
+                ...(storeDataObject as Omit<Store, 'id'|'storeId'>),
                 storeId: docRef.id
             };
             await setDoc(docRef, newStoreData);
@@ -530,14 +443,14 @@ export default function AdminStoresPage() {
                     
                     <div className="md:col-span-2 space-y-2 p-4 border-2 border-dashed rounded-lg bg-gray-50/50">
                         <Label className="font-black text-gray-700">موقع المتجر على الخريطة</Label>
-                         <MapPickerWithSearch
-                            location={currentStore?.location || { latitude: 0, longitude: 0 }}
-                            onLocationChange={(newLoc) => {
+                         <LeafletMapPicker
+                            position={currentStore?.location || { lat: 0, lng: 0 }}
+                            onPositionChange={(newPos) => {
                                 setCurrentStore(prev => ({
                                     ...prev,
                                     location: {
-                                        latitude: newLoc.latitude,
-                                        longitude: newLoc.longitude
+                                        lat: newPos.lat,
+                                        lng: newPos.lng
                                     }
                                 }))
                             }}
@@ -545,11 +458,11 @@ export default function AdminStoresPage() {
                         <div className="grid grid-cols-2 gap-4 pt-2">
                             <div className="space-y-2">
                                 <Label htmlFor="latitude">خط العرض (Latitude)</Label>
-                                <Input id="latitude" name="latitude" type="number" readOnly className="rounded-lg bg-gray-200" dir="ltr" value={currentStore?.location?.latitude ?? ''}/>
+                                <Input id="latitude" name="latitude" type="number" readOnly className="rounded-lg bg-gray-200" dir="ltr" value={currentStore?.location?.lat ?? ''}/>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="longitude">خط الطول (Longitude)</Label>
-                                <Input id="longitude" name="longitude" type="number" readOnly className="rounded-lg bg-gray-200" dir="ltr" value={currentStore?.location?.longitude ?? ''}/>
+                                <Input id="longitude" name="longitude" type="number" readOnly className="rounded-lg bg-gray-200" dir="ltr" value={currentStore?.location?.lng ?? ''}/>
                             </div>
                         </div>
                     </div>

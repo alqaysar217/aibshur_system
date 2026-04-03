@@ -14,8 +14,8 @@ export type AppointmentStatus = 'scheduled' | 'confirmed' | 'dispatched' | 'comp
 
 // Using a generic GeoPoint type as Firestore GeoPoint is a class instance.
 export interface GeoPoint {
-  latitude: number;
-  longitude: number;
+  lat: number;
+  lng: number;
 }
 
 export interface City {
@@ -141,7 +141,7 @@ export interface Store {
   cover_image_url?: string;
   city_id: string; // ref to City
   filter_ids: string[]; // ref to CategoryFilter
-  location: GeoPoint;
+  location: { lat: number, lng: number };
   address_text?: string;
   working_hours?: Record<string, DailyHours>; // e.g. { "saturday": { is_closed: false, slots: [{ open: "09:00", close: "22:00" }] } }
   preparation_time?: string;

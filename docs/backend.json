@@ -503,10 +503,10 @@
         "description": "Represents a geographical point.",
         "type": "object",
         "properties": {
-            "latitude": { "type": "number" },
-            "longitude": { "type": "number" }
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
         },
-        "required": ["latitude", "longitude"]
+        "required": ["lat", "lng"]
     }
   },
   "auth": {
