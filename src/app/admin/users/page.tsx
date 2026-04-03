@@ -88,6 +88,9 @@ export default function AdminUsersPage() {
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [userToViewDocs, setUserToViewDocs] = useState<User | null>(null);
   const [userToViewLocation, setUserToViewLocation] = useState<User | null>(null);
+  
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
+  const [isMapSearching, setIsMapSearching] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -142,6 +145,7 @@ export default function AdminUsersPage() {
   const handleOpenDialog = (user: Partial<User> | null = null) => {
     setCurrentUser(user ? { ...user } : { account_status: { is_blocked: false }, roles: { is_user: true }, location: { lat: 14.536, lng: 49.126 } });
     setSearchQuery('');
+    setMapSearchQuery('');
     setIsPickerOpen(false);
     setDialogOpen(true);
   };
@@ -193,6 +197,29 @@ export default function AdminUsersPage() {
            toast({ variant: 'destructive', title: 'فشل تحديث حالة المندوب' });
       }
   }
+
+  const onPositionChange = useCallback((newPos: { lat: number; lng: number }) => {
+    setCurrentUser(prev => (prev ? { ...prev, location: { ...(prev.location as any), lat: newPos.lat, lng: newPos.lng } } : null));
+  }, []);
+
+  const handleMapSearch = async () => {
+    if (!mapSearchQuery) return;
+    setIsMapSearching(true);
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(mapSearchQuery)}`);
+        const data = await response.json();
+        if (data && data.length > 0) {
+            const { lat, lon } = data[0];
+            onPositionChange({ lat: parseFloat(lat), lng: parseFloat(lon) });
+        } else {
+            toast({ variant: 'destructive', title: 'لم يتم العثور على الموقع' });
+        }
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'خطأ في البحث عن الموقع' });
+    } finally {
+        setIsMapSearching(false);
+    }
+  };
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -300,7 +327,7 @@ export default function AdminUsersPage() {
             is_store_owner: role === 'is_store_owner',
             is_admin: role === 'is_admin',
         };
-        setCurrentUser(prev => ({...prev, roles: newRoles}));
+        setCurrentUser(prev => (prev ? {...prev, roles: newRoles} : null));
     }
 
     const getSingleRole = (roles?: User['roles']): string => {
@@ -482,18 +509,15 @@ export default function AdminUsersPage() {
                 {(currentUser?.roles?.is_user || currentUser?.roles?.is_driver) && !currentUser.roles.is_admin && (
                      <div className="p-4 border rounded-xl space-y-4 animate-in fade-in duration-300">
                         <Label className="font-bold">بيانات الموقع</Label>
+                        <div className="flex gap-2 mb-2">
+                            <Input placeholder="ابحث عن منطقة..." value={mapSearchQuery} onChange={e => setMapSearchQuery(e.target.value)} />
+                            <Button type="button" onClick={handleMapSearch} disabled={isMapSearching}>
+                                {isMapSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                            </Button>
+                        </div>
                          <LeafletMapPicker
                             position={currentUser?.location || { lat: 14.536, lng: 49.126 }}
-                            onPositionChange={(newPos) => {
-                                setCurrentUser(prev => ({
-                                    ...prev,
-                                    location: {
-                                        ...prev?.location,
-                                        lat: newPos.lat,
-                                        lng: newPos.lng,
-                                    },
-                                }));
-                            }}
+                            onPositionChange={onPositionChange}
                         />
                         <div className="space-y-2"><Label>العنوان الوصفي</Label><Input name="address_text" value={currentUser?.location?.address_text || ''} onChange={e => setCurrentUser(p => p ? ({ ...p, location: { ...(p.location as any), address_text: e.target.value } }) : null)} className="rounded-lg bg-gray-50"/></div>
                     </div>
@@ -533,7 +557,7 @@ export default function AdminUsersPage() {
                                 {isPickerOpen && searchResults.length > 0 && (
                                     <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-y-auto">
                                         {searchResults.map((item) => (
-                                            <button key={item.id} type="button" onClick={() => { setCurrentUser(prev => ({ ...prev, store_id: item.id })); setSearchQuery(''); setIsPickerOpen(false); }} className="flex items-center w-full text-right p-2 gap-3 hover:bg-gray-100">
+                                            <button key={item.id} type="button" onClick={() => { setCurrentUser(prev => (prev ? { ...prev, store_id: item.id } : null)); setSearchQuery(''); setIsPickerOpen(false); }} className="flex items-center w-full text-right p-2 gap-3 hover:bg-gray-100">
                                                 <Image src={item.logo_url} alt={item.name_ar} width={40} height={40} className="w-10 h-10 rounded-md object-cover bg-gray-100" />
                                                 <p className="font-bold text-sm">{item.name_ar}</p>
                                             </button>
@@ -550,7 +574,7 @@ export default function AdminUsersPage() {
                                         <p className="font-bold text-sm text-primary">{getStoreName(currentUser.store_id)}</p>
                                     </div>
                                 </div>
-                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => setCurrentUser(prev => ({...prev, store_id: ''}))}>
+                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => setCurrentUser(prev => (prev ? {...prev, store_id: ''} : null))}>
                                     <X className="w-4 h-4"/>
                                 </Button>
                             </div>

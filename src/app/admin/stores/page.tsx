@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Plus, X } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Loader2, Store as StoreIcon, Plus, X, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -101,6 +101,8 @@ export default function AdminStoresPage() {
   const [currentStore, setCurrentStore] = useState<Partial<Store> | null>(null);
   const [schedule, setSchedule] = useState<Record<string, DailyHours>>(initialSchedule);
   const [logoPreview, setLogoPreview] = useState('');
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
+  const [isMapSearching, setIsMapSearching] = useState(false);
 
   const cityMap = useMemo(() => new Map(cities?.map(c => [c.id, c.name_ar])), [cities]);
   const userMap = useMemo(() => new Map(users?.map(u => [u.uid, u.full_name])), [users]);
@@ -118,14 +120,15 @@ export default function AdminStoresPage() {
           is_active: true,
           is_open: true,
           rating: 4.5,
-          ownerUid: '', // Will be selected from dropdown
-          storeOwnerUid: '', // Will be selected from dropdown
+          ownerUid: '', 
+          storeOwnerUid: '',
           logo_url: '',
           location: { lat: 14.536, lng: 49.126 } // Default to Mukalla
       });
       setSchedule(initialSchedule);
       setLogoPreview('');
     }
+    setMapSearchQuery('');
     setIsFormDialogOpen(true);
   };
   
@@ -176,6 +179,30 @@ export default function AdminStoresPage() {
     });
   }
 
+    const handleMapSearch = async () => {
+    if (!mapSearchQuery) return;
+    setIsMapSearching(true);
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(mapSearchQuery)}`);
+        const data = await response.json();
+        if (data && data.length > 0) {
+            const { lat, lon } = data[0];
+            const newPos = { lat: parseFloat(lat), lng: parseFloat(lon) };
+            setCurrentStore(prev => (prev ? { ...prev, location: newPos } : null));
+        } else {
+            toast({ variant: 'destructive', title: 'لم يتم العثور على الموقع' });
+        }
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'خطأ في البحث عن الموقع' });
+    } finally {
+        setIsMapSearching(false);
+    }
+  };
+  
+  const onPositionChange = useCallback((newPos: { lat: number; lng: number }) => {
+    setCurrentStore(prev => (prev ? { ...prev, location: { lat: newPos.lat, lng: newPos.lng } } : null));
+  }, []);
+
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!firestore || !currentStore) {
@@ -196,8 +223,8 @@ export default function AdminStoresPage() {
         const lat = currentStore.location?.lat;
         const lng = currentStore.location?.lng;
 
-        if (!lat || !lng || (lat === 14.536 && lng === 49.126 && !currentStore.id) ) {
-             if (!confirm("لم يتم تغيير موقع المتجر عن الموقع الافتراضي (المكلا). هل تريد المتابعة؟")) {
+        if (!lat || !lng ) {
+             if (!confirm("لم يتم تحديد موقع المتجر على الخريطة. هل تريد المتابعة؟")) {
                 setIsSubmitting(false);
                 return;
             }
@@ -388,7 +415,7 @@ export default function AdminStoresPage() {
                             id="ownerUid"
                             required
                             value={currentStore?.ownerUid || ''}
-                            onChange={(e) => setCurrentStore(prev => ({...prev, ownerUid: e.target.value, storeOwnerUid: e.target.value}))}
+                            onChange={(e) => setCurrentStore(prev => (prev ? {...prev, ownerUid: e.target.value, storeOwnerUid: e.target.value} : null))}
                             disabled={loading}
                             className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 font-bold"
                         >
@@ -419,7 +446,7 @@ export default function AdminStoresPage() {
                                 id="city_id"
                                 required
                                 value={currentStore?.city_id || ''}
-                                onChange={(e) => setCurrentStore(prev => ({...prev, city_id: e.target.value}))}
+                                onChange={(e) => setCurrentStore(prev => (prev ? {...prev, city_id: e.target.value} : null))}
                                 disabled={loading}
                                 className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 font-bold"
                             >
@@ -439,7 +466,7 @@ export default function AdminStoresPage() {
                                 id="filter_id"
                                 required
                                 value={currentStore?.filter_ids?.[0] || ''}
-                                onChange={(e) => setCurrentStore(prev => ({...prev, filter_ids: [e.target.value]}))}
+                                onChange={(e) => setCurrentStore(prev => (prev ? {...prev, filter_ids: [e.target.value]} : null))}
                                 disabled={loading}
                                 className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-gray-50 px-3 py-2 text-sm ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 font-bold"
                             >
@@ -469,28 +496,16 @@ export default function AdminStoresPage() {
                 <div className="space-y-4 border-r pr-8">
                      <div className="space-y-2 p-4 border-2 border-dashed rounded-lg bg-gray-50/50">
                         <Label className="font-black text-gray-700">موقع المتجر على الخريطة</Label>
+                        <div className="flex gap-2 mb-2">
+                            <Input placeholder="ابحث عن منطقة أو عنوان..." value={mapSearchQuery} onChange={e => setMapSearchQuery(e.target.value)} />
+                            <Button type="button" onClick={handleMapSearch} disabled={isMapSearching}>
+                                {isMapSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                            </Button>
+                        </div>
                          <LeafletMapPicker
                             position={currentStore?.location || { lat: 14.536, lng: 49.126 }}
-                            onPositionChange={(newPos) => {
-                                setCurrentStore(prev => ({
-                                    ...prev,
-                                    location: {
-                                        lat: newPos.lat,
-                                        lng: newPos.lng
-                                    }
-                                }))
-                            }}
+                            onPositionChange={onPositionChange}
                         />
-                        <div className="grid grid-cols-2 gap-4 pt-2">
-                            <div className="space-y-2">
-                                <Label htmlFor="latitude">خط العرض (Latitude)</Label>
-                                <Input id="latitude" name="latitude" type="number" readOnly className="rounded-lg bg-gray-200" dir="ltr" value={currentStore?.location?.lat ?? ''}/>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="longitude">خط الطول (Longitude)</Label>
-                                <Input id="longitude" name="longitude" type="number" readOnly className="rounded-lg bg-gray-200" dir="ltr" value={currentStore?.location?.lng ?? ''}/>
-                            </div>
-                        </div>
                     </div>
                      <Label className="font-bold text-gray-700 text-lg pt-4">ساعات العمل</Label>
                      <div className="space-y-3">
