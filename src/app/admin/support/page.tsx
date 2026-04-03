@@ -1,12 +1,12 @@
 'use client';
 import { useState, useMemo, useCallback } from 'react';
-import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
+import { useFirestore, useUser, useCollection, useDoc, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, query, where, getDocs, runTransaction, updateDoc, arrayUnion, orderBy } from 'firebase/firestore';
 import type { User, Complaint, FinanceTransaction, AppConfig } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, MessageSquare, Phone, Facebook, Mail, CheckCircle, Clock, Check, Users, Shield, Award, Send, Coins } from 'lucide-react';
+import { Loader2, MessageSquare, Phone, Facebook, Mail, CheckCircle, Clock, Check, Users, Shield, Award, Send, Coins, ListChecks } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
@@ -19,6 +19,7 @@ import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 const KpiCard = ({ title, value, isLoading }: { title: string, value: string | number, isLoading: boolean }) => (
     <Card className='shadow-sm'>
