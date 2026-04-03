@@ -386,6 +386,18 @@ export interface AppConfig {
         whatsapp_number: string;
         facebook_url: string;
         email: string;
+    };
+    order_control?: {
+        max_delivery_distance: number;
+        default_preparation_time: string;
+        is_receiving_orders: boolean;
+    };
+    pricing?: {
+        is_dynamic_pricing_enabled: boolean;
+    };
+    integrations?: {
+        google_maps_api_key: string;
+        sms_gateway_api_key: string;
     }
 }
 

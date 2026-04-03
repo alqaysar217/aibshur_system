@@ -65,7 +65,7 @@ export function AdminTopBar({ toggleMobile, toggleCollapse, isCollapsed }: Admin
   }
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-20 px-4 md:px-8 bg-white/80 backdrop-blur-sm border-b">
+    <header className="sticky top-0 z-30 flex items-center justify-between h-20 px-4 md:px-8 bg-background/80 backdrop-blur-sm border-b">
       <div className="flex items-center gap-2">
          {/* Mobile Menu Toggle */}
         <Button
