@@ -43,7 +43,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
-import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
 const RowSkeleton = () => (
@@ -122,6 +122,15 @@ export default function AdminUsersPage() {
         }
     );
   };
+  
+    const handleLocationAction = () => {
+        if (currentUser?.location?.lat && currentUser?.location?.lng) {
+            const url = `https://www.google.com/maps?q=${currentUser.location.lat},${currentUser.location.lng}`;
+            window.open(url, '_blank');
+        } else {
+            handleGetLocation();
+        }
+    };
 
 
   useEffect(() => {
@@ -223,7 +232,7 @@ export default function AdminUsersPage() {
         phone: formData.get('phone') as string,
         roles: currentUser.roles,
         location: {
-            province: formData.get('province') as string,
+            province: currentUser.location?.province,
             address_text: formData.get('address_text') as string,
             lat: currentUser.location?.lat,
             lng: currentUser.location?.lng,
@@ -309,15 +318,23 @@ export default function AdminUsersPage() {
     return stores.filter(s => s.name_ar.toLowerCase().includes(searchQuery.toLowerCase()));
   }, [searchQuery, stores]);
   
-  const handleRoleChange = (role: keyof User['roles'], checked: boolean) => {
-    setCurrentUser(prev => {
-        const newRoles = { ...prev?.roles, [role]: checked };
-        if (role !== 'is_user' && !newRoles.is_user && !newRoles.is_admin && !newRoles.is_driver && !newRoles.is_store_owner) {
-            newRoles.is_user = true;
-        }
-        return { ...prev, roles: newRoles };
-    });
-  }
+    const handleSingleRoleChange = (role: 'is_user' | 'is_driver' | 'is_store_owner' | 'is_admin') => {
+        const newRoles = {
+            is_user: role === 'is_user',
+            is_driver: role === 'is_driver',
+            is_store_owner: role === 'is_store_owner',
+            is_admin: role === 'is_admin',
+        };
+        setCurrentUser(prev => ({...prev, roles: newRoles}));
+    }
+
+    const getSingleRole = (roles?: User['roles']): string => {
+        if (!roles) return 'is_user';
+        if (roles.is_admin) return 'is_admin';
+        if (roles.is_store_owner) return 'is_store_owner';
+        if (roles.is_driver) return 'is_driver';
+        return 'is_user';
+    }
 
   const renderUserTable = (userData: User[], type: 'admin' | 'client' | 'driver' | 'store_owner') => {
       return (
@@ -458,12 +475,16 @@ export default function AdminUsersPage() {
                  <div className="space-y-2"><Label>البريد الإلكتروني</Label><Input name="email" type="email" defaultValue={currentUser?.email} className="rounded-lg bg-gray-50" dir="ltr"/></div>
                  <div className="space-y-2">
                     <Label className="font-bold">الصلاحيات</Label>
-                    <div className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-gray-50">
-                        <div className="flex items-center gap-2"><Checkbox id="role-user" checked={currentUser?.roles?.is_user} onCheckedChange={checked => handleRoleChange('is_user', !!checked)} /><Label htmlFor="role-user">عميل</Label></div>
-                        <div className="flex items-center gap-2"><Checkbox id="role-driver" checked={currentUser?.roles?.is_driver} onCheckedChange={checked => handleRoleChange('is_driver', !!checked)} /><Label htmlFor="role-driver">مندوب</Label></div>
-                        <div className="flex items-center gap-2"><Checkbox id="role-owner" checked={currentUser?.roles?.is_store_owner} onCheckedChange={checked => handleRoleChange('is_store_owner', !!checked)} /><Label htmlFor="role-owner">صاحب متجر</Label></div>
-                        <div className="flex items-center gap-2"><Checkbox id="role-admin" checked={currentUser?.roles?.is_admin} onCheckedChange={checked => handleRoleChange('is_admin', !!checked)} /><Label htmlFor="role-admin">مدير</Label></div>
-                    </div>
+                    <RadioGroup
+                        value={getSingleRole(currentUser?.roles)}
+                        onValueChange={(value) => handleSingleRoleChange(value as any)}
+                        className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-gray-50"
+                    >
+                        <div className="flex items-center gap-2"><RadioGroupItem value="is_user" id="role-user" /><Label htmlFor="role-user">عميل</Label></div>
+                        <div className="flex items-center gap-2"><RadioGroupItem value="is_driver" id="role-driver" /><Label htmlFor="role-driver">مندوب</Label></div>
+                        <div className="flex items-center gap-2"><RadioGroupItem value="is_store_owner" id="role-owner" /><Label htmlFor="role-owner">صاحب متجر</Label></div>
+                        <div className="flex items-center gap-2"><RadioGroupItem value="is_admin" id="role-admin" /><Label htmlFor="role-admin">مدير</Label></div>
+                    </RadioGroup>
                 </div>
 
                 {currentUser?.roles?.is_user && !currentUser.roles.is_admin && !currentUser.roles.is_driver && !currentUser.roles.is_store_owner && (
@@ -472,7 +493,6 @@ export default function AdminUsersPage() {
                         <div className="space-y-2">
                             <Label>المحافظة</Label>
                             <select
-                                name="province"
                                 value={currentUser?.location?.province || ''}
                                 onChange={(e) =>
                                     setCurrentUser((prev) => {
@@ -522,7 +542,9 @@ export default function AdminUsersPage() {
                                 />
                             </div>
                         </div>
-                        <Button type="button" variant="outline" onClick={handleGetLocation}>تحديد الموقع من الخريطة <MapPin className="mr-2 h-4 w-4"/></Button>
+                        <Button type="button" variant="outline" onClick={handleLocationAction}>
+                            {currentUser?.location?.lat && currentUser?.location?.lng ? 'عرض الموقع على الخريطة' : 'تحديد الموقع من الخريطة'} <MapPin className="mr-2 h-4 w-4"/>
+                        </Button>
                     </div>
                 )}
                 
@@ -551,7 +573,6 @@ export default function AdminUsersPage() {
                             <div className="space-y-2">
                                 <Label>المحافظة</Label>
                                 <select
-                                    name="province"
                                     value={currentUser?.location?.province || ''}
                                     onChange={(e) =>
                                         setCurrentUser((prev) => {
@@ -601,7 +622,9 @@ export default function AdminUsersPage() {
                                     />
                                 </div>
                             </div>
-                            <Button type="button" variant="outline" onClick={handleGetLocation}>تحديد الموقع الحالي <MapPin className="mr-2 h-4 w-4"/></Button>
+                            <Button type="button" variant="outline" onClick={handleLocationAction}>
+                               {currentUser?.location?.lat && currentUser?.location?.lng ? 'عرض الموقع على الخريطة' : 'تحديد الموقع الحالي'} <MapPin className="mr-2 h-4 w-4"/>
+                            </Button>
                         </div>
                     </>
                 )}
