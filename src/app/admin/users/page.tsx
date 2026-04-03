@@ -476,14 +476,15 @@ export default function AdminUsersPage() {
                  <div className="space-y-2">
                     <Label className="font-bold">الصلاحيات</Label>
                     <RadioGroup
+                        dir="rtl"
                         value={getSingleRole(currentUser?.roles)}
                         onValueChange={(value) => handleSingleRoleChange(value as any)}
                         className="grid grid-cols-2 gap-4 p-4 border rounded-lg bg-gray-50"
                     >
-                        <div className="flex items-center gap-2"><RadioGroupItem value="is_user" id="role-user" /><Label htmlFor="role-user">عميل</Label></div>
-                        <div className="flex items-center gap-2"><RadioGroupItem value="is_driver" id="role-driver" /><Label htmlFor="role-driver">مندوب</Label></div>
-                        <div className="flex items-center gap-2"><RadioGroupItem value="is_store_owner" id="role-owner" /><Label htmlFor="role-owner">صاحب متجر</Label></div>
-                        <div className="flex items-center gap-2"><RadioGroupItem value="is_admin" id="role-admin" /><Label htmlFor="role-admin">مدير</Label></div>
+                        <div className="flex items-center justify-between"><Label htmlFor="role-user">عميل</Label><RadioGroupItem value="is_user" id="role-user" /></div>
+                        <div className="flex items-center justify-between"><Label htmlFor="role-driver">مندوب</Label><RadioGroupItem value="is_driver" id="role-driver" /></div>
+                        <div className="flex items-center justify-between"><Label htmlFor="role-owner">صاحب متجر</Label><RadioGroupItem value="is_store_owner" id="role-owner" /></div>
+                        <div className="flex items-center justify-between"><Label htmlFor="role-admin">مدير</Label><RadioGroupItem value="is_admin" id="role-admin" /></div>
                     </RadioGroup>
                 </div>
 
