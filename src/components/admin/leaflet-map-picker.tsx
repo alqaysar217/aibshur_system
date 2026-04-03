@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-lea
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
 import L, { LatLngExpression } from 'leaflet';
 import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 
 // Fix for default marker icon issue
 // @ts-ignore
@@ -69,10 +70,11 @@ const MapEvents = ({ onPositionChange }: { onPositionChange: (pos: { lat: number
 const MapUpdater = ({ position }: { position: { lat: number; lng: number } }) => {
     const map = useMap();
     useEffect(() => {
-        if (position && position.lat && position.lng) {
+        // Only set view if position is valid and different from current center
+        if (position && typeof position.lat === 'number' && typeof position.lng === 'number') {
             const currentCenter = map.getCenter();
-            if (currentCenter.lat !== position.lat || currentCenter.lng !== position.lng) {
-                map.setView([position.lat, position.lng], 15);
+            if (currentCenter.lat.toFixed(5) !== position.lat.toFixed(5) || currentCenter.lng.toFixed(5) !== position.lng.toFixed(5)) {
+                map.setView([position.lat, position.lng], map.getZoom());
             }
         }
     }, [position, map]);
@@ -81,31 +83,38 @@ const MapUpdater = ({ position }: { position: { lat: number; lng: number } }) =>
 
 export default function LeafletMapPicker({ position, onPositionChange }: MapPickerProps) {
     
-    // Initialize the view state ONCE using useState's initializer function.
-    // This prevents MapContainer from re-rendering with new props.
+    // This state is initialized only once per component mount.
     const [initialView] = useState(() => {
         const defaultCenter: LatLngExpression = [14.536, 49.126]; // Mukalla
-        const hasPosition = position && position.lat && position.lng;
+        const hasPosition = position && typeof position.lat === 'number' && typeof position.lng === 'number';
         return {
             center: hasPosition ? [position.lat, position.lng] as LatLngExpression : defaultCenter,
             zoom: hasPosition ? 15 : 13
         };
     });
 
+    const placeholder = (
+        <div className="flex h-full w-full items-center justify-center bg-muted text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p className="ml-2">جاري تحميل الخريطة...</p>
+        </div>
+    );
+
     return (
-        <MapContainer center={initialView.center} zoom={initialView.zoom} style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}>
+        <MapContainer
+            center={initialView.center}
+            zoom={initialView.zoom}
+            style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}
+            placeholder={placeholder}
+        >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <SearchControl onPositionChange={onPositionChange} />
             <MapEvents onPositionChange={onPositionChange} />
-
-            {/* This component handles view updates if the `position` prop changes */}
             <MapUpdater position={position} />
-
-            {/* The Marker is updated based on the `position` prop */}
-            {position && position.lat && position.lng && <Marker position={[position.lat, position.lng]}></Marker>}
+            {position && typeof position.lat === 'number' && typeof position.lng === 'number' && <Marker position={[position.lat, position.lng]} />}
         </MapContainer>
     );
 }
