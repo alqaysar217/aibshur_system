@@ -1,23 +1,24 @@
 import { FirebaseOptions, getApp, getApps, initializeApp } from 'firebase/app';
 
-// Hardcoded Firebase config as requested to bypass .env issues in development.
+// This configuration is now loaded from environment variables.
+// See the .env file.
 const firebaseConfig: FirebaseOptions = {
-  apiKey: "AIzaSyBGsKSyhMg7j9gdp1nleEkADhkuQPvqutM",
-  authDomain: "studio-493831327-52b75.firebaseapp.com",
-  projectId: "studio-493831327-52b75",
-  storageBucket: "studio-493831327-52b75.firebasestorage.app",
-  messagingSenderId: "630199541875",
-  appId: "1:630199541875:web:c15e28fff341c01c050a06",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// This function creates the Firebase app instance.
+// It's designed to be idempotent, so it won't re-initialize the app if it already exists.
 function createFirebaseApp(config: FirebaseOptions) {
+  // The client provider will show a user-friendly error if the config is missing.
   if (!config.apiKey) {
-    // This will now only happen if the hardcoded config is removed/emptied.
-    console.error("CRITICAL: Firebase configuration is missing.");
     return { options: {} } as any; 
   }
   
-  // Initialize Firebase only if it hasn't been initialized yet.
   if (getApps().length) {
     return getApp();
   }
