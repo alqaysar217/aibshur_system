@@ -1,6 +1,6 @@
 'use client';
 
-// CSS imports are moved to the admin layout to prevent build errors.
+// CSS imports are moved to the app layout to prevent build errors.
 
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import { GeoSearchControl, OpenStreetMapProvider } from 'leaflet-geosearch';
@@ -63,35 +63,43 @@ const MapEvents = ({ onPositionChange }: { onPositionChange: (pos: { lat: number
     return null;
 };
 
-const ChangeView = ({ center }: { center: LatLngExpression }) => {
+const ChangeView = ({ center, zoom }: { center: LatLngExpression, zoom: number }) => {
     const map = useMap();
     useEffect(() => {
-        // Only set view if the center is not the default initial one
-        if (Array.isArray(center) && (center[0] !== 15.3694 || center[1] !== 44.1910)) {
-            map.setView(center, 14); // Zoom in when a location is set
-        }
-    }, [center, map]);
+        map.setView(center, zoom);
+    }, [center, zoom, map]);
     return null;
 }
 
 export default function LeafletMapPicker({ position, onPositionChange }: MapPickerProps) {
-    const center: LatLngExpression = (position.lat !== 0 && position.lng !== 0) 
+    // These are the initial, immutable props for MapContainer
+    const initialCenter: LatLngExpression = [15.3694, 44.1910]; // Default to Sana'a
+    const initialZoom = 8;
+
+    // These props will change and be passed to our child components
+    const currentCenter: LatLngExpression = (position.lat !== 0 && position.lng !== 0) 
         ? [position.lat, position.lng]
-        : [15.3694, 44.1910]; // Default to Sana'a
+        : initialCenter;
+    
+    const currentZoom = (position.lat !== 0 && position.lng !== 0) ? 14 : initialZoom;
 
     const markerPosition: LatLngExpression | null = (position.lat !== 0 && position.lng !== 0)
         ? [position.lat, position.lng]
         : null;
 
     return (
-        <MapContainer center={center} zoom={markerPosition ? 14 : 8} style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}>
+        // MapContainer gets only the initial, unchanging props
+        <MapContainer center={initialCenter} zoom={initialZoom} style={{ height: '300px', width: '100%', borderRadius: 'var(--radius)', zIndex: 10 }}>
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             <SearchControl onPositionChange={onPositionChange} />
             <MapEvents onPositionChange={onPositionChange} />
-            <ChangeView center={center} />
+
+            {/* This component will handle all view changes after initialization */}
+            <ChangeView center={currentCenter} zoom={currentZoom} />
+
             {markerPosition && <Marker position={markerPosition}></Marker>}
         </MapContainer>
     );
