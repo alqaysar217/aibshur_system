@@ -1,5 +1,5 @@
 'use client';
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { useFirestore, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, addDoc, updateDoc, deleteDoc, doc, GeoPoint, setDoc } from 'firebase/firestore';
 import type { Store, City, DailyHours, StoreCategory, User } from '@/lib/types';
@@ -43,7 +43,103 @@ import { Skeleton } from '@/components/ui/skeleton';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import Image from 'next/image';
 import { Switch } from '@/components/ui/switch';
+import React from 'react';
+import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from '@react-google-maps/api';
 
+const libraries: ("places")[] = ["places"];
+
+function MapPickerWithSearch({ location, onLocationChange }: { location: { latitude: number, longitude: number }, onLocationChange: (loc: { latitude: number, longitude: number }) => void }) {
+    const { isLoaded, loadError } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
+        libraries,
+    });
+
+    const [searchBox, setSearchBox] = React.useState<google.maps.places.SearchBox | null>(null);
+    const mapRef = React.useRef<google.maps.Map | null>(null);
+
+    const onSearchBoxLoad = (ref: google.maps.places.SearchBox) => {
+        setSearchBox(ref);
+    };
+
+    const onPlacesChanged = () => {
+        if (searchBox) {
+            const places = searchBox.getPlaces();
+            if (places && places.length > 0 && places[0].geometry?.location) {
+                const place = places[0];
+                const newLocation = {
+                    latitude: place.geometry.location.lat(),
+                    longitude: place.geometry.location.lng(),
+                };
+                onLocationChange(newLocation);
+                
+                const bounds = new google.maps.LatLngBounds();
+                if (place.geometry.viewport) {
+                    bounds.union(place.geometry.viewport);
+                } else {
+                    bounds.extend(place.geometry.location);
+                }
+                mapRef.current?.fitBounds(bounds);
+            }
+        }
+    };
+    
+    const handleMapClick = (event: google.maps.MapMouseEvent) => {
+        if (event.latLng) {
+            onLocationChange({
+                latitude: event.latLng.lat(),
+                longitude: event.latLng.lng(),
+            });
+        }
+    };
+
+    const center = (location.latitude !== 0 && location.longitude !== 0) 
+        ? { lat: location.latitude, lng: location.longitude } 
+        : { lat: 15.3694, lng: 44.1910 }; // Default to Sana'a
+
+    if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+        return (
+            <div className="text-destructive p-4 border-l-4 border-destructive bg-destructive/10 rounded-md">
+                <h4 className="font-bold">مفتاح Google Maps API غير موجود</h4>
+                <p>الرجاء إضافة مفتاح Google Maps API إلى ملف البيئة الخاص بك تحت اسم <code className="font-mono bg-destructive/20 px-1 rounded">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>.</p>
+            </div>
+        );
+    }
+    
+    if (loadError) {
+        return <div className="text-destructive p-4 border-l-4 border-destructive bg-destructive/10 rounded-md">خطأ في تحميل الخريطة. يرجى مراجعة مفتاح API والاتصال بالإنترنت.</div>;
+    }
+
+    return isLoaded ? (
+        <div className="space-y-2">
+             <StandaloneSearchBox
+                onLoad={onSearchBoxLoad}
+                onPlacesChanged={onPlacesChanged}
+              >
+                <Input
+                  type="text"
+                  placeholder="ابحث عن عنوان أو مكان..."
+                  className="w-full rounded-lg bg-gray-50 pr-4"
+                />
+              </StandaloneSearchBox>
+
+            <GoogleMap
+                mapContainerStyle={{ width: '100%', height: '300px', borderRadius: 'var(--radius)' }}
+                center={center}
+                zoom={location.latitude !== 0 ? 15 : 8}
+                onLoad={ref => mapRef.current = ref}
+                onClick={handleMapClick}
+            >
+                {location.latitude !== 0 && <Marker position={{ lat: location.latitude, lng: location.longitude }} />}
+            </GoogleMap>
+        </div>
+    ) : (
+        <div className="flex items-center justify-center h-[300px] w-full bg-muted rounded-lg">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <p className="ml-2">جاري تحميل الخريطة...</p>
+        </div>
+    );
+}
 
 const StoreRowSkeleton = () => (
     <TableRow>
@@ -434,55 +530,26 @@ export default function AdminStoresPage() {
                     
                     <div className="md:col-span-2 space-y-2 p-4 border-2 border-dashed rounded-lg bg-gray-50/50">
                         <Label className="font-black text-gray-700">موقع المتجر على الخريطة</Label>
-                        <p className="text-xs text-amber-600 font-bold bg-amber-50 p-2 rounded-md">ملاحظة: سيتم استبدال هذه الحقول بخريطة تفاعلية في المرحلة القادمة.</p>
+                         <MapPickerWithSearch
+                            location={currentStore?.location || { latitude: 0, longitude: 0 }}
+                            onLocationChange={(newLoc) => {
+                                setCurrentStore(prev => ({
+                                    ...prev,
+                                    location: {
+                                        latitude: newLoc.latitude,
+                                        longitude: newLoc.longitude
+                                    }
+                                }))
+                            }}
+                        />
                         <div className="grid grid-cols-2 gap-4 pt-2">
                             <div className="space-y-2">
                                 <Label htmlFor="latitude">خط العرض (Latitude)</Label>
-                                <Input
-                                    id="latitude"
-                                    name="latitude"
-                                    type="number"
-                                    step="any"
-                                    required
-                                    className="rounded-lg bg-gray-50"
-                                    dir="ltr"
-                                    placeholder="e.g. 15.3694"
-                                    value={currentStore?.location?.latitude ?? ''}
-                                    onChange={(e) => {
-                                        const value = e.target.valueAsNumber;
-                                        setCurrentStore(prev => ({
-                                            ...prev,
-                                            location: {
-                                                ...(prev?.location as GeoPoint),
-                                                latitude: isNaN(value) ? prev?.location?.latitude ?? 0 : value,
-                                            }
-                                        }))
-                                    }}
-                                />
+                                <Input id="latitude" name="latitude" type="number" readOnly className="rounded-lg bg-gray-200" dir="ltr" value={currentStore?.location?.latitude ?? ''}/>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="longitude">خط الطول (Longitude)</Label>
-                                <Input
-                                    id="longitude"
-                                    name="longitude"
-                                    type="number"
-                                    step="any"
-                                    required
-                                    className="rounded-lg bg-gray-50"
-                                    dir="ltr"
-                                    placeholder="e.g. 44.1910"
-                                    value={currentStore?.location?.longitude ?? ''}
-                                    onChange={(e) => {
-                                        const value = e.target.valueAsNumber;
-                                        setCurrentStore(prev => ({
-                                            ...prev,
-                                            location: {
-                                                ...(prev?.location as GeoPoint),
-                                                longitude: isNaN(value) ? prev?.location?.longitude ?? 0 : value,
-                                            }
-                                        }))
-                                    }}
-                                />
+                                <Input id="longitude" name="longitude" type="number" readOnly className="rounded-lg bg-gray-200" dir="ltr" value={currentStore?.location?.longitude ?? ''}/>
                             </div>
                         </div>
                     </div>
