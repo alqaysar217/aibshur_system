@@ -251,12 +251,12 @@ export default function SettingsPage() {
                         )}
                         <h3 className="font-bold pt-4">المدراء الحاليون</h3>
                         <Table>
-                             <TableHeader><TableRow><TableHead>الاسم</TableHead><TableHead>رقم الهاتف</TableHead></TableRow></TableHeader>
+                             <TableHeader><TableRow><TableHead className="text-right">الاسم</TableHead><TableHead className="text-center">رقم الهاتف</TableHead></TableRow></TableHeader>
                              <TableBody>
                                  {admins?.map(admin => (
                                      <TableRow key={admin.uid}>
-                                         <TableCell className="font-bold">{admin.full_name}</TableCell>
-                                         <TableCell className="font-mono text-muted-foreground" dir="ltr">{admin.phone}</TableCell>
+                                         <TableCell className="font-bold text-right">{admin.full_name}</TableCell>
+                                         <TableCell className="text-center font-mono text-muted-foreground" dir="ltr">{admin.phone}</TableCell>
                                      </TableRow>
                                  ))}
                              </TableBody>
