@@ -8,7 +8,7 @@ import { collection, getDocs, query, orderBy, limit, onSnapshot } from "firebase
 import SetupFirestoreMessage from "@/components/admin/setup-firestore-message";
 import type { Order as OrderType, Store as StoreType, User as UserType, City, Donation, AppConfig } from "@/lib/types";
 import { Skeleton } from "../ui/skeleton";
-import { format, subDays, startOfDay, isWithinInterval, parseISO, endOfDay, formatDistanceToNow } from "date-fns";
+import { format, subDays, startOfDay, isWithinInterval, parseISO, endOfDay, formatDistanceToNow, eachDayOfInterval } from "date-fns";
 import { ar } from "date-fns/locale";
 import Link from "next/link";
 
