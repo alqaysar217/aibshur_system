@@ -1,4 +1,4 @@
-import type { City, User, Store, Product, Order, FinanceTransaction, CategoryFilter, AppBank, Donation, LoyaltyTransaction, LoyaltyPointsConfig, Appointment, Complaint } from './types';
+import type { City, User, Store, Product, Order, FinanceTransaction, CategoryFilter, AppBank, Donation, LoyaltyTransaction, LoyaltyPointsConfig, Appointment, Complaint, VipPlan } from './types';
 import { addDays, set, subDays, nextSaturday, addHours } from 'date-fns';
 
 // --- SUPER ADMINS ---
@@ -219,6 +219,35 @@ export const mockAppointments: Omit<Appointment, 'id' | 'appointmentId' | 'isMoc
     { clientUid: 'mock-user-uid-5', clientName: 'سارة أحمد', clientPhone: '777555666', storeId: 'store-5', storeName: 'عسل دوعن', items: [{ productId: 'oud-1', productName_ar: 'بخور وعطور فاخرة', quantity: 1, price: 25000 }], totalPrice: 25000, paymentMethod: 'cash', appointmentDate: subDays(new Date(), 1).toISOString(), clientAddress: 'غيل باوزير', status: 'completed', createdAt: subDays(new Date(), 1).toISOString() }
 ];
 
+export const mockVipPlans: Omit<VipPlan, 'id' | 'planId' | 'isMock'>[] = [
+    {
+        name: 'الباقة الذهبية',
+        description: 'تجربة مميزة مع توصيل مجاني وخصومات حصرية.',
+        price: 9900,
+        durationInDays: 30,
+        benefits: { hasFreeDelivery: true, discountPercentage: 15, pointsMultiplier: 2 },
+        features: ['توصيل مجاني على كل الطلبات', 'خصم 15% على متاجر محددة', 'شارة VIP مميزة', 'نقاط ولاء مضاعفة'],
+        isActive: true,
+    },
+    {
+        name: 'الباقة الفضية',
+        description: 'ابدأ التوفير مع خصومات رائعة على طلباتك.',
+        price: 4900,
+        durationInDays: 30,
+        benefits: { hasFreeDelivery: false, discountPercentage: 10, pointsMultiplier: 1.5 },
+        features: ['خصم 10% على كل الطلبات', 'نقاط ولاء 1.5x'],
+        isActive: true,
+    },
+    {
+        name: 'الباقة التجريبية',
+        description: 'باقة للتجربة فقط.',
+        price: 100,
+        durationInDays: 7,
+        benefits: { hasFreeDelivery: false, discountPercentage: 0, pointsMultiplier: 1 },
+        features: [],
+        isActive: false, // Inactive by default
+    },
+];
 
 export const mockProducts: Product[] = [];
 export const mockOrders: Order[] = [];

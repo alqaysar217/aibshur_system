@@ -1,13 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { useFirestore } from '@/firebase';
-import { collection, writeBatch, doc, getDocs, query, where, Timestamp, setDoc } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs, query, where, Timestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import type { User, Store, Order, WalletTopupRequest, City, OrderStatus, Appointment, AppBank, Donation, LoyaltyTransaction, LoyaltyPointsConfig, FinanceTransaction, Complaint } from '@/lib/types';
-import { mockUsers, mockStores, mockBanks, mockDonations, mockLoyaltyTransactions, mockLoyaltyConfig, mockAppointments, mockComplaints } from '@/lib/mock-data';
+import type { User, Store, Order, WalletTopupRequest, City, OrderStatus, Appointment, AppBank, Donation, LoyaltyTransaction, LoyaltyPointsConfig, FinanceTransaction, Complaint, VipPlan } from '@/lib/types';
+import { mockUsers, mockStores, mockBanks, mockDonations, mockLoyaltyTransactions, mockLoyaltyConfig, mockAppointments, mockComplaints, mockVipPlans } from '@/lib/mock-data';
+import { addDays, subDays } from 'date-fns';
 
 function getRandomElement<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -17,7 +18,7 @@ function getRandomNumber(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-const COLLECTIONS_TO_PURGE = ['users', 'stores', 'orders', 'wallet_transactions', 'appointments', 'app_banks', 'donations', 'financeTransactions', 'loyalty_transactions', 'settings', 'complaints'];
+const COLLECTIONS_TO_PURGE = ['users', 'stores', 'orders', 'wallet_transactions', 'appointments', 'app_banks', 'donations', 'financeTransactions', 'loyalty_transactions', 'settings', 'complaints', 'vip_plans'];
 
 export default function DataSeederPage() {
     const { toast } = useToast();
@@ -38,8 +39,33 @@ export default function DataSeederPage() {
             mockStores.forEach(store => batch.set(doc(firestore, 'stores', store.storeId), store));
             mockBanks.forEach(bank => batch.set(doc(firestore, 'app_banks', bank.bankId), bank));
             
-            // --- 2. Seed Loyalty Config ---
+            // --- 2. Seed Loyalty Config & VIP Plans ---
             batch.set(doc(firestore, 'settings', 'points_config'), mockLoyaltyConfig);
+            
+            const seededPlans: {id: string, data: Omit<VipPlan, 'id' | 'planId' | 'isMock'>}[] = [];
+            mockVipPlans.forEach(plan => {
+                const planRef = doc(collection(firestore, 'vip_plans'));
+                const fullPlanData = { ...plan, planId: planRef.id, isMock: true };
+                batch.set(planRef, fullPlanData);
+                seededPlans.push({ id: planRef.id, data: plan });
+            });
+
+            // --- 3. Seed VIP Subscriptions for some users ---
+            if (seededPlans.length > 0) {
+                const goldenPlan = seededPlans.find(p => p.data.name === 'الباقة الذهبية');
+                if (goldenPlan) {
+                    batch.update(doc(firestore, 'users', 'mock-user-uid-1'), {
+                        'vip_details': { isActive: true, planId: goldenPlan.id, planName: goldenPlan.data.name, startDate: subDays(new Date(), 10).toISOString(), expiryDate: addDays(new Date(), 20).toISOString(), receiptImageUrl: 'https://picsum.photos/seed/receipt-vip1/400' }
+                    });
+                }
+                const silverPlan = seededPlans.find(p => p.data.name === 'الباقة الفضية');
+                if (silverPlan) {
+                    batch.update(doc(firestore, 'users', 'mock-user-uid-2'), {
+                         'vip_details': { isActive: true, planId: silverPlan.id, planName: silverPlan.data.name, startDate: subDays(new Date(), 2).toISOString(), expiryDate: addDays(new Date(), 28).toISOString(), receiptImageUrl: 'https://picsum.photos/seed/receipt-vip2/400' }
+                    });
+                }
+            }
+
 
             const clients = mockUsers.filter(u => u.roles.is_user && !u.roles.is_admin);
             
@@ -47,7 +73,7 @@ export default function DataSeederPage() {
                  throw new Error('لا يوجد عملاء أو متاجر لإضافة بيانات تجريبية لها.');
             }
             
-            // --- 3. Seed Orders ---
+            // --- 4. Seed Orders ---
             for (let i = 0; i < 15; i++) {
                 const orderRef = doc(collection(firestore, 'orders'));
                 const client = getRandomElement(clients);
@@ -65,13 +91,13 @@ export default function DataSeederPage() {
                 batch.set(orderRef, orderData);
             }
 
-            // --- 4. Seed Appointments ---
+            // --- 5. Seed Appointments ---
             mockAppointments.forEach(appData => {
                 const appRef = doc(collection(firestore, 'appointments'));
                 batch.set(appRef, { ...appData, appointmentId: appRef.id, isMock: true });
             });
             
-            // --- 5. Seed Donations & Loyalty Transactions ---
+            // --- 6. Seed Donations & Loyalty Transactions ---
             mockDonations.forEach(donation => {
                 const donationRef = doc(collection(firestore, 'donations'));
                 batch.set(donationRef, { ...donation, donationId: donationRef.id, timestamp: new Date().toISOString(), isMock: true });
@@ -84,7 +110,7 @@ export default function DataSeederPage() {
                 batch.set(txRef, { ...tx, transactionId: txRef.id, timestamp: new Date().toISOString(), isMock: true });
             });
 
-            // --- 6. Seed Wallet Topups ---
+            // --- 7. Seed Wallet Topups ---
              for (let i = 0; i < 5; i++) {
                  const walletRef = doc(collection(firestore, 'wallet_transactions'));
                  batch.set(walletRef, {
@@ -95,7 +121,7 @@ export default function DataSeederPage() {
                  });
             }
 
-            // --- 7. Seed Complaints ---
+            // --- 8. Seed Complaints ---
             mockComplaints.forEach(complaint => {
                 const complaintRef = doc(collection(firestore, 'complaints'));
                 batch.set(complaintRef, { ...complaint, complaintId: complaintRef.id, isMock: true });
@@ -166,6 +192,7 @@ export default function DataSeederPage() {
                         <ul className="list-disc list-inside text-sm mt-2 space-y-1">
                            <li>إضافة مستخدمين (عملاء، مناديب، أصحاب متاجر، مدراء).</li>
                            <li>إضافة متاجر، بنوك، وإعدادات نقاط الولاء.</li>
+                           <li>إضافة باقات VIP وتفعيل اشتراكات لبعض المستخدمين.</li>
                            <li>تعبئة واجهة الطلبات بطلبات ذات حالات مختلفة.</li>
                            <li>تعبئة واجهة المواعيد بـ 5 طلبات مجدولة واقعية (عزومة، هدية، إلخ).</li>
                            <li>تعبئة تقرير أداء المناديب ببيانات مالية (عمولات ومديونية).</li>
