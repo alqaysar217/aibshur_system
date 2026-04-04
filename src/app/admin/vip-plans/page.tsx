@@ -2,25 +2,39 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useFirestore, useUser, useCollection, FirestorePermissionError, errorEmitter } from '@/firebase';
 import { collection, doc, query, where, getDocs, limit, updateDoc, setDoc, runTransaction, deleteDoc } from 'firebase/firestore';
-import type { User, VipPlan, FinanceTransaction, AppBank } from '@/lib/types';
+import type { User, VipPlan, FinanceTransaction, AppBank, VipPlanBenefits } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus, ExternalLink } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus, ExternalLink, TicketPercent, Truck, Star, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, differenceInDays, add } from 'date-fns';
+import { ar } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Checkbox } from '@/components/ui/checkbox';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
+
+const PlanCardSkeleton = () => <Skeleton className="h-64 w-full rounded-lg" />;
+const TableRowSkeleton = () => <TableRow><TableCell colSpan={6}><Skeleton className="h-10 w-full"/></TableCell></TableRow>;
+const ActivationSkeleton = () => <Skeleton className="h-[450px] w-full rounded-lg" />;
+
+const PlanBenefit = ({ icon: Icon, text, value }: {icon: React.ElementType, text: string, value: React.ReactNode}) => (
+    <div className="flex items-center text-sm">
+        <Icon className="w-4 h-4 ml-2 text-primary" />
+        <span className="font-bold">{text}:</span>
+        <span className="mr-2 text-muted-foreground">{value}</span>
+    </div>
+);
 
 export default function VipPlansPage() {
   const { toast } = useToast();
@@ -37,7 +51,7 @@ export default function VipPlansPage() {
   const [planToDelete, setPlanToDelete] = useState<VipPlan | null>(null);
   const [newFeatureText, setNewFeatureText] = useState('');
   const plansQuery = useMemo(() => firestore ? query(collection(firestore, 'vip_plans')) : null, [firestore]);
-  const { data: vipPlans, loading: plansLoading, error: plansError } = useCollection<VipPlan>(plansQuery, 'vip_plans');
+  const { data: vipPlans, loading: plansLoading, error: plansError, refetch: refetchPlans } = useCollection<VipPlan>(plansQuery, { fetchOnce: false, collectionPath: 'vip_plans' });
 
   // Subscription Activation
   const [searchPhone, setSearchPhone] = useState('');
@@ -50,11 +64,11 @@ export default function VipPlansPage() {
   const [receiptImage, setReceiptImage] = useState('');
 
   // Data for dropdowns
-  const { data: banks, loading: banksLoading } = useCollection<AppBank>(useMemo(() => firestore ? collection(firestore, 'app_banks') : null, [firestore]), 'app_banks');
+  const { data: banks, loading: banksLoading, error: banksError } = useCollection<AppBank>(useMemo(() => firestore ? collection(firestore, 'app_banks') : null, [firestore]), { collectionPath: 'app_banks' });
 
   // Audit Table
   const vipUsersQuery = useMemo(() => firestore ? query(collection(firestore, 'users'), where('vip_details.isActive', '==', true)) : null, [firestore]);
-  const { data: vipUsers, loading: vipUsersLoading, error: vipUsersError } = useCollection<User>(vipUsersQuery, 'users');
+  const { data: vipUsers, loading: vipUsersLoading, error: vipUsersError, refetch: refetchVipUsers } = useCollection<User>(vipUsersQuery, { fetchOnce: false, collectionPath: 'users' });
   
   useEffect(() => {
     if (selectedPlanId && vipPlans) {
@@ -88,12 +102,17 @@ export default function VipPlansPage() {
   const handleConfirmDelete = async () => {
     if (!firestore || !planToDelete) return;
     setIsSubmitting(true);
+    const docRef = doc(firestore, 'vip_plans', planToDelete.id!);
     try {
-        await deleteDoc(doc(firestore, 'vip_plans', planToDelete.id!));
+        await deleteDoc(docRef);
         toast({ title: 'تم حذف الباقة بنجاح' });
         setIsDeleteDialogOpen(false);
     } catch (err: any) {
-        toast({ variant: 'destructive', title: 'خطأ في حذف الباقة' });
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: docRef.path, operation: 'delete' }));
+        } else {
+            toast({ variant: 'destructive', title: 'خطأ في حذف الباقة' });
+        }
         console.error(err);
     } finally {
         setIsSubmitting(false);
@@ -121,19 +140,19 @@ export default function VipPlansPage() {
     if (!firestore || !currentPlan) return;
     setIsSubmitting(true);
     
+    const planData: Omit<VipPlan, 'id' | 'planId'> = {
+        name: currentPlan.name!,
+        description: currentPlan.description || '',
+        price: currentPlan.price!,
+        durationInDays: currentPlan.durationInDays!,
+        benefits: currentPlan.benefits!,
+        features: currentPlan.features || [],
+        isActive: currentPlan.isActive!,
+    };
+    
     let docRef;
 
     try {
-        const planData: Omit<VipPlan, 'id' | 'planId'> = {
-            name: currentPlan.name!,
-            description: currentPlan.description || '',
-            price: currentPlan.price!,
-            durationInDays: currentPlan.durationInDays!,
-            benefits: currentPlan.benefits!,
-            features: currentPlan.features || [],
-            isActive: currentPlan.isActive!,
-        };
-
         if (currentPlan.id) {
             docRef = doc(firestore, 'vip_plans', currentPlan.id);
             await updateDoc(docRef, planData);
@@ -145,7 +164,15 @@ export default function VipPlansPage() {
         }
         setPlanDialogOpen(false);
     } catch(err: any) {
-        toast({ variant: "destructive", title: "خطأ في حفظ الباقة", description: err.message });
+        if (err.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: docRef!.path,
+                operation: currentPlan.id ? 'update' : 'create',
+                requestResourceData: planData
+            }));
+        } else {
+            toast({ variant: "destructive", title: "خطأ في حفظ الباقة", description: err.message });
+        }
         console.error(err);
     } finally {
         setIsSubmitting(false);
@@ -167,9 +194,12 @@ export default function VipPlansPage() {
             setFoundUser(user);
             toast({ title: 'تم العثور على العميل', description: user.full_name });
         }
-    } catch (error) {
-        console.error(error);
-        toast({ variant: 'destructive', title: 'خطأ في البحث' });
+    } catch (error: any) {
+        if (error.code === 'permission-denied') {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'users', operation: 'list'}));
+        } else {
+            toast({ variant: 'destructive', title: 'خطأ في البحث' });
+        }
     } finally {
         setIsSearching(false);
     }
@@ -188,7 +218,6 @@ export default function VipPlansPage() {
             throw new Error("المبلغ المدفوع غير صالح.");
         }
 
-        // Transaction to update user and log financials
         await runTransaction(firestore, async (transaction) => {
             const userDocRef = doc(firestore, 'users', foundUser.uid);
             const planDocRef = doc(firestore, 'vip_plans', selectedPlanId);
@@ -214,7 +243,7 @@ export default function VipPlansPage() {
                 expiryDate: expiryDate.toISOString(),
                 amountPaid: paidAmount,
                 receiptNumber: receiptNumber,
-                receiptImageUrl: receiptImage, // Use the URL directly
+                receiptImageUrl: receiptImage,
                 activatedBy: adminUser.uid,
             };
 
@@ -238,7 +267,6 @@ export default function VipPlansPage() {
             description: `تم تفعيل باقة ${vipPlans?.find(p=>p.id === selectedPlanId)?.name} للعميل ${foundUser.full_name}.`
         });
         
-        // Reset form
         setFoundUser(null);
         setSearchPhone('');
         setSelectedPlanId('');
@@ -246,10 +274,15 @@ export default function VipPlansPage() {
         setActivationBankId('');
         setReceiptNumber('');
         setReceiptImage('');
+        refetchVipUsers();
 
       } catch (error: any) {
         console.error("VIP activation failed:", error);
-        toast({ variant: 'destructive', title: 'فشلت العملية', description: error.message });
+        if (error.code === 'permission-denied') {
+            toast({ variant: 'destructive', title: 'خطأ صلاحيات', description: 'لا يمكنك تنفيذ هذه العملية. تحقق من صلاحيات Firestore.' });
+        } else {
+            toast({ variant: 'destructive', title: 'فشلت العملية', description: error.message });
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -262,168 +295,182 @@ export default function VipPlansPage() {
         await updateDoc(userDocRef, { 'vip_details.isActive': false });
         toast({ title: "تم إلغاء الاشتراك" });
     } catch(err) {
-        toast({ variant: 'destructive', title: "فشل الإلغاء" });
+        if ((err as any).code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userDocRef.path, operation: 'update'}));
+        } else {
+            toast({ variant: 'destructive', title: "فشل الإلغاء" });
+        }
     }
   }
   
-  const dbError = vipUsersError || plansError;
-  if (dbError) return <p className="text-destructive text-center p-8">خطأ في جلب البيانات: {dbError.message}</p>;
+  const dbError = vipUsersError || plansError || banksError;
+  if (dbError) {
+    if ((dbError as any).message.includes('permission-denied') || (dbError as any).message.includes('database (default) does not exist')) {
+        return <SetupFirestoreMessage />;
+    }
+    return <p className="text-destructive text-center p-8">خطأ في جلب البيانات: {dbError.message}</p>;
+  }
   if (!firestore) return <SetupFirestoreMessage />;
 
   return (
     <div className="space-y-8">
-      <Card>
-        <CardHeader className="flex-row justify-between items-start">
-            <div className="space-y-1.5">
-                <CardTitle className="flex items-center gap-2"><Settings className="text-primary"/> إدارة أنواع الباقات</CardTitle>
-                <CardDescription>إنشاء وتعديل باقات VIP المتاحة للبيع.</CardDescription>
-            </div>
-            <Button onClick={() => handleOpenPlanDialog()}>
-                <PlusCircle className="ml-2 h-4 w-4" /> إنشاء باقة جديدة
-            </Button>
-        </CardHeader>
-        <CardContent className="p-0">
-            <Table>
-                <TableHeader>
-                    <TableRow className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
-                        <TableHead className="w-[150px]">اسم الباقة</TableHead>
-                        <TableHead className="text-center">السعر</TableHead>
-                        <TableHead className="text-center">المدة</TableHead>
-                        <TableHead>المميزات</TableHead>
-                        <TableHead className="text-center">الحالة</TableHead>
-                        <TableHead className="text-center w-[120px]">إجراءات</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody className="divide-y divide-gray-50">
-                    {plansLoading ? <TableRow><TableCell colSpan={6} className="p-0"><Skeleton className="h-14 w-full"/></TableCell></TableRow>
-                    : vipPlans?.map(plan => (
-                        <TableRow key={plan.id}>
-                            <TableCell className="font-bold">{plan.name}</TableCell>
-                            <TableCell className="text-center font-mono">{plan.price.toLocaleString()} ر.ي</TableCell>
-                            <TableCell className="text-center">{plan.durationInDays} يوم</TableCell>
-                            <TableCell>
-                                <ul className="list-disc pr-4 space-y-1 text-xs">
-                                    {plan.features?.map((feature, i) => <li key={i}>{feature}</li>)}
-                                    {plan.benefits.hasFreeDelivery && <li className='font-bold text-green-600'>توصيل مجاني</li>}
-                                </ul>
-                            </TableCell>
-                            <TableCell className="text-center"><Badge variant={plan.isActive ? "secondary" : "destructive"}>{plan.isActive ? 'مفعلة' : 'موقفة'}</Badge></TableCell>
-                            <TableCell className="text-center">
-                                <div className='flex justify-center items-center gap-1'>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenPlanDialog(plan)}><Edit className="h-4 w-4 text-gray-400"/></Button>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:bg-red-50 hover:text-red-500" onClick={() => handleOpenDeleteDialog(plan)}><Trash2 className="h-4 w-4"/></Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Crown className="text-primary"/> تعميد وتفعيل الاشتراكات</CardTitle>
-            <CardDescription>واجهة مخصصة لتفعيل أو تجديد عضويات VIP للعملاء.</CardDescription>
-        </CardHeader>
-        <CardContent className='space-y-6'>
-            <fieldset className='p-4 border rounded-xl space-y-4'>
-                <legend className="text-sm font-bold px-2">1. البحث عن العميل</legend>
-                <div className="flex items-stretch gap-2">
-                    <Input type="tel" placeholder="ابحث برقم هاتف العميل..." value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} className='max-w-xs' dir='ltr'/>
-                    <Button type="button" onClick={handleSearchUser} disabled={isSearching || !searchPhone}>
-                        {isSearching ? <Loader2 className="animate-spin w-4 h-4"/> : <Search className='w-4 h-4'/>}
-                    </Button>
-                    {foundUser && (
-                    <div className="flex-1 p-2 border rounded-lg bg-green-50 flex items-center justify-between animate-in fade-in duration-300">
-                        <div className="flex items-center gap-3"><UserCheck className='w-5 h-5 text-green-600'/>
-                            <div><p className="font-bold text-sm text-green-800">{foundUser.full_name}</p><p className="text-xs text-green-600 font-mono" dir='ltr'>{foundUser.phone}</p></div>
-                        </div>
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 shrink-0" onClick={() => {setFoundUser(null); setSearchPhone('')}}><X className="h-4 w-4"/></Button>
-                    </div>
-                    )}
+        <div>
+            <h1 className="text-2xl font-black text-gray-900">إدارة العضويات المميزة (VIP)</h1>
+            <p className="text-gray-400 text-sm font-bold mt-1">إنشاء الباقات، تفعيل الاشتراكات، ومتابعة العملاء المميزين.</p>
+        </div>
+        
+        <Card className="rounded-lg shadow-sm">
+            <CardHeader className="flex-row justify-between items-start">
+                <div>
+                    <CardTitle className="flex items-center gap-2"><Settings className="text-primary"/> إدارة أنواع الباقات</CardTitle>
+                    <CardDescription>إنشاء وتعديل باقات VIP المتاحة للبيع.</CardDescription>
                 </div>
-            </fieldset>
-            
-            <fieldset disabled={!foundUser || isSubmitting} className="p-4 border rounded-xl space-y-4 disabled:opacity-50 transition-opacity">
-                <legend className="text-sm font-bold px-2">2. اختيار الباقة وتفاصيل الدفع</legend>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className='space-y-2'>
-                        <Label>اختر الباقة*</Label>
-                        <select required value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background">
-                            <option value="" disabled>اختر باقة...</option>
-                            {vipPlans?.filter(p=>p.isActive).map(p => <option key={p.id} value={p.id!}>{p.name} ({p.price} ر.ي)</option>)}
-                        </select>
+                <Button onClick={() => handleOpenPlanDialog()} className="rounded-lg">
+                    <PlusCircle className="ml-2 h-4 w-4" /> إنشاء باقة
+                </Button>
+            </CardHeader>
+            <CardContent>
+                {plansLoading ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <PlanCardSkeleton /><PlanCardSkeleton /><PlanCardSkeleton />
+                </div> : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {vipPlans?.map(plan => (
+                        <Card key={plan.id} className="flex flex-col rounded-lg overflow-hidden shadow-md transition-all hover:shadow-xl hover:-translate-y-1">
+                            <CardHeader className={cn("p-4", plan.isActive ? 'bg-primary/10' : 'bg-muted/50')}>
+                                <div className="flex justify-between items-center">
+                                    <CardTitle className="font-black text-lg text-primary">{plan.name}</CardTitle>
+                                    <Badge variant={plan.isActive ? "default" : "secondary"} className={cn(plan.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600')}>{plan.isActive ? "مفعلة" : "موقوفة"}</Badge>
+                                </div>
+                                <div className="text-3xl font-black text-foreground pt-2">
+                                    {plan.price.toLocaleString()} ر.ي <span className="text-sm font-normal text-muted-foreground">/ {plan.durationInDays} يوم</span>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-3 flex-grow">
+                                <p className="text-sm text-muted-foreground">{plan.description}</p>
+                                <div className="space-y-2">
+                                    {plan.features?.map((feature, i) => (
+                                        <div key={i} className="flex items-center gap-2 text-sm">
+                                            <Check className="w-4 h-4 text-green-500" />
+                                            <span>{feature}</span>
+                                        </div>
+                                    ))}
+                                    {plan.benefits.hasFreeDelivery && <PlanBenefit icon={Truck} text="توصيل مجاني" value="نعم"/>}
+                                    {plan.benefits.discountPercentage > 0 && <PlanBenefit icon={TicketPercent} text="خصم إضافي" value={`${plan.benefits.discountPercentage}%`} />}
+                                    {plan.benefits.pointsMultiplier > 1 && <PlanBenefit icon={Star} text="نقاط مضاعفة" value={`x${plan.benefits.pointsMultiplier}`}/>}
+                                </div>
+                            </CardContent>
+                             <CardContent className="p-4 border-t flex justify-end gap-2">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => handleOpenPlanDialog(plan)}><Edit className="w-4 h-4 text-gray-400"/></Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-500" onClick={() => handleOpenDeleteDialog(plan)}><Trash2 className="w-4 h-4"/></Button>
+                            </CardContent>
+                        </Card>
+                    ))}
+                    {vipPlans?.length === 0 && <p className="col-span-full text-center text-muted-foreground py-10">لا توجد باقات VIP معرفة بعد. قم بإنشاء باقة جديدة.</p>}
+                </div>
+                )}
+            </CardContent>
+        </Card>
+        
+        <Card className="rounded-lg shadow-sm">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Crown className="text-primary"/> تعميد وتفعيل الاشتراكات</CardTitle>
+                <CardDescription>واجهة مخصصة لتفعيل أو تجديد عضويات VIP للعملاء.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {banksLoading ? <ActivationSkeleton /> : (
+                <div className='grid grid-cols-1 lg:grid-cols-2 gap-8'>
+                    <div className='space-y-6'>
+                        <fieldset className='p-4 border rounded-lg space-y-4'>
+                            <legend className="text-sm font-bold px-2">1. البحث عن العميل</legend>
+                            <div className="flex items-stretch gap-2">
+                                <Input type="tel" placeholder="ابحث برقم هاتف العميل..." value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} dir='ltr'/>
+                                <Button type="button" onClick={handleSearchUser} disabled={isSearching || !searchPhone}>
+                                    {isSearching ? <Loader2 className="animate-spin w-4 h-4"/> : <Search className='w-4 h-4'/>}
+                                </Button>
+                            </div>
+                            {foundUser && (
+                            <div className="p-3 border rounded-lg bg-green-50 flex items-center justify-between animate-in fade-in duration-300">
+                                <div className="flex items-center gap-3">
+                                    <UserCheck className='w-5 h-5 text-green-600'/>
+                                    <div><p className="font-bold text-sm text-green-800">{foundUser.full_name}</p><p className="text-xs text-green-600 font-mono" dir='ltr'>{foundUser.phone}</p></div>
+                                </div>
+                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 shrink-0" onClick={() => {setFoundUser(null); setSearchPhone('')}}><X className="w-4 h-4"/></Button>
+                            </div>
+                            )}
+                        </fieldset>
+                        <Button onClick={handleActivateSubscription} className='w-full h-12 text-lg font-black' disabled={!foundUser || isSubmitting || !selectedPlanId || !receiptImage}>
+                            {isSubmitting ? <Loader2 className='animate-spin w-6 h-6'/> : 'تفعيل الاشتراك الآن'}
+                        </Button>
                     </div>
-                     <div className='space-y-2'>
-                        <Label htmlFor='amountPaid'>المبلغ المدفوع*</Label>
-                        <Input id="amountPaid" type="number" value={amountPaid} onChange={e=>setAmountPaid(e.target.value)} required dir='ltr' />
-                      </div>
-                      <div className='space-y-2'>
+
+                    <fieldset disabled={!foundUser || isSubmitting} className="p-4 border rounded-lg space-y-4 disabled:opacity-50 transition-opacity">
+                        <legend className="text-sm font-bold px-2">2. تفاصيل الدفع والاشتراك</legend>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className='space-y-2'>
+                                <Label>اختر الباقة*</Label>
+                                <select required value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)} className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background">
+                                    <option value="" disabled>اختر باقة...</option>
+                                    {vipPlans?.filter(p=>p.isActive).map(p => <option key={p.id} value={p.id!}>{p.name} ({p.price} ر.ي)</option>)}
+                                </select>
+                            </div>
+                            <div className='space-y-2'>
+                                <Label htmlFor='amountPaid'>المبلغ المدفوع*</Label>
+                                <Input id="amountPaid" type="number" value={amountPaid} onChange={e=>setAmountPaid(e.target.value)} required dir='ltr' />
+                            </div>
+                        </div>
+                        <div className='space-y-2'>
                           <Label htmlFor='activationBankId'>البنك الوسيط*</Label>
-                          <select
-                              id="activationBankId"
-                              required
-                              value={activationBankId}
-                              onChange={(e) => setActivationBankId(e.target.value)}
-                              disabled={banksLoading}
-                              className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                          >
+                          <select id="activationBankId" required value={activationBankId} onChange={(e) => setActivationBankId(e.target.value)} disabled={banksLoading} className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background">
                               <option value="" disabled>اختر حساب البنك...</option>
                               {banks?.map(bank => <option key={bank.id} value={bank.id!}>{bank.bank_name}</option>)}
                           </select>
                         </div>
+                        <div className='space-y-2'>
+                            <Label>رقم السند/الحوالة*</Label>
+                            <Input value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} required dir='ltr' />
+                        </div>
+                        <div className='space-y-2'>
+                            <Label>رابط صورة السند*</Label>
+                            <Input type="text" required value={receiptImage} onChange={e => setReceiptImage(e.target.value)} dir="ltr" placeholder="https://..." />
+                        </div>
+                    </fieldset>
                 </div>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className='space-y-2'>
-                        <Label>رقم السند/الحوالة*</Label>
-                        <Input value={receiptNumber} onChange={e=>setReceiptNumber(e.target.value)} required dir='ltr' />
-                    </div>
-                     <div className='space-y-2'>
-                        <Label>رابط صورة السند*</Label>
-                        <Input type="text" required value={receiptImage} onChange={e => setReceiptImage(e.target.value)} dir="ltr" placeholder="https://..." />
-                         {receiptImage && (receiptImage.startsWith('http') || receiptImage.startsWith('/')) && (
-                                <div className="flex justify-center p-2 mt-2 border rounded-xl bg-gray-50/50 shadow-inner">
-                                    <Image src={receiptImage} alt="معاينة السند" width={200} height={200} className="rounded-lg object-contain max-h-48 shadow-md"/>
-                                </div>
-                            )}
-                    </div>
-                </div>
-            </fieldset>
-
-            <Button onClick={handleActivateSubscription} className='w-full h-12 text-lg font-black' disabled={!foundUser || isSubmitting || !selectedPlanId || !receiptImage}>
-                {isSubmitting ? <Loader2 className='animate-spin w-6 h-6'/> : 'تفعيل الاشتراك الآن'}
-            </Button>
-        </CardContent>
+                )}
+            </CardContent>
       </Card>
       
-      <Card>
+      <Card className="rounded-lg shadow-sm">
         <CardHeader>
             <CardTitle className="flex items-center gap-2"><ListChecks className="text-primary"/> سجل المشتركين الفعالين</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
              <Table>
-                <TableHeader><TableRow><TableHead>العميل</TableHead><TableHead>الباقة</TableHead><TableHead>تاريخ الانتهاء</TableHead><TableHead>الأيام المتبقية</TableHead><TableHead>السند</TableHead><TableHead>إجراء</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>العميل</TableHead><TableHead className="text-center">الباقة</TableHead><TableHead className="text-center">تاريخ الانتهاء</TableHead><TableHead className="text-center">الأيام المتبقية</TableHead><TableHead className="text-center">السند</TableHead><TableHead className="text-center">إجراء</TableHead></TableRow></TableHeader>
                 <TableBody>
-                    {vipUsersLoading ? Array.from({ length: 3 }).map((_, i) => <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-10 w-full"/></TableCell></TableRow>)
-                    : vipUsers?.map(user => (
+                    {vipUsersLoading ? Array.from({ length: 3 }).map((_, i) => <TableRowSkeleton key={i} />)
+                    : vipUsers?.length === 0 ? <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">لا يوجد مشتركين فعالين حالياً.</TableCell></TableRow>
+                    : vipUsers?.map(user => {
+                        const daysRemaining = user.vip_details?.expiryDate ? Math.max(0, differenceInDays(new Date(user.vip_details.expiryDate), new Date())) : 0;
+                        return (
                         <TableRow key={user.uid}>
                             <TableCell className="font-bold text-xs">{user.full_name}<br/><span className="font-mono text-gray-500" dir="ltr">{user.phone}</span></TableCell>
-                            <TableCell><Badge className="font-bold bg-yellow-400 text-yellow-900 hover:bg-yellow-400/80"><Crown className="w-3 h-3 ml-1" />{user.vip_details?.planName}</Badge></TableCell>
-                            <TableCell className="text-xs font-mono text-gray-500">{user.vip_details?.expiryDate ? format(new Date(user.vip_details.expiryDate), 'dd/MM/yyyy') : '-'}</TableCell>
-                            <TableCell className="font-bold">{user.vip_details?.expiryDate ? `${Math.max(0, differenceInDays(new Date(user.vip_details.expiryDate), new Date()))} يوم` : '-'}</TableCell>
-                            <TableCell>
+                            <TableCell className="text-center"><Badge className="font-bold bg-yellow-400 text-yellow-900 hover:bg-yellow-400/80"><Crown className="w-3 h-3 ml-1" />{user.vip_details?.planName}</Badge></TableCell>
+                            <TableCell className="text-center text-xs font-mono text-gray-500">{user.vip_details?.expiryDate ? format(new Date(user.vip_details.expiryDate), 'dd/MM/yyyy') : '-'}</TableCell>
+                            <TableCell className={cn("text-center font-bold", daysRemaining < 3 && 'text-destructive')}>
+                                {daysRemaining} يوم
+                            </TableCell>
+                            <TableCell className="text-center">
                                  {user.vip_details?.receiptImageUrl ? (
-                                    <Button asChild variant="ghost" size="icon">
+                                    <Button asChild variant="ghost" size="icon" className="h-8 w-8">
                                         <Link href={user.vip_details.receiptImageUrl} target="_blank" rel="noopener noreferrer">
                                             <ExternalLink className="h-4 w-4" />
                                         </Link>
                                     </Button>
                                 ) : '-'}
                             </TableCell>
-                            <TableCell><Button variant="destructive" size="sm" onClick={() => handleCancelSubscription(user.uid)}>إلغاء</Button></TableCell>
+                            <TableCell className="text-center"><Button variant="destructive" size="sm" onClick={() => handleCancelSubscription(user.uid)}>إلغاء</Button></TableCell>
                         </TableRow>
-                    ))}
+                    )})}
                 </TableBody>
              </Table>
         </CardContent>
@@ -431,49 +478,51 @@ export default function VipPlansPage() {
 
       {/* --- Plan Creation/Edit Dialog --- */}
       <Dialog open={isPlanDialogOpen} onOpenChange={setPlanDialogOpen}>
-        <DialogContent className="sm:max-w-2xl rounded-2xl">
+        <DialogContent className="sm:max-w-2xl rounded-lg">
             <DialogHeader><DialogTitle className="font-black">{currentPlan?.id ? 'تعديل باقة' : 'إنشاء باقة VIP جديدة'}</DialogTitle></DialogHeader>
-            <form onSubmit={handlePlanSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-1">
-                    <div className="space-y-2"><Label>اسم الباقة</Label><Input required value={currentPlan?.name || ''} onChange={e => setCurrentPlan(p => ({...p, name: e.target.value}))} /></div>
-                    <div className="space-y-2"><Label>وصف مختصر للباقة (اختياري)</Label><Textarea value={currentPlan?.description || ''} onChange={e => setCurrentPlan(p => ({...p, description: e.target.value ?? ''}))} /></div>
+            <form onSubmit={handlePlanSubmit}>
+            <div className="py-4 space-y-6 max-h-[70vh] overflow-y-auto px-1">
+                <div className="p-4 border rounded-lg">
+                    <h3 className="mb-4 font-bold text-base">المعلومات الأساسية</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2"><Label>اسم الباقة</Label><Input required value={currentPlan?.name || ''} onChange={e => setCurrentPlan(p => ({...p, name: e.target.value}))} /></div>
+                        <div className="space-y-2"><Label>وصف مختصر للباقة</Label><Textarea value={currentPlan?.description || ''} onChange={e => setCurrentPlan(p => ({...p, description: e.target.value ?? ''}))} /></div>
+                        <div className="space-y-2"><Label>السعر (ر.ي)</Label><Input type="number" required value={currentPlan?.price || ''} onChange={e => setCurrentPlan(p => ({...p, price: e.target.valueAsNumber}))} /></div>
+                        <div className="space-y-2"><Label>المدة (بالأيام)</Label><Input type="number" required value={currentPlan?.durationInDays || 30} onChange={e => setCurrentPlan(p => ({...p, durationInDays: e.target.valueAsNumber}))} /></div>
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 p-1">
-                    <div className="space-y-2"><Label>السعر (ر.ي)</Label><Input type="number" required value={currentPlan?.price || 0} onChange={e => setCurrentPlan(p => ({...p, price: e.target.valueAsNumber}))} /></div>
-                    <div className="space-y-2"><Label>المدة (بالأيام)</Label><Input type="number" required value={currentPlan?.durationInDays || 30} onChange={e => setCurrentPlan(p => ({...p, durationInDays: e.target.valueAsNumber}))} /></div>
-                </div>
-
-                <div className="space-y-2 pt-2 border-t">
-                    <Label className="font-bold">المميزات النصية</Label>
+                 <div className="p-4 border rounded-lg">
+                    <h3 className="mb-4 font-bold text-base">المميزات البرمجية</h3>
+                     <div className="space-y-4">
+                        <div className="flex items-center space-x-2 space-x-reverse"><Checkbox id="freeDelivery" checked={currentPlan?.benefits?.hasFreeDelivery} onCheckedChange={c => setCurrentPlan(p=>({...p, benefits: {...p?.benefits!, hasFreeDelivery:!!c}}))} /><Label htmlFor="freeDelivery" className="font-semibold">توصيل مجاني</Label></div>
+                        <div className="flex items-center gap-4"><Label className="w-28">نسبة خصم (%)</Label><Input className="w-24" type="number" value={currentPlan?.benefits?.discountPercentage || 0} onChange={e => setCurrentPlan(p=>({...p, benefits: {...p?.benefits!, discountPercentage:e.target.valueAsNumber}}))} /></div>
+                        <div className="flex items-center gap-4"><Label className="w-28">مضاعف النقاط (x)</Label><Input className="w-24" type="number" step="0.1" value={currentPlan?.benefits?.pointsMultiplier || 1} onChange={e => setCurrentPlan(p=>({...p, benefits: {...p?.benefits!, pointsMultiplier:e.target.valueAsNumber}}))} /></div>
+                    </div>
+                 </div>
+                 
+                 <div className="p-4 border rounded-lg">
+                     <h3 className="mb-4 font-bold text-base">المميزات النصية (للعرض)</h3>
                     <div className="flex items-center gap-2">
                         <Input value={newFeatureText} onChange={(e) => setNewFeatureText(e.target.value)} placeholder="اكتب ميزة واضغط إضافة..."/>
                         <Button type="button" onClick={addFeature}><Plus className="h-4 w-4"/></Button>
                     </div>
-                     <div className="space-y-2 pt-2">
+                     <div className="space-y-2 pt-3">
                         {currentPlan?.features?.map((feature, index) => (
-                            <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md text-sm">
+                            <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-md text-sm">
                                 <span>- {feature}</span>
-                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => removeFeature(index)}><X className="h-4 w-4"/></Button>
+                                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => removeFeature(index)}><X className="w-4 h-4"/></Button>
                             </div>
                         ))}
                     </div>
                 </div>
-                
-                <div className="space-y-2 pt-2 border-t">
-                    <Label className="font-bold">المميزات البرمجية</Label>
-                    <div className="p-3 rounded-lg bg-gray-50 space-y-3">
-                        <div className="flex items-center space-x-2 space-x-reverse"><Checkbox id="freeDelivery" checked={currentPlan?.benefits?.hasFreeDelivery} onCheckedChange={c => setCurrentPlan(p=>({...p, benefits: {...p?.benefits!, hasFreeDelivery:!!c}}))} /><Label htmlFor="freeDelivery">توصيل مجاني</Label></div>
-                        <div className="flex items-center gap-4"><Label>نسبة خصم (%)</Label><Input className="w-24" type="number" value={currentPlan?.benefits?.discountPercentage || 0} onChange={e => setCurrentPlan(p=>({...p, benefits: {...p?.benefits!, discountPercentage:e.target.valueAsNumber}}))} /></div>
-                        <div className="flex items-center gap-4"><Label>مضاعف النقاط (x)</Label><Input className="w-24" type="number" value={currentPlan?.benefits?.pointsMultiplier || 1} onChange={e => setCurrentPlan(p=>({...p, benefits: {...p?.benefits!, pointsMultiplier:e.target.valueAsNumber}}))} /></div>
-                    </div>
-                </div>
-                 <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50">
+                 <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/50">
                     <Label className="font-bold text-gray-700">تفعيل الباقة للبيع</Label>
                     <Switch dir="ltr" checked={currentPlan?.isActive} onCheckedChange={c => setCurrentPlan(p => ({...p, isActive: !!c}))} />
                 </div>
-                <DialogFooter>
-                    <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin" /> : 'حفظ'}</Button>
+            </div>
+                <DialogFooter className="pt-4 border-t">
+                    <Button type="submit" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="animate-spin" /> : 'حفظ الباقة'}</Button>
                     <DialogClose asChild><Button type="button" variant="secondary">إلغاء</Button></DialogClose>
                 </DialogFooter>
             </form>
@@ -487,8 +536,10 @@ export default function VipPlansPage() {
                 <AlertDialogDescription>سيتم حذف باقة "{planToDelete?.name}" بشكل نهائي. لا يمكن التراجع عن هذا الإجراء.</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel>إلغاء</AlertDialogCancel>
-                <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">نعم، قم بالحذف</AlertDialogAction>
+                <AlertDialogCancel className="rounded-lg">إلغاء</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90 rounded-lg">
+                    {isSubmitting ? <Loader2 className="animate-spin h-4 w-4"/> : 'نعم، قم بالحذف'}
+                </AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
