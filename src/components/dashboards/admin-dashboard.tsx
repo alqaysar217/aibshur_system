@@ -12,6 +12,8 @@ import { Skeleton } from "../ui/skeleton";
 import { format, subDays, startOfDay, isWithinInterval, parseISO, endOfDay, formatDistanceToNow, eachDayOfInterval } from "date-fns";
 import { ar } from "date-fns/locale";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+
 
 // Skeletons for loading state
 const KpiSkeleton = () => <Skeleton className="h-28 w-full rounded-lg" />;
@@ -25,7 +27,7 @@ const KpiCard = ({ title, value, icon: Icon, isLoading }: { title: string, value
         <Card className="border-none shadow-sm rounded-lg bg-white overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-                <Icon className="h-5 w-5 text-primary drop-shadow-[0_2px_4px_rgba(27,175,154,0.4)]" />
+                <Icon className="h-5 w-5 text-primary" style={{ filter: `drop-shadow(0 0 8px hsl(var(--primary) / 0.5))` }} />
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-black">{value}</div>
@@ -251,7 +253,7 @@ export default function AdminDashboard() {
                                     <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                                     <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
                                     <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val/1000}k`} />
-                                    <Tooltip contentStyle={{ borderRadius: 'var(--radius)', border: '1px solid hsl(var(--border))', fontFamily: 'Cairo' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
+                                    <Tooltip contentStyle={{ borderRadius: 'var(--radius)', border: '1px solid hsl(var(--border))', fontFamily: 'Cairo', background: '#fff' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
                                     <Area type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#salesGradient)" />
                                 </AreaChart>
                             </ResponsiveContainer>
@@ -270,7 +272,7 @@ export default function AdminDashboard() {
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                                     <XAxis type="number" hide />
                                     <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 10, fontFamily: 'Cairo' }} tickLine={false} axisLine={false} />
-                                    <Tooltip cursor={{ fill: 'hsl(var(--primary), 0.1)' }} contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo', border: '1px solid hsl(var(--border))' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
+                                    <Tooltip cursor={{ fill: 'hsl(var(--primary), 0.1)' }} contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo', border: '1px solid hsl(var(--border))', background: '#fff' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
                                     <Bar dataKey="sales" name="المبيعات" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20} />
                                 </RechartsBarChart>
                             </ResponsiveContainer>
@@ -292,7 +294,7 @@ export default function AdminDashboard() {
                                     <Pie data={statusChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius="50%" outerRadius="70%" paddingAngle={2}>
                                         {statusChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                                     </Pie>
-                                    <Tooltip contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo' }} formatter={(value) => [value, 'طلب']}/>
+                                    <Tooltip contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo', background: '#fff', border: '1px solid hsl(var(--border))' }} formatter={(value) => [value, 'طلب']}/>
                                 </PieChart>
                             </ResponsiveContainer>
                        )}
@@ -317,7 +319,7 @@ export default function AdminDashboard() {
                                     <Pie data={donationChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="80%" fill="hsl(var(--primary))" labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => { const RADIAN = Math.PI / 180; const radius = innerRadius + (outerRadius - innerRadius) * 0.5; const x  = cx + radius * Math.cos(-midAngle * RADIAN); const y = cy  + radius * Math.sin(-midAngle * RADIAN); return ( <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10}> {`${(percent * 100).toFixed(0)}%`} </text> ); }}>
                                         {donationChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={'hsl(var(--primary))'} fillOpacity={1 - (index * 0.15)} />)}
                                     </Pie>
-                                    <Tooltip contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبلغ']} />
+                                    <Tooltip contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo', background: '#fff', border: '1px solid hsl(var(--border))' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبلغ']} />
                                     <Legend iconType="circle" wrapperStyle={{fontSize: "12px", fontFamily: 'Cairo'}}/>
                                 </PieChart>
                             </ResponsiveContainer>
