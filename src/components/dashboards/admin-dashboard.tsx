@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Building, Truck, MapPin, DollarSign, TrendingUp, HeartHandshake, Crown, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Bar, BarChart as RechartsBarChart, Legend, Loader2, ShoppingCart } from "lucide-react"
+import { Users, Building, Truck, MapPin, DollarSign, TrendingUp, HeartHandshake, Crown, Loader2, ShoppingCart } from "lucide-react"
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Bar, BarChart as RechartsBarChart, Legend } from "recharts"
 import { useFirestore, useUser } from "@/firebase";
 import { collection, getDocs, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import SetupFirestoreMessage from "@/components/admin/setup-firestore-message";
