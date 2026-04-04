@@ -51,7 +51,7 @@ export default function VipPlansPage() {
   const [planToDelete, setPlanToDelete] = useState<VipPlan | null>(null);
   const [newFeatureText, setNewFeatureText] = useState('');
   const plansQuery = useMemo(() => firestore ? query(collection(firestore, 'vip_plans')) : null, [firestore]);
-  const { data: vipPlans, loading: plansLoading, error: plansError, refetch: refetchPlans } = useCollection<VipPlan>(plansQuery, { fetchOnce: false, collectionPath: 'vip_plans' });
+  const { data: vipPlans, loading: plansLoading, error: plansError } = useCollection<VipPlan>(plansQuery, { fetchOnce: false, collectionPath: 'vip_plans' });
 
   // Subscription Activation
   const [searchPhone, setSearchPhone] = useState('');
@@ -68,7 +68,7 @@ export default function VipPlansPage() {
 
   // Audit Table
   const vipUsersQuery = useMemo(() => firestore ? query(collection(firestore, 'users'), where('vip_details.isActive', '==', true)) : null, [firestore]);
-  const { data: vipUsers, loading: vipUsersLoading, error: vipUsersError, refetch: refetchVipUsers } = useCollection<User>(vipUsersQuery, { fetchOnce: false, collectionPath: 'users' });
+  const { data: vipUsers, loading: vipUsersLoading, error: vipUsersError } = useCollection<User>(vipUsersQuery, { fetchOnce: false, collectionPath: 'users' });
   
   useEffect(() => {
     if (selectedPlanId && vipPlans) {
@@ -274,8 +274,7 @@ export default function VipPlansPage() {
         setActivationBankId('');
         setReceiptNumber('');
         setReceiptImage('');
-        refetchVipUsers();
-
+        
       } catch (error: any) {
         console.error("VIP activation failed:", error);
         if (error.code === 'permission-denied') {
