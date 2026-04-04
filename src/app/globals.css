@@ -4,58 +4,39 @@
 
 @layer base {
   :root {
-    --primary: 207 88% 42%; /* Deep, professional blue (#1F3C88) */
-    --primary-foreground: 210 40% 98%;
-
-    --background: 216 67% 97%;  /* Very light blue-grey (#F0F4FA) */
-    --foreground: 222.2 84% 4.9%;
-
+    /* Primary Identity: #1FAF9A */
+    --primary: 171 70% 40%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Backgrounds: #FFFFFF and #F5F7F6 */
+    --background: 150 4% 97%;
+    --foreground: 221 39% 11%;
+    
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 221 39% 11%;
+    
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 84% 4.9%;
-
-    --muted: 220 13% 91%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 200 90% 60%; /* Clear, medium-bright blue (#5EAFD6) */
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 221 39% 11%;
+    
+    --secondary: 150 4% 92%;
+    --secondary-foreground: 221 39% 11%;
+    
+    --muted: 150 4% 90%;
+    --muted-foreground: 215 14% 46%;
+    
+    /* Accent: #1FAF9A */
+    --accent: 171 70% 40%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Status Colors */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 207 88% 42%; /* Primary color for rings */
-
-    --radius: 10px;
-  }
-
-  .dark {
-    /* Dark mode is not a primary requirement, but let's keep it consistent */
-    --primary: 207 88% 42%;
-    --primary-foreground: 210 40% 98%;
-    --background: 222.2 47.4% 11.2%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 200 90% 60%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 207 88% 42%;
+    
+    --border: 150 4% 90%;
+    --input: 150 4% 90%;
+    --ring: 171 70% 40%;
+    
+    --radius: 10px; 
   }
 }
 
@@ -64,19 +45,31 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: 'PT Sans', sans-serif;
+    @apply bg-background text-foreground font-body;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
-/* Custom glass effect for modern cards */
+.mobile-container {
+  @apply max-w-md mx-auto min-h-screen bg-white relative flex flex-col shadow-2xl;
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 .glass {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+  @apply bg-white/95 backdrop-blur-md border-b border-white/20;
+}
+
+.btn-primary {
+  @apply bg-primary text-primary-foreground font-bold rounded-[10px] shadow-sm transition-all active:scale-95 hover:bg-opacity-90;
 }
 
 .card-modern {
-    @apply bg-card rounded-lg shadow-lg;
+  @apply bg-white rounded-[10px] border border-secondary shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all;
+}
+
+::-webkit-scrollbar {
+  display: none;
 }
