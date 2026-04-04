@@ -9,7 +9,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['PT Sans', 'sans-serif'],
+        body: ['Readex Pro', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
