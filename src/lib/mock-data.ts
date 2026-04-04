@@ -91,12 +91,12 @@ export const mockUsers: User[] = [
   mockUser1, mockUser2, mockUser3, mockUser4, mockUser5,
 ];
 
-export const mockComplaints: Omit<Complaint, 'id' | 'complaintId'>[] = [
+export const mockComplaints: Omit<Complaint, 'id' | 'complaintId' | 'isMock'>[] = [
     {
         userId: 'mock-user-uid-1',
         userName: 'أحمد عبدالله',
         userPhone: '777300001',
-        issueText: 'الطلب تأخر كثيراً ولم يصل بعد، والمندوب لا يرد على اتصالاتي.',
+        issueText: 'الطلب تأخر كثيراً ولم يصل بعد، والمندوب لا يرد على اتصالاتي. رقم الطلب #123456.',
         createdAt: subDays(new Date(), 1).toISOString(),
         status: 'pending',
         priority: 'high',
@@ -108,30 +108,57 @@ export const mockComplaints: Omit<Complaint, 'id' | 'complaintId'>[] = [
         userId: 'mock-user-uid-2',
         userName: 'فاطمة محمد',
         userPhone: '777300002',
-        issueText: 'وصلني منتج مختلف عن الذي طلبته من الصيدلية.',
+        issueText: 'وصلني دواء خاطئ من الصيدلية، أحتاج استبداله فوراً.',
         createdAt: subDays(new Date(), 2).toISOString(),
         status: 'pending',
         priority: 'medium',
         history: [
-             { from: 'user', message: 'وصلني منتج مختلف عن الذي طلبته من الصيدلية.', timestamp: subDays(new Date(), 2).toISOString() }
+             { from: 'user', message: 'وصلني دواء خاطئ من الصيدلية، أحتاج استبداله فوراً.', timestamp: subDays(new Date(), 2).toISOString() },
+             { from: 'admin', message: 'مرحباً أخت فاطمة، نعتذر عن الخطأ. هل يمكنك تزويدنا برقم الطلب وصورة المنتج الذي وصلك؟', adminId: 'mock-admin-uid-1', timestamp: subDays(new Date(), 2).toISOString() }
         ]
     },
     {
         userId: 'mock-user-uid-3',
         userName: 'يوسف خالد',
         userPhone: '777300003',
-        issueText: 'تم حل المشكلة، شكراً لكم على المتابعة السريعة.',
+        issueText: 'الكوبون الذي استخدمته لم يطبق الخصم على الفاتورة النهائية.',
         createdAt: subDays(new Date(), 5).toISOString(),
         status: 'resolved',
         priority: 'low',
         history: [
-            { from: 'user', message: 'الكوبون لا يعمل.', timestamp: subDays(new Date(), 5).toISOString() },
-            { from: 'admin', message: 'مرحباً، تم تفعيل الكوبون يدوياً. يمكنك إعادة المحاولة.', adminId: 'mock-admin-uid-1', timestamp: subDays(new Date(), 5).toISOString() },
-            { from: 'user', message: 'تم حل المشكلة، شكراً لكم على المتابعة السريعة.', timestamp: subDays(new Date(), 5).toISOString() },
-            { status: 'resolved', updatedBy: 'mock-admin-uid-1', timestamp: subDays(new Date(), 5).toISOString() }
+            { from: 'user', message: 'الكوبون لم يعمل.', timestamp: subDays(new Date(), 5).toISOString() },
+            { from: 'admin', message: 'مرحباً أستاذ يوسف، نعتذر عن الإزعاج. تم إضافة قيمة الخصم كرصيد في محفظتك كتعويض.', adminId: 'mock-admin-uid-1', timestamp: subDays(new Date(), 5).toISOString() },
+            { message: `تم تعويض العميل بمبلغ 1,500 ر.ي`, from: 'admin', adminId: 'mock-admin-uid-1', timestamp: subDays(new Date(), 5).toISOString() },
+            { from: 'user', message: 'شكراً جزيلاً، تم استلام المبلغ.', timestamp: subDays(new Date(), 4).toISOString() },
+            { status: 'resolved', updatedBy: 'mock-admin-uid-1', timestamp: subDays(new Date(), 4).toISOString() }
+        ]
+    },
+    {
+        userId: 'mock-user-uid-4',
+        userName: 'مريم علي',
+        userPhone: '777300004',
+        issueText: 'لدي استفسار بخصوص سياسة الإرجاع للمنتجات الغذائية.',
+        createdAt: subDays(new Date(), 3).toISOString(),
+        status: 'pending',
+        priority: 'low',
+        history: [
+             { from: 'user', message: 'لدي استفسار بخصوص سياسة الإرجاع للمنتجات الغذائية.', timestamp: subDays(new Date(), 3).toISOString() }
+        ]
+    },
+    {
+        userId: 'mock-user-uid-5',
+        userName: 'إبراهيم حسن',
+        userPhone: '777300005',
+        issueText: 'المطعم ألغى طلبي بدون سبب واضح.',
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+        priority: 'high',
+        history: [
+            { from: 'user', message: 'المطعم ألغى طلبي بدون سبب واضح. ماذا أفعل؟', timestamp: new Date().toISOString() }
         ]
     }
 ];
+
 
 // --- OTHER MOCKS ---
 export const mockBanks: AppBank[] = [
