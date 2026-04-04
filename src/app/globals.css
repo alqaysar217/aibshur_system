@@ -36,7 +36,17 @@
     --input: 150 4% 90%;
     --ring: 171 70% 40%;
     
-    --radius: 10px; 
+    --radius: 10px;
+
+    /* Sidebar variables for the theme */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 221 39% 11%;
+    --sidebar-primary: 171 70% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 171 70% 40%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 150 4% 90%;
+    --sidebar-ring: 171 70% 40%;
   }
 }
 
