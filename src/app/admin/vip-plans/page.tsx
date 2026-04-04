@@ -237,7 +237,7 @@ export default function VipPlansPage() {
 
             const vipDetails = {
                 isActive: true,
-                planId: plan.id,
+                planId: planDoc.id,
                 planName: plan.name,
                 startDate: startDate.toISOString(),
                 expiryDate: expiryDate.toISOString(),
@@ -252,7 +252,7 @@ export default function VipPlansPage() {
             const financialLog: Omit<FinanceTransaction, 'id'> = {
                 transactionId: financialLogRef.id,
                 userUid: foundUser.uid,
-                orderId: plan.id, // Reference to the plan
+                orderId: planDoc.id, // Reference to the plan
                 amount: paidAmount,
                 type: 'vip_subscription',
                 status: 'completed',
