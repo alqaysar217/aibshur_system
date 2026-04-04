@@ -253,7 +253,7 @@ export default function AdminDashboard() {
                                     <CartesianGrid strokeDasharray="3 3" vertical={false}/>
                                     <XAxis dataKey="date" fontSize={10} tickLine={false} axisLine={false} />
                                     <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => `${val/1000}k`} />
-                                    <Tooltip contentStyle={{ borderRadius: 'var(--radius)', border: '1px solid hsl(var(--border))', fontFamily: 'Cairo', background: '#fff' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
+                                    <Tooltip contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo', background: '#fff' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
                                     <Area type="monotone" dataKey="sales" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#salesGradient)" />
                                 </AreaChart>
                             </ResponsiveContainer>
@@ -272,7 +272,7 @@ export default function AdminDashboard() {
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                                     <XAxis type="number" hide />
                                     <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 10, fontFamily: 'Cairo' }} tickLine={false} axisLine={false} />
-                                    <Tooltip cursor={{ fill: 'hsl(var(--primary), 0.1)' }} contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo', border: '1px solid hsl(var(--border))', background: '#fff' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
+                                    <Tooltip cursor={false} contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo', background: '#fff', border: '1px solid hsl(var(--border))' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
                                     <Bar dataKey="sales" name="المبيعات" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20} />
                                 </RechartsBarChart>
                             </ResponsiveContainer>
