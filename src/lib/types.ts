@@ -404,6 +404,19 @@ export interface AppConfig {
     }
 }
 
+export type ComplaintMessageHistory = {
+    message: string;
+    from: 'admin' | 'user';
+    timestamp: string;
+    adminId?: string; // UID of admin who replied
+};
+
+export type ComplaintStatusHistory = {
+    status: 'resolved';
+    timestamp: string;
+    updatedBy: string; // Admin UID
+};
+
 export interface Complaint {
     id?: string;
     complaintId: string;
@@ -415,14 +428,9 @@ export interface Complaint {
     status: 'pending' | 'resolved';
     priority?: ComplaintPriority;
     assignedTo?: string; // Admin UID
-    history?: {
-        message: string;
-        from: 'admin' | 'user';
-        timestamp: string;
-        adminId?: string; // UID of admin who replied
-        status?: 'resolved' // can be added to history
-    }[];
+    history?: (ComplaintMessageHistory | ComplaintStatusHistory)[];
 }
+
 
 // This is a legacy type, do not use.
 export interface CategoryFilter {
