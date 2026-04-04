@@ -6,7 +6,7 @@ import type { User, VipPlan, FinanceTransaction, AppBank, VipPlanBenefits } from
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus, ExternalLink, TicketPercent, Truck, Star, X } from 'lucide-react';
+import { Loader2, Search, UserCheck, UserX, Crown, ListChecks, PlusCircle, Edit, Trash2, Settings, Plus, ExternalLink, TicketPercent, Truck, Star, X, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SetupFirestoreMessage from '@/components/admin/setup-firestore-message';
 import { Label } from '@/components/ui/label';
