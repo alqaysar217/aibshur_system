@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Users, Building, Truck, MapPin, DollarSign, TrendingUp, HeartHandshake, Crown, Loader2, ShoppingCart } from "lucide-react"
+import { Users, Building, Truck, MapPin, DollarSign, TrendingUp, HeartHandshake, Crown, Loader2, ShoppingCart, BarChart, PieChart as PieChartIcon } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Bar, BarChart as RechartsBarChart, Legend } from "recharts"
 import { useFirestore, useUser } from "@/firebase";
 import { collection, getDocs, query, orderBy, limit, onSnapshot } from "firebase/firestore";
@@ -270,7 +270,7 @@ export default function AdminDashboard() {
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                                     <XAxis type="number" hide />
                                     <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 10, fontFamily: 'Cairo' }} tickLine={false} axisLine={false} />
-                                    <Tooltip cursor={{ fill: 'hsl(var(--primary), 0.1)' }} contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
+                                    <Tooltip cursor={{ fill: 'hsl(var(--primary), 0.1)' }} contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo', border: '1px solid hsl(var(--border))' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبيعات']} />
                                     <Bar dataKey="sales" name="المبيعات" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={20} />
                                 </RechartsBarChart>
                             </ResponsiveContainer>
@@ -315,7 +315,7 @@ export default function AdminDashboard() {
                              <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie data={donationChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius="80%" fill="hsl(var(--primary))" labelLine={false} label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => { const RADIAN = Math.PI / 180; const radius = innerRadius + (outerRadius - innerRadius) * 0.5; const x  = cx + radius * Math.cos(-midAngle * RADIAN); const y = cy  + radius * Math.sin(-midAngle * RADIAN); return ( <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={10}> {`${(percent * 100).toFixed(0)}%`} </text> ); }}>
-                                        {donationChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={statusColors.delivered} fillOpacity={1 - (index * 0.15)} />)}
+                                        {donationChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={'hsl(var(--primary))'} fillOpacity={1 - (index * 0.15)} />)}
                                     </Pie>
                                     <Tooltip contentStyle={{ borderRadius: 'var(--radius)', fontFamily: 'Cairo' }} formatter={(value: number) => [value.toLocaleString() + ' ر.ي', 'المبلغ']} />
                                     <Legend iconType="circle" wrapperStyle={{fontSize: "12px", fontFamily: 'Cairo'}}/>
